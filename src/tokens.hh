@@ -6,21 +6,25 @@
 #include <string_view>
 #include <vector>
 
-#define ENUM_TOKEN_TYPES(F) \
-  F(Keyword, "Keyword") \
-  F(Identifier, "Identifier") \
-  F(OpenParen, "OpenParen") \
-  F(CloseParen, "CloseParen") \
-  F(Colon, "Colon") \
-  F(OpenCurly, "OpenCurly") \
-  F(CloseCurly, "CloseCurly") \
-  F(IntLiteral, "IntLiteral") \
-
-
+#define ENUM_TOKEN_TYPES(F)                                                    \
+                                                                               \
+  F(Def, "Def")                                                                \
+  F(Return, "Return")                                                          \
+                                                                               \
+  F(Identifier, "Identifier")                                                  \
+  F(OpenParen, "OpenParen")                                                    \
+  F(CloseParen, "CloseParen")                                                  \
+  F(Colon, "Colon")                                                            \
+  F(OpenCurly, "OpenCurly")                                                    \
+  F(CloseCurly, "CloseCurly")                                                  \
+  F(IntLiteral, "IntLiteral")                                                  \
+                                                                               \
+  F(Newline, "Newline")                                                        \
+  F(Eof, "Eof")
 
 enum class TokenType {
 #define F(name, text) name,
-ENUM_TOKEN_TYPES(F)
+  ENUM_TOKEN_TYPES(F)
 #undef F
 };
 
@@ -42,7 +46,6 @@ struct Token {
 
   static Token from_type(TokenType type, Location location);
   static Token from_identifier(std::string_view identifier, Location location);
-  static Token from_keyword(std::string_view keyword, Location location);
   static Token from_int_literal(int value, Location location);
 };
 
@@ -51,13 +54,20 @@ inline std::ostream &operator<<(std::ostream &os, const Location &loc) {
   return os;
 }
 
-inline std::ostream &operator<<(std::ostream &os, const Token &tok) {
-  os << "Token: ";
-  switch (tok.type) {
-  #define F(name, keyword) case TokenType::name: os << keyword; break;
-  ENUM_TOKEN_TYPES(F)
-  #undef F
+inline std::ostream &operator<<(std::ostream &os, const TokenType &type) {
+  switch (type) {
+#define F(name, keyword)                                                       \
+  case TokenType::name:                                                        \
+    os << keyword;                                                             \
+    break;
+    ENUM_TOKEN_TYPES(F)
+#undef F
   }
+  return os;
+}
+
+inline std::ostream &operator<<(std::ostream &os, const Token &tok) {
+  os << "Token: " << tok.type;
   os << ", " << tok.location;
   if (!tok.text.empty()) {
     os << ", (" << tok.text << ")";
@@ -65,4 +75,4 @@ inline std::ostream &operator<<(std::ostream &os, const Token &tok) {
   return os;
 }
 
-std::vector<Token> lex(std::string source);
+std::vector<Token> lex(std::string_view source);

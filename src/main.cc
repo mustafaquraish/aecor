@@ -1,5 +1,5 @@
-#include "tokens.hh"
 #include <iostream>
+#include <parser.hh>
 #include <stdio.h>
 
 using namespace std;
@@ -21,10 +21,13 @@ int main(int argc, char *argv[]) {
   string source(buffer);
 
   auto tokens = lex(source);
+  auto parser = Parser(tokens);
 
-  for (auto token:  tokens) {
+  for (auto token : tokens) {
     cout << token << endl;
   }
+
+  auto program = parser.parse_program();
 
   return 0;
 }
