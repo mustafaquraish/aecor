@@ -6,15 +6,22 @@
 #include <string_view>
 #include <vector>
 
+#define ENUM_TOKEN_TYPES(F) \
+  F(Keyword, "Keyword") \
+  F(Identifier, "Identifier") \
+  F(OpenParen, "OpenParen") \
+  F(CloseParen, "CloseParen") \
+  F(Colon, "Colon") \
+  F(OpenCurly, "OpenCurly") \
+  F(CloseCurly, "CloseCurly") \
+  F(IntLiteral, "IntLiteral") \
+
+
+
 enum class TokenType {
-  Keyword,
-  Identifier,
-  OpenParen,
-  CloseParen,
-  Colon,
-  OpenCurly,
-  CloseCurly,
-  IntLiteral,
+#define F(name, text) name,
+ENUM_TOKEN_TYPES(F)
+#undef F
 };
 
 struct Location {
@@ -31,13 +38,23 @@ struct Token {
   static Token from_type(TokenType type, Location location);
   static Token from_identifier(std::string_view identifier, Location location);
   static Token from_keyword(std::string_view keyword, Location location);
-  static Token from_int_literal(std::string_view keyword, Location location);
+  static Token from_int_literal(int value, Location location);
 };
 
+inline std::ostream &operator<<(std::ostream &os, const Location &loc) {
+  os << "test.ae:" << loc.line << ":" << loc.column;
+  return os;
+}
+
 inline std::ostream &operator<<(std::ostream &os, const Token &tok) {
-  os << "[";
-  os << "  " << tok.type;
-  os << "]";
+  os << "Token(";
+  switch (tok.type) {
+  #define F(name, keyword) case TokenType::name: os << keyword; break;
+  ENUM_TOKEN_TYPES(F)
+  #undef F
+  }
+  os << ", " << tok.location << ", " << tok.text << ")";
+  return os;
 }
 
 std::vector<Token> lex(std::string source);
