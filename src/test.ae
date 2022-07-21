@@ -1,0 +1,10 @@
+def main() : int { return 5 }
+
+//  keyword
+//  identifier
+//  open-paren
+//  close-paren
+//  colon
+//  open-curly
+//  close-curly
+//  int-literal
