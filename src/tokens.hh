@@ -7,7 +7,6 @@
 #include <vector>
 
 #define ENUM_TOKEN_TYPES(F)                                                    \
-                                                                               \
   F(Def, "Def")                                                                \
   F(Return, "Return")                                                          \
                                                                                \
@@ -15,11 +14,11 @@
   F(OpenParen, "OpenParen")                                                    \
   F(CloseParen, "CloseParen")                                                  \
   F(Colon, "Colon")                                                            \
+  F(Semicolon, "Semicolon")                                                            \
   F(OpenCurly, "OpenCurly")                                                    \
   F(CloseCurly, "CloseCurly")                                                  \
   F(IntLiteral, "IntLiteral")                                                  \
                                                                                \
-  F(Newline, "Newline")                                                        \
   F(Eof, "Eof")
 
 enum class TokenType {
@@ -29,11 +28,9 @@ enum class TokenType {
 };
 
 struct Location {
+  std::string_view filename;
   int line;
   int column;
-
-  Location() : line(1), column(1) {}
-  Location(int line, int column) : line(line), column(column) {}
 };
 
 struct Token {
@@ -50,7 +47,7 @@ struct Token {
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Location &loc) {
-  os << "test.ae:" << loc.line << ":" << loc.column;
+  os << loc.filename << ":" << loc.line << ":" << loc.column;
   return os;
 }
 
@@ -75,4 +72,3 @@ inline std::ostream &operator<<(std::ostream &os, const Token &tok) {
   return os;
 }
 
-std::vector<Token> lex(std::string_view source);

@@ -1,4 +1,5 @@
 #include "tokens.hh"
+#include <utils.hh>
 #include <ast.hh>
 
 void print_indent(int indent) {
@@ -7,35 +8,47 @@ void print_indent(int indent) {
   }
 }
 
-void print_ast(AST *node, int indent) {
-  print_indent(indent);
+static void print_ast(AST *node, int indent) {
   switch (node->type) {
   case ASTType::FunctionDef: {
-    cout << node->func_def.return_type << " " << node->func_def.name << "()";
-    print_ast(node->func_def.body);
+    print_indent(indent);
+    cout << node->func_def.return_type << " " << node->func_def.name << "() ";
+    print_ast(node->func_def.body, indent);
+    break;
   }
 
   case ASTType::Block: {
+    print_indent(indent);
     cout << "{\n";
-    for (auto statement : node->block.statements) {
+    for (auto statement : *node->block.statements) {
       print_ast(statement, indent + 1);
     }
     cout << "}\n";
+    break;
   }
 
   case ASTType::Return: {
     print_indent(indent);
     cout << "return ";
-    print_ast(node->unary.expr);
+    print_ast(node->unary.expr, indent + 1);
     cout << ";\n";
+    break;
   }
 
   case ASTType::IntLiteral: {
     cout << node->int_literal.value;
+    break;
   }
 
   default: {
-    cout << "UNHANDLED TYPE IN print_ast: " << node->type;
+    cerr << "\n" << HERE << "UNHANDLED TYPE IN print_ast: " << node->type << std::endl;
+    exit(1);
   }
   }
 };
+
+void print_ast(AST *node) {
+  for (auto child : *node->block.statements) {
+    print_ast(child, 0);
+  }
+}

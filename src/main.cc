@@ -1,33 +1,35 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <parser.hh>
+#include <lexer.hh>
 #include <stdio.h>
 
 using namespace std;
 
+std::string slurp_file(const char *filename) {
+  std::ifstream file(filename);
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+  return buffer.str();
+}
+
 int main(int argc, char *argv[]) {
-  // read "test.ae" file into std::string
-  FILE *fp = fopen("test.ae", "r");
-  if (fp == NULL) {
-    printf("Error opening file\n");
-    return 1;
-  }
-  fseek(fp, 0, SEEK_END);
-  int size = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
-  char *buffer = new char[size + 1];
-  fread(buffer, 1, size, fp);
-  fclose(fp);
-  buffer[size] = '\0';
-  string source(buffer);
+  auto source = slurp_file("test.ae");
 
-  auto tokens = lex(source);
+  auto lexer = Lexer(source, "test.ae");
+  auto tokens = lexer.lex();
+
+  // std::cout << "----- Tokens: ---" << std::endl;
+  // for (auto token : tokens) {
+  //   cout << token << endl;
+  // }
+  // std::cout << "-----------------" << std::endl;
+
+
   auto parser = Parser(tokens);
-
-  for (auto token : tokens) {
-    cout << token << endl;
-  }
-
   auto program = parser.parse_program();
+  print_ast(program);
 
   return 0;
 }

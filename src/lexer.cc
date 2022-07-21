@@ -1,61 +1,23 @@
-#include "tokens.hh"
-#include <string_view>
+#include <utils.hh>
+#include <lexer.hh>
 
-std::vector<Token> lex(std::string_view source) {
-  std::vector<Token> tokens;
-  int line = 1;
-  int column = 1;
-
-  auto push_type = [&](TokenType const &type) {
-    tokens.push_back(Token::from_type(type, Location(line, column)));
-  };
-
+std::vector<Token> Lexer::lex() {
   for (int i = 0; i < source.length(); ++i) {
     char c = source[i];
     switch (c) {
-    case '\n': {
-      push_type(TokenType::Newline);
-      ++line;
-      column = 1;
-      break;
-    }
-    case '\t':
-    case '\v':
-    case '\r':
-    case ' ': {
+    case '\t': case '\v': case '\r': case ' ': {
       ++column;
       break;
     }
 
-    case '(': {
-      push_type(TokenType::OpenParen);
-      ++column;
-      break;
-    }
+    case '\n': ++line; column = 1; break;
 
-    case ')': {
-      push_type(TokenType::CloseParen);
-      ++column;
-      break;
-    }
-
-    case '{': {
-      push_type(TokenType::OpenCurly);
-      ++column;
-      break;
-    }
-
-    case '}': {
-      push_type(TokenType::CloseCurly);
-      ++column;
-      break;
-    }
-
-    case ':': {
-      push_type(TokenType::Colon);
-      ++column;
-      break;
-    }
+    case '(': push(TokenType::OpenParen); ++column; break;
+    case ')': push(TokenType::CloseParen); ++column; break;
+    case '{': push(TokenType::OpenCurly); ++column; break;
+    case '}': push(TokenType::CloseCurly); ++column; break;
+    case ':': push(TokenType::Colon); ++column; break;
+    case ';': push(TokenType::Semicolon); ++column; break;
 
     default: {
       // kwywords / idents / literals
@@ -67,40 +29,38 @@ std::vector<Token> lex(std::string_view source) {
           ++i;
         }
 
-        tokens.push_back(
-            Token::from_int_literal(value, Location(line, column)));
+        push(Token::from_int_literal(value, location()));
         column += i - start;
         --i;
 
-      } else if (isalpha(c)) {
+      } else if (isalpha(c) || source[i] == '_') {
         int start = i;
-        while (isalpha(source[i]) || isdigit(source[i])) {
+        while (isalpha(source[i]) || isdigit(source[i]) || source[i] == '_') {
           ++i;
         }
 
-        auto view = std::string_view(source).substr(start, i - start);
+        auto view = source.substr(start, i - start);
 
         if (view == "def") {
-
-          push_type(TokenType::Def);
+          push(TokenType::Def);
         } else if (view == "return") {
-          push_type(TokenType::Return);
+          push(TokenType::Return);
         } else {
-          tokens.push_back(
-              Token::from_identifier(view, Location(line, column)));
+          push_ident(view);
         };
 
         column += i - start;
         --i;
 
       } else {
-        printf("Unknown character: %c at test.ae:%d:%d\n", c, line, column);
+        std::cerr << location() << ": unexpected character '" << c << "'" << std::endl;
+        std::cerr << HERE << " Location in source" << std::endl;
         exit(1);
       }
     }
     }
   };
 
-  push_type(TokenType::Eof);
+  push(TokenType::Eof);
   return tokens;
 };

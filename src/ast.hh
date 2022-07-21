@@ -28,7 +28,7 @@ struct AST {
     } func_def;
 
     struct {
-      vector<AST *> statements;
+      vector<AST *>* statements;
     } block;
 
     struct {
@@ -55,4 +55,4 @@ inline std::ostream &operator<<(std::ostream &os, const ASTType &type) {
   return os;
 }
 
-void print_ast(AST *node, int indent = 0);
+void print_ast(AST *node);

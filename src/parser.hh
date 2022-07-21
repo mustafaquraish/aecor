@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <tokens.hh>
+#include <utils.hh>
 #include <vector>
 
 using namespace std;
@@ -19,9 +20,12 @@ struct Parser {
   AST *parse_statement();
   AST *parse_expr();
 
-  void consume(TokenType token_type);
-  void expect(TokenType token_type);
+  Token &consume_impl(TokenType token_type, const char *sloc);
+  Token &expect_impl(TokenType token_type, const char *sloc);
 
   Parser(vector<Token> tokens) : tokens(tokens) {}
   Token &token() { return tokens[curr]; };
 };
+
+#define consume(token_type) consume_impl(token_type, HERE)
+#define expect(token_type) expect_impl(token_type, HERE)
