@@ -27,6 +27,9 @@ ENUM_TOKEN_TYPES(F)
 struct Location {
   int line;
   int column;
+
+  Location() : line(1), column(1) {}
+  Location(int line, int column) : line(line), column(column) {}
 };
 
 struct Token {
@@ -34,6 +37,8 @@ struct Token {
   Location location;
   std::string_view text;
   int int_lit;
+
+  Token() {}
 
   static Token from_type(TokenType type, Location location);
   static Token from_identifier(std::string_view identifier, Location location);
@@ -47,13 +52,16 @@ inline std::ostream &operator<<(std::ostream &os, const Location &loc) {
 }
 
 inline std::ostream &operator<<(std::ostream &os, const Token &tok) {
-  os << "Token(";
+  os << "Token: ";
   switch (tok.type) {
   #define F(name, keyword) case TokenType::name: os << keyword; break;
   ENUM_TOKEN_TYPES(F)
   #undef F
   }
-  os << ", " << tok.location << ", " << tok.text << ")";
+  os << ", " << tok.location;
+  if (!tok.text.empty()) {
+    os << ", (" << tok.text << ")";
+  }
   return os;
 }
 
