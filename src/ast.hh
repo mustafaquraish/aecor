@@ -1,6 +1,7 @@
 #pragma once
 
 #include <tokens.hh>
+#include <types.hh>
 
 using namespace std;
 
@@ -23,12 +24,12 @@ struct AST {
   union {
     struct {
       string_view name;
-      string_view return_type;
+      Type *return_type;
       AST *body;
     } func_def;
 
     struct {
-      vector<AST *>* statements;
+      vector<AST *> *statements;
     } block;
 
     struct {
@@ -40,7 +41,11 @@ struct AST {
     } int_literal;
   };
 
-  AST(ASTType type, Location location) : type(type), location(location) {}
+  AST(ASTType type, Location location) : type(type), location(location) {
+    if (type == ASTType::Block) {
+      block.statements = new vector<AST *>();
+    }
+  }
 };
 
 inline std::ostream &operator<<(std::ostream &os, const ASTType &type) {

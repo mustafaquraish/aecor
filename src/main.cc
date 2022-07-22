@@ -1,8 +1,8 @@
-#include <iostream>
 #include <fstream>
-#include <sstream>
-#include <parser.hh>
+#include <iostream>
 #include <lexer.hh>
+#include <parser.hh>
+#include <sstream>
 #include <stdio.h>
 
 using namespace std;
@@ -25,7 +25,6 @@ int main(int argc, char *argv[]) {
   //   cout << token << endl;
   // }
   // std::cout << "-----------------" << std::endl;
-
 
   auto parser = Parser(tokens);
   auto program = parser.parse_program();

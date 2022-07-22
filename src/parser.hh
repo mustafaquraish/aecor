@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <tokens.hh>
+#include <types.hh>
 #include <utils.hh>
 #include <vector>
 
@@ -14,6 +15,8 @@ struct Parser {
   vector<Token> tokens;
   int curr = 0;
 
+  Type *parse_type();
+
   AST *parse_program();
   AST *parse_function();
   AST *parse_block();
@@ -22,6 +25,10 @@ struct Parser {
 
   Token &consume_impl(TokenType token_type, const char *sloc);
   Token &expect_impl(TokenType token_type, const char *sloc);
+
+  bool consume_if(TokenType token_type);
+
+  bool token_is(TokenType token_type) { return token().type == token_type; }
 
   Parser(vector<Token> tokens) : tokens(tokens) {}
   Token &token() { return tokens[curr]; };

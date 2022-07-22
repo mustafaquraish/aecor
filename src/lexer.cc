@@ -1,23 +1,47 @@
-#include <utils.hh>
 #include <lexer.hh>
+#include <utils.hh>
 
 std::vector<Token> Lexer::lex() {
   for (int i = 0; i < source.length(); ++i) {
     char c = source[i];
     switch (c) {
-    case '\t': case '\v': case '\r': case ' ': {
+    case '\t':
+    case '\v':
+    case '\r':
+    case ' ': {
       ++column;
       break;
     }
 
-    case '\n': ++line; column = 1; break;
+    case '\n':
+      ++line;
+      column = 1;
+      break;
 
-    case '(': push(TokenType::OpenParen); ++column; break;
-    case ')': push(TokenType::CloseParen); ++column; break;
-    case '{': push(TokenType::OpenCurly); ++column; break;
-    case '}': push(TokenType::CloseCurly); ++column; break;
-    case ':': push(TokenType::Colon); ++column; break;
-    case ';': push(TokenType::Semicolon); ++column; break;
+    case '(':
+      push(TokenType::OpenParen);
+      ++column;
+      break;
+    case ')':
+      push(TokenType::CloseParen);
+      ++column;
+      break;
+    case '{':
+      push(TokenType::OpenCurly);
+      ++column;
+      break;
+    case '}':
+      push(TokenType::CloseCurly);
+      ++column;
+      break;
+    case ':':
+      push(TokenType::Colon);
+      ++column;
+      break;
+    case ';':
+      push(TokenType::Semicolon);
+      ++column;
+      break;
 
     default: {
       // kwywords / idents / literals
@@ -40,20 +64,14 @@ std::vector<Token> Lexer::lex() {
         }
 
         auto view = source.substr(start, i - start);
-
-        if (view == "def") {
-          push(TokenType::Def);
-        } else if (view == "return") {
-          push(TokenType::Return);
-        } else {
-          push_ident(view);
-        };
+        push_name(view);
 
         column += i - start;
         --i;
 
       } else {
-        std::cerr << location() << ": unexpected character '" << c << "'" << std::endl;
+        std::cerr << location() << ": unexpected character '" << c << "'"
+                  << std::endl;
         std::cerr << HERE << " Location in source" << std::endl;
         exit(1);
       }

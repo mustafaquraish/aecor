@@ -7,11 +7,23 @@ Token Token::from_type(TokenType type, Location location) {
   return tok;
 }
 
-Token Token::from_identifier(std::string_view identifier, Location location) {
+Token Token::from_name(std::string_view identifier, Location location) {
   Token tok;
-  tok.type = TokenType::Identifier;
-  tok.location = location;
   tok.text = identifier;
+  tok.location = location;
+
+  if (false) {
+  }
+#define F(name, text)                                                          \
+  else if (identifier == text) {                                               \
+    tok.type = TokenType::name;                                                \
+  }
+  ENUM_KEYWORDS(F)
+#undef F
+  else {
+    tok.type = TokenType::Identifier;
+  }
+
   return tok;
 }
 

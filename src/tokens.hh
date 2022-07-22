@@ -6,24 +6,32 @@
 #include <string_view>
 #include <vector>
 
+#define ENUM_KEYWORDS(F)                                                       \
+  F(Def, "def")                                                                \
+  F(Int, "int")                                                                \
+  F(Bool, "bool")                                                              \
+  F(Void, "void")                                                              \
+  F(Return, "return")
+
 #define ENUM_TOKEN_TYPES(F)                                                    \
-  F(Def, "Def")                                                                \
-  F(Return, "Return")                                                          \
-                                                                               \
   F(Identifier, "Identifier")                                                  \
   F(OpenParen, "OpenParen")                                                    \
   F(CloseParen, "CloseParen")                                                  \
   F(Colon, "Colon")                                                            \
-  F(Semicolon, "Semicolon")                                                            \
+  F(Semicolon, "Semicolon")                                                    \
   F(OpenCurly, "OpenCurly")                                                    \
   F(CloseCurly, "CloseCurly")                                                  \
   F(IntLiteral, "IntLiteral")                                                  \
                                                                                \
   F(Eof, "Eof")
 
+#define ENUM_ALL_TOKENS(F)                                                     \
+  ENUM_KEYWORDS(F)                                                             \
+  ENUM_TOKEN_TYPES(F)
+
 enum class TokenType {
 #define F(name, text) name,
-  ENUM_TOKEN_TYPES(F)
+  ENUM_ALL_TOKENS(F)
 #undef F
 };
 
@@ -42,7 +50,7 @@ struct Token {
   Token() {}
 
   static Token from_type(TokenType type, Location location);
-  static Token from_identifier(std::string_view identifier, Location location);
+  static Token from_name(std::string_view name, Location location);
   static Token from_int_literal(int value, Location location);
 };
 
@@ -57,7 +65,7 @@ inline std::ostream &operator<<(std::ostream &os, const TokenType &type) {
   case TokenType::name:                                                        \
     os << keyword;                                                             \
     break;
-    ENUM_TOKEN_TYPES(F)
+    ENUM_ALL_TOKENS(F)
 #undef F
   }
   return os;
@@ -71,4 +79,3 @@ inline std::ostream &operator<<(std::ostream &os, const Token &tok) {
   }
   return os;
 }
-
