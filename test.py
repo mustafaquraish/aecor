@@ -70,8 +70,12 @@ def main():
     system("make")
 
     tests_to_run = []
-    for test_location in test_locations:
-        for root, _, files in walk(test_location):
+    for loc in test_locations:
+        if loc.is_file():
+            if expected := get_expected(loc):
+                tests_to_run.append((loc, expected))
+            continue
+        for root, _, files in walk(loc):
             for file in files:
                 path = Path(root) / file
                 if expected := get_expected(path):
