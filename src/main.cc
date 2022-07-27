@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
   auto parser  = Parser(tokens);
   auto program = parser.parse_program();
 
-  auto generator = CodeGenerator("/dev/stdout");
+  auto generator = CodeGenerator("test.c");
   generator.generate(program);
 
   return 0;

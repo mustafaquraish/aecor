@@ -28,5 +28,6 @@ struct Lexer {
 
   void push(Token token) { tokens.push_back(token); }
 
+  char peek(int offset = 1);
   std::vector<Token> lex();
 };

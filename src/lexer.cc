@@ -1,6 +1,14 @@
 #include <lexer.hh>
 #include <utils.hh>
 
+char Lexer::peek(int offset) {
+  if (i + offset >= source.size()) {
+    return 0;
+  }
+  return source[i + offset];
+}
+
+
 std::vector<Token> Lexer::lex() {
   for (int i = 0; i < source.length(); ++i) {
     char c = source[i];
@@ -26,7 +34,19 @@ std::vector<Token> Lexer::lex() {
       case ';': push(TokenType::Semicolon, 1); break;
       case '+': push(TokenType::Plus, 1); break;
       case '-': push(TokenType::Minus, 1); break;
-      case '/': push(TokenType::Slash, 1); break;
+      case '/': {
+        // Ignoring comments
+        if (peek() == '/') {
+          while (peek() != '\n') {
+            ++i;
+          }
+          ++line;
+          column = 1;
+        } else {
+          push(TokenType::Slash, 1);
+        }
+        break;
+      }
       case '*': push(TokenType::Star, 1); break;
       case '&': push(TokenType::Ampersand, 1); break;
       case '|': push(TokenType::Line, 1); break;

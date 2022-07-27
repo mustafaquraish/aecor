@@ -10,7 +10,8 @@ CodeGenerator::~CodeGenerator() {
 }
 
 void CodeGenerator::gen_indent(int indent) {
-  for (int i = 0; i < indent; i++) out << "  ";
+  for (int i = 0; i < indent; i++) 
+    out << "  ";
 }
 
 void CodeGenerator::gen_op(ASTType type) {
