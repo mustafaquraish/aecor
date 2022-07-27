@@ -11,6 +11,8 @@ void CodeGenerator::gen_op(ASTType type) {
     case ASTType::Minus: out << " - "; return;
     case ASTType::Multiply: out << " * "; return;
     case ASTType::Divide: out << " / "; return;
+    case ASTType::LessThan: out << " < "; return;
+    case ASTType::GreaterThan: out << " > "; return;
     default: break;
   }
   cerr << "\n" << HERE << "UNHANDLED TYPE IN gen_op: " << type << std::endl;
@@ -59,6 +61,8 @@ void CodeGenerator::gen(AST *node, int indent) {
       break;
     }
 
+    case ASTType::LessThan:
+    case ASTType::GreaterThan:
     case ASTType::Plus:
     case ASTType::Minus:
     case ASTType::Multiply:
@@ -138,6 +142,14 @@ void CodeGenerator::gen(AST *node, int indent) {
       gen(node->binary.lhs, indent + 1);
       out << " = ";
       gen(node->binary.rhs, indent + 1);
+      break;
+    }
+
+    case ASTType::While: {
+      out << "while (";
+      gen(node->while_loop.cond, indent + 1);
+      out << ") ";
+      gen(node->while_loop.body, indent + 1);
       break;
     }
 

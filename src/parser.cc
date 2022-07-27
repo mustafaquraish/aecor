@@ -195,6 +195,13 @@ AST *Parser::parse_statement() {
       }
       break;
     }
+    case TokenType::While: {
+      node = new AST(ASTType::While, token().location);
+      consume(TokenType::While);
+      node->while_loop.cond = parse_expression();
+      node->while_loop.body = parse_block();
+      break;
+    }
     case TokenType::Return: {
       node = new AST(ASTType::Return, token().location);
       consume(TokenType::Return);
@@ -237,6 +244,8 @@ ASTType token_to_op(TokenType type) {
     case TokenType::Minus: return ASTType::Minus;
     case TokenType::Star: return ASTType::Multiply;
     case TokenType::Slash: return ASTType::Divide;
+    case TokenType::LessThan: return ASTType::LessThan;
+    case TokenType::GreaterThan: return ASTType::GreaterThan;
     default: break;
   }
   cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type
@@ -268,14 +277,26 @@ AST *Parser::parse_additive() {
   return lhs;
 }
 
-AST *Parser::parse_expression() {
+AST *Parser::parse_relational() {
   auto lhs = parse_additive();
+  while (token_is(TokenType::LessThan) || token_is(TokenType::GreaterThan)) {
+    auto node = new AST(token_to_op(token().type), token().location);
+    ++curr;
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_relational();
+    lhs              = node;
+  }
+  return lhs;
+}
+
+AST *Parser::parse_expression() {
+  auto lhs = parse_relational();
 
   if (consume_if(TokenType::Equals)) {
-    auto node = new AST(ASTType::Assignment, token().location);
+    auto node        = new AST(ASTType::Assignment, token().location);
     node->binary.lhs = lhs;
     node->binary.rhs = parse_expression();
-    lhs = node;
+    lhs              = node;
   }
 
   return lhs;

@@ -16,6 +16,7 @@
   F(Else, "else")                                                              \
   F(Let, "let")                                                                \
   F(Void, "void")                                                              \
+  F(While, "while")                                                            \
   F(Return, "return")
 
 #define ENUM_TOKEN_TYPES(F)                                                    \
@@ -27,6 +28,8 @@
   F(Dot, "Dot")                                                                \
   F(Semicolon, "Semicolon")                                                    \
   F(OpenCurly, "OpenCurly")                                                    \
+  F(LessThan, "LessThan")                                                      \
+  F(GreaterThan, "GreaterThan")                                                \
   F(Equals, "Equals")                                                          \
   F(CloseCurly, "CloseCurly")                                                  \
   F(IntLiteral, "IntLiteral")                                                  \

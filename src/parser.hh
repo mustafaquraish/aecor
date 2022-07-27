@@ -20,6 +20,7 @@ struct Parser {
   AST *parse_factor();
   AST *parse_term();
   AST *parse_additive();
+  AST *parse_relational();
   AST *parse_expression();
 
   AST *parse_program();

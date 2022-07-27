@@ -13,12 +13,15 @@ using namespace std;
   F(BoolLiteral, "BoolLiteral")                                                \
   F(If, "If")                                                                  \
   F(VarDeclaration, "VarDeclaration")                                          \
-  F(Assignment, "Assignment")                                          \
+  F(Assignment, "Assignment")                                                  \
   F(Plus, "Plus")                                                              \
   F(Minus, "Minus")                                                            \
   F(Multiply, "Multiply")                                                      \
   F(Divide, "Divide")                                                          \
+  F(LessThan, "LessThan")                                                      \
+  F(GreaterThan, "GreaterThan")                                                \
   F(Var, "Var")                                                                \
+  F(While, "While")                                                            \
   F(Call, "Call")                                                              \
   F(Block, "Block")
 
@@ -77,6 +80,11 @@ struct AST {
       AST *body;
       AST *els;
     } if_stmt;
+
+    struct {
+      AST *cond;
+      AST *body;
+    } while_loop;
 
     int int_literal;
     string_view string_literal;

@@ -26,6 +26,8 @@ std::vector<Token> Lexer::lex() {
       case ')': push(TokenType::CloseParen, 1); break;
       case '{': push(TokenType::OpenCurly, 1); break;
       case '}': push(TokenType::CloseCurly, 1); break;
+      case '<': push(TokenType::LessThan, 1); break;
+      case '>': push(TokenType::GreaterThan, 1); break;
       case ':': push(TokenType::Colon, 1); break;
       case ';': push(TokenType::Semicolon, 1); break;
       case '+': push(TokenType::Plus, 1); break;

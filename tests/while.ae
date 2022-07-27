@@ -1,0 +1,15 @@
+/// out: "1\n1\n2\n3\n5\n8\n13\n21"
+
+def main() {
+    let a: int = 0;
+    let b: int = 1;
+
+    let n: int = 8;
+    while n > 0 {
+        let tmp: int = a;
+        a = b;
+        b = tmp + b;
+        println("%d", a);
+        n = n - 1;
+    }
+}
