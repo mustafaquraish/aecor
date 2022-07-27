@@ -1,0 +1,5 @@
+/// fail
+
+def main() : int {
+    return 0 + 3;
+}

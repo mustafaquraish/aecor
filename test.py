@@ -10,35 +10,54 @@ def get_expected(filename):
         for line in f:
             if not line.startswith("///"):
                 break
-            name, value = map(str.strip, line[3:].split(":"))
+            line = line[3:].strip()
+            if line == "":
+                continue
+
+            if line == "fail":
+                expected[line] = True
+                break
+
+            if ":" not in line:
+                print(f'[-] Invalid parameters in {filename}: "{line}"')
+                return None
+
+            name, value = map(str.strip, line.split(":"))
             if name == "exit":
                 expected[name] = int(value)
-            if name == "out":
+            elif name == "out":
                 expected[name] = value
+            else:
+                print(f'[-] Invalid parameter in {filename}: {line}')
+                return None
+
     if not expected:
         return None
+
     return expected
 
-class TestState(Enum):
-    PASS = 1
-    FAIL = 2
-    SKIP = 3
+def runcmd(*args, **kwargs):
+    return system(*args, **kwargs)
 
 def handle_test(path, expected):
-    if system(f'./compiler {str(path)}') != 0:
-        return TestState.FAIL
+    if runcmd(f'./compiler {str(path)}') != 0:
+        print(f'  {path} - FAIL (compilation failed)')
+        return expected.get("fail") == True
 
     process = subprocess.run(['./test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if "exit" in expected:
         if process.returncode != expected["exit"]:
-            return TestState.FAIL
+            print(f'Expected exit code {expected["exit"]}, got {process.returncode}')
+            return False
 
     if "out" in expected:
-        if process.stdout.decode('utf-8') != expected["out"]:
-            return TestState.FAIL
+        output = process.stdout.decode('utf-8')
+        if output != expected["out"]:
+            print(f'Expected output {repr(expected["out"])}, got {repr(output)}')
+            return False
 
-    return TestState.PASS
+    return True
 
 
 
@@ -60,10 +79,10 @@ def main():
 
     print(f'Running {len(tests_to_run)} tests:')
     for path, expected in tests_to_run:
-        state = handle_test(path, expected)
-        if state == TestState.PASS:
+        passed = handle_test(path, expected)
+        if passed:
             print(f'  {path} - PASS')
-        elif state == TestState.FAIL:
+        else:
             print(f'  {path} - FAIL')
 
 

@@ -10,9 +10,8 @@ char Lexer::peek(int offset) {
 
 
 std::vector<Token> Lexer::lex() {
-  for (int i = 0; i < source.length(); ++i) {
-    char c = source[i];
-    switch (c) {
+  for (i = 0; i < source.length(); ++i) {
+    switch (source[i]) {
       case '\t':
       case '\v':
       case '\r':
@@ -34,10 +33,12 @@ std::vector<Token> Lexer::lex() {
       case ';': push(TokenType::Semicolon, 1); break;
       case '+': push(TokenType::Plus, 1); break;
       case '-': push(TokenType::Minus, 1); break;
+
       case '/': {
         // Ignoring comments
         if (peek() == '/') {
-          while (peek() != '\n') {
+          ++i;
+          while (i < source.length() && source[i] != '\n') {
             ++i;
           }
           ++line;
@@ -53,7 +54,7 @@ std::vector<Token> Lexer::lex() {
 
       default: {
         // kwywords / idents / literals
-        if (isdigit(c)) {
+        if (isdigit(source[i])) {
           int start = i;
           int value = 0;
           while (isdigit(source[i])) {
@@ -65,7 +66,7 @@ std::vector<Token> Lexer::lex() {
           column += i - start;
           --i;
 
-        } else if (isalpha(c) || source[i] == '_') {
+        } else if (isalpha(source[i]) || source[i] == '_') {
           int start = i;
           while (isalpha(source[i]) || isdigit(source[i]) || source[i] == '_') {
             ++i;
@@ -78,7 +79,7 @@ std::vector<Token> Lexer::lex() {
           --i;
 
         } else {
-          std::cerr << location() << ": unexpected character '" << c << "'"
+          std::cerr << location() << ": unexpected character '" << source[i] << "' at index " << i
                     << std::endl;
           std::cerr << HERE << " Location in source" << std::endl;
           exit(1);
