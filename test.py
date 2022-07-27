@@ -4,6 +4,7 @@ from os import walk, system
 from enum import Enum
 import subprocess
 
+
 def get_expected(filename):
     expected = {}
     with open(filename) as f:
@@ -36,8 +37,10 @@ def get_expected(filename):
 
     return expected
 
+
 def runcmd(*args, **kwargs):
     return system(*args, **kwargs)
+
 
 def handle_test(path, expected):
     if runcmd(f'./compiler {str(path)}') != 0:
@@ -58,7 +61,6 @@ def handle_test(path, expected):
             return False
 
     return True
-
 
 
 def main():
