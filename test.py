@@ -37,12 +37,8 @@ def get_expected(filename):
     return expected
 
 
-def runcmd(*args, **kwargs):
-    return system(*args, **kwargs)
-
-
 def handle_test(path, expected):
-    if runcmd(f'./compiler {str(path)}') != 0:
+    if system(f'./compiler {str(path)}') != 0:
         print(f'  {path} - FAIL (compilation failed)')
         return expected.get("fail")
 
