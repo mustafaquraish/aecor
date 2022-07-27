@@ -17,22 +17,32 @@ std::string slurp_file(const char *filename) {
 }
 
 int main(int argc, char *argv[]) {
-  auto source = slurp_file("test.ae");
+  if (argc == 1) {
+    cerr << "Usage: " << argv[0] << " <filename.ae>" << endl;
+    return 1;
+  }
 
-  auto lexer  = Lexer(source, "test.ae");
+  auto filename = argv[1];
+  auto source = slurp_file(filename);
+
+  auto lexer  = Lexer(source, filename);
   auto tokens = lexer.lex();
-
-  // std::cout << "----- Tokens: ---" << std::endl;
-  // for (auto token : tokens) {
-  //   cout << token << endl;
-  // }
-  // std::cout << "-----------------" << std::endl;
 
   auto parser  = Parser(tokens);
   auto program = parser.parse_program();
 
-  auto generator = CodeGenerator("test.c");
-  generator.generate(program);
+  auto generator = CodeGenerator();
+  auto ccode = generator.generate(program);
+
+  std::ofstream out("test.c");
+  out << ccode;
+  out.close();
+
+  auto exit_code = system("gcc test.c -o test");
+  if (exit_code != 0) {
+    std::cerr << "[-] Compilation failed" << std::endl;
+    return exit_code;
+  }
 
   return 0;
 }

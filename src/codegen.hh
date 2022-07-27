@@ -1,18 +1,17 @@
 #pragma once
 
 #include <ast.hh>
-#include <fstream>
+#include <sstream>
 
 struct CodeGenerator {
-  CodeGenerator(const char *filename);
-  ~CodeGenerator();
+  CodeGenerator() {}
 
-  void generate(AST *node);
+  std::string generate(AST *node);
 
  private:
   void gen_op(ASTType type);
   void gen_indent(int indent);
   void gen(AST *node, int indent);
 
-  std::ofstream out;
+  std::stringstream out;
 };

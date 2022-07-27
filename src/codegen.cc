@@ -1,13 +1,6 @@
 #include <codegen.hh>
 #include <utils.hh>
 
-CodeGenerator::CodeGenerator(const char *filename) {
-  out.open(filename);
-}
-
-CodeGenerator::~CodeGenerator() {
-  out.close();
-}
 
 void CodeGenerator::gen_indent(int indent) {
   for (int i = 0; i < indent; i++) 
@@ -78,6 +71,9 @@ void CodeGenerator::gen(AST *node, int indent) {
   }
 }
 
-void CodeGenerator::generate(AST *node) {
-  for (auto child : *node->block.statements) { gen(child, 0); }
+std::string CodeGenerator::generate(AST *node) {
+  out.clear();
+  for (auto child : *node->block.statements) 
+    gen(child, 0);
+  return out.str();
 }

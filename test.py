@@ -27,8 +27,6 @@ class TestState(Enum):
 def handle_test(path, expected):
     if system(f'./compiler {str(path)}') != 0:
         return TestState.FAIL
-    if system(f'gcc -Wall -o test test.c') != 0:
-        return TestState.FAIL
 
     process = subprocess.run(['./test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
