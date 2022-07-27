@@ -19,7 +19,7 @@ class ExpectedOutputType(Enum):
 class Expected:
     """A container for the expected output of a test"""
 
-    expected_output_type: ExpectedOutputType
+    type: ExpectedOutputType
     value: str | int | None
 
 
@@ -37,7 +37,7 @@ def get_expected(filename) -> Expected | None:
 
             if line == "fail":
                 expected = Expected(
-                    expected_output_type=ExpectedOutputType.FAIL,
+                    type=ExpectedOutputType.FAIL,
                     value=None,
                 )
                 break
@@ -49,13 +49,13 @@ def get_expected(filename) -> Expected | None:
             name, value = map(str.strip, line.split(":"))
             if name == "exit":
                 expected = Expected(
-                    expected_output_type=ExpectedOutputType.EXIT_WITH_CODE,
+                    type=ExpectedOutputType.EXIT_WITH_CODE,
                     value=int(value),
                 )
                 break
             elif name == "out":
                 expected = Expected(
-                    expected_output_type=ExpectedOutputType.EXIT_WITH_OUTPUT,
+                    type=ExpectedOutputType.EXIT_WITH_OUTPUT,
                     value=value,
                 )
                 break
@@ -69,16 +69,16 @@ def get_expected(filename) -> Expected | None:
 def handle_test(path: Path, expected: Expected) -> bool:
     if system(f'./compiler {str(path)}') != 0:
         print(f'[-] Compiling the test code failed')
-        return expected.expected_output_type == ExpectedOutputType.FAIL
+        return expected.type == ExpectedOutputType.FAIL
 
     process = subprocess.run(['./test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    if expected.expected_output_type == ExpectedOutputType.EXIT_WITH_CODE:
+    if expected.type == ExpectedOutputType.EXIT_WITH_CODE:
         if process.returncode != expected.value:
             print(f'[-] Expected exit code {expected.value}, got {process.returncode}')
             return False
 
-    if expected.expected_output_type == ExpectedOutputType.EXIT_WITH_OUTPUT:
+    if expected.type == ExpectedOutputType.EXIT_WITH_OUTPUT:
         output = process.stdout.decode('utf-8').strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
