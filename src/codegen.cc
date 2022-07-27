@@ -134,6 +134,13 @@ void CodeGenerator::gen(AST *node, int indent) {
       break;
     }
 
+    case ASTType::Assignment: {
+      gen(node->binary.lhs, indent + 1);
+      out << " = ";
+      gen(node->binary.rhs, indent + 1);
+      break;
+    }
+
     default: {
       cerr << HERE << " UNHANDLED TYPE IN gen: " << node->type << std::endl;
       exit(1);

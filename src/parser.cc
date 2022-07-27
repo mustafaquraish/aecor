@@ -67,9 +67,16 @@ AST *Parser::parse_function() {
   node->func_def.params = params;
 
   consume(TokenType::CloseParen);
-  consume(TokenType::Colon);
 
-  node->func_def.return_type = parse_type();
+  if (consume_if(TokenType::Colon)) {
+    node->func_def.return_type = parse_type();
+  } else {
+    if (name.text == "main") {
+      node->func_def.return_type = new Type(BaseType::Int);
+    } else {
+      node->func_def.return_type = new Type(BaseType::Void);
+    }
+  }
 
   node->func_def.body = parse_block();
   return node;
@@ -264,7 +271,12 @@ AST *Parser::parse_additive() {
 AST *Parser::parse_expression() {
   auto lhs = parse_additive();
 
-  // TODO: Assignments
+  if (consume_if(TokenType::Equals)) {
+    auto node = new AST(ASTType::Assignment, token().location);
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_expression();
+    lhs = node;
+  }
 
   return lhs;
 }
