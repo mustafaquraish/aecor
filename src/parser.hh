@@ -17,11 +17,15 @@ struct Parser {
 
   Type *parse_type();
 
+  AST *parse_factor();
+  AST *parse_term();
+  AST *parse_additive();
+  AST *parse_expression();
+
   AST *parse_program();
   AST *parse_function();
   AST *parse_block();
   AST *parse_statement();
-  AST *parse_expr();
 
   Token &consume_impl(TokenType token_type, const char *sloc);
   Token &expect_impl(TokenType token_type, const char *sloc);

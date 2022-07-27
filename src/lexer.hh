@@ -17,8 +17,9 @@ struct Lexer {
 
   Location location() { return Location{filename, line, column}; }
 
-  void push(TokenType type) {
+  void push(TokenType type, int length = 0) {
     tokens.push_back(Token::from_type(type, location()));
+    column += length;
   }
 
   void push_name(std::string_view text) {

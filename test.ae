@@ -1,1 +1,3 @@
-def main() : int { return 11; }
+def main() : int {
+    return 11 * 10 + 3;
+}

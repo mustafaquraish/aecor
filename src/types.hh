@@ -5,9 +5,9 @@
 
 using namespace std;
 
-#define ENUM_BASE_TYPES(F)                                                     \
-  F(Int, "int")                                                                \
-  F(Bool, "bool")                                                              \
+#define ENUM_BASE_TYPES(F) \
+  F(Int, "int")            \
+  F(Bool, "bool")          \
   F(Void, "void")
 
 enum class BaseType {
@@ -31,16 +31,14 @@ struct Type {
 
 inline std::ostream &operator<<(std::ostream &os, const Type &tok) {
   switch (tok.base) {
-#define F(name, text)                                                          \
-  case BaseType::name:                                                         \
-    os << text;                                                                \
-    break;
+#define F(name, text) \
+  case BaseType::name: os << text; break;
     ENUM_BASE_TYPES(F)
 #undef F
-  case BaseType::Pointer:
-    os << *tok.ptr_to;
-    os << "*";
-    break;
+    case BaseType::Pointer:
+      os << *tok.ptr_to;
+      os << "*";
+      break;
   };
   return os;
 }

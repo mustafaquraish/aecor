@@ -1,9 +1,11 @@
+#include <stdio.h>
+
+#include <codegen.hh>
 #include <fstream>
 #include <iostream>
 #include <lexer.hh>
 #include <parser.hh>
 #include <sstream>
-#include <stdio.h>
 
 using namespace std;
 
@@ -17,7 +19,7 @@ std::string slurp_file(const char *filename) {
 int main(int argc, char *argv[]) {
   auto source = slurp_file("test.ae");
 
-  auto lexer = Lexer(source, "test.ae");
+  auto lexer  = Lexer(source, "test.ae");
   auto tokens = lexer.lex();
 
   // std::cout << "----- Tokens: ---" << std::endl;
@@ -26,9 +28,11 @@ int main(int argc, char *argv[]) {
   // }
   // std::cout << "-----------------" << std::endl;
 
-  auto parser = Parser(tokens);
+  auto parser  = Parser(tokens);
   auto program = parser.parse_program();
-  print_ast(program);
+
+  auto generator = CodeGenerator("/dev/stdout");
+  generator.generate(program);
 
   return 0;
 }
