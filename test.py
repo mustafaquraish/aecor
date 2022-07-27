@@ -1,4 +1,5 @@
 import subprocess
+from ast import literal_eval
 from dataclasses import dataclass
 from enum import Enum
 from os import system
@@ -70,22 +71,24 @@ def get_expected(filename) -> Expected | None:
     return expected
 
 
+
 def handle_test(path: Path, expected: Expected) -> bool:
     if system(f'./compiler {str(path)}') != 0:
-        print(f'  {path} - FAIL (compilation failed)')
+        print(f'[-] Compiling the test code failed')
         return expected.expected_output_type == ExpectedOutputType.FAIL
 
     process = subprocess.run(['./test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if expected.expected_output_type == ExpectedOutputType.EXIT_WITH_CODE:
         if process.returncode != expected.value:
-            print(f'Expected exit code {expected.value}, got {process.returncode}')
+            print(f'[-] Expected exit code {expected.value}, got {process.returncode}')
             return False
 
     if expected.expected_output_type == ExpectedOutputType.EXIT_WITH_OUTPUT:
         output = process.stdout.decode('utf-8')
-        if output != expected.value:
-            print(f'Expected output {repr(expected.value)}, got {repr(output)}')
+        expected_out = literal_eval(expected.value).strip()
+        if output != expected_out:        
+            print(f'[-] Expected output {repr(expected_out)}, got {repr(output)}')
             return False
 
     return True
@@ -98,7 +101,8 @@ def main():
 
     test_paths = [Path(pth) for pth in test_paths]
 
-    system("make")
+    if system("make") != 0:
+        return 1
 
     tests_to_run = []
     for path in test_paths:

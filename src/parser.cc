@@ -4,9 +4,9 @@
 
 #include "tokens.hh"
 
-#define UNHANDLED_TYPE()                                                      \
-  cerr << token().location << ": Unexpected token: " << token().type << endl; \
-  cerr << HERE << " Source location: " << __FUNCTION__ << endl;               \
+#define UNHANDLED_TYPE()                                                       \
+  cerr << token().location << ": Unexpected token: " << token().type << endl;  \
+  cerr << HERE << " Source location: " << __FUNCTION__ << endl;                \
   exit(1);
 
 Token &Parser::consume_impl(TokenType token_type, const char *sloc) {
@@ -35,7 +35,7 @@ Type *Parser::parse_type() {
   Type *type = nullptr;
 
   switch (token().type) {
-    case TokenType::Int: type = new Type(BaseType::Int); break;
+    case TokenType::I32: type = new Type(BaseType::I32); break;
     case TokenType::Bool: type = new Type(BaseType::Bool); break;
     case TokenType::Void: type = new Type(BaseType::Void); break;
 
@@ -67,9 +67,16 @@ AST *Parser::parse_function() {
   node->func_def.params = params;
 
   consume(TokenType::CloseParen);
-  consume(TokenType::Colon);
 
-  node->func_def.return_type = parse_type();
+  if (consume_if(TokenType::Colon)) {
+    node->func_def.return_type = parse_type();
+  } else {
+    if (name.text == "main") {
+      node->func_def.return_type = new Type(BaseType::I32);
+    } else {
+      node->func_def.return_type = new Type(BaseType::Void);
+    }
+  }
 
   node->func_def.body = parse_block();
   return node;
@@ -110,10 +117,28 @@ AST *Parser::parse_factor() {
   AST *node = nullptr;
 
   switch (token().type) {
+    case TokenType::True: {
+      node               = new AST(ASTType::BoolLiteral, token().location);
+      node->bool_literal = true;
+      consume(TokenType::True);
+      break;
+    }
+    case TokenType::False: {
+      node               = new AST(ASTType::BoolLiteral, token().location);
+      node->bool_literal = true;
+      consume(TokenType::False);
+      break;
+    }
     case TokenType::IntLiteral: {
-      node                    = new AST(ASTType::IntLiteral, token().location);
-      node->int_literal.value = token().int_lit;
+      node              = new AST(ASTType::IntLiteral, token().location);
+      node->int_literal = token().int_lit;
       consume(TokenType::IntLiteral);
+      break;
+    }
+    case TokenType::StringLiteral: {
+      node                 = new AST(ASTType::StringLiteral, token().location);
+      node->string_literal = token().text;
+      consume(TokenType::StringLiteral);
       break;
     }
     case TokenType::Identifier: {
@@ -158,6 +183,25 @@ AST *Parser::parse_statement() {
   AST *node = nullptr;
 
   switch (token().type) {
+    case TokenType::If: {
+      node = new AST(ASTType::If, token().location);
+      consume(TokenType::If);
+      node->if_stmt.cond = parse_expression();
+      node->if_stmt.body = parse_block();
+      if (consume_if(TokenType::Else)) {
+        node->if_stmt.els = parse_block();
+      } else {
+        node->if_stmt.els = nullptr;
+      }
+      break;
+    }
+    case TokenType::While: {
+      node = new AST(ASTType::While, token().location);
+      consume(TokenType::While);
+      node->while_loop.cond = parse_expression();
+      node->while_loop.body = parse_block();
+      break;
+    }
     case TokenType::Return: {
       node = new AST(ASTType::Return, token().location);
       consume(TokenType::Return);
@@ -165,7 +209,34 @@ AST *Parser::parse_statement() {
       consume(TokenType::Semicolon);
       break;
     }
-    default: UNHANDLED_TYPE();
+    case TokenType::Let: {
+      node = new AST(ASTType::VarDeclaration, token().location);
+      consume(TokenType::Let);
+
+      auto name = consume(TokenType::Identifier);
+      consume(TokenType::Colon);
+      auto type = parse_type();
+
+      node->var_decl.var = new Variable{name.text, type};
+
+      if (token_is(TokenType::Equals)) {
+        consume(TokenType::Equals);
+        node->var_decl.init = parse_expression();
+      } else {
+        node->var_decl.init = nullptr;
+      }
+      consume(TokenType::Semicolon);
+      break;
+    }
+    case TokenType::OpenCurly: {
+      node = parse_block();
+      break;
+    }
+    default: {
+      node = parse_expression();
+      consume(TokenType::Semicolon);
+      break;
+    }
   }
 
   return node;
@@ -177,9 +248,12 @@ ASTType token_to_op(TokenType type) {
     case TokenType::Minus: return ASTType::Minus;
     case TokenType::Star: return ASTType::Multiply;
     case TokenType::Slash: return ASTType::Divide;
+    case TokenType::LessThan: return ASTType::LessThan;
+    case TokenType::GreaterThan: return ASTType::GreaterThan;
     default: break;
   }
-  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type << endl;
+  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type
+       << endl;
   exit(1);
 }
 
@@ -207,10 +281,27 @@ AST *Parser::parse_additive() {
   return lhs;
 }
 
-AST *Parser::parse_expression() {
+AST *Parser::parse_relational() {
   auto lhs = parse_additive();
+  while (token_is(TokenType::LessThan) || token_is(TokenType::GreaterThan)) {
+    auto node = new AST(token_to_op(token().type), token().location);
+    ++curr;
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_relational();
+    lhs              = node;
+  }
+  return lhs;
+}
 
-  // TODO: Assignments
+AST *Parser::parse_expression() {
+  auto lhs = parse_relational();
+
+  if (consume_if(TokenType::Equals)) {
+    auto node        = new AST(ASTType::Assignment, token().location);
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_expression();
+    lhs              = node;
+  }
 
   return lhs;
 }

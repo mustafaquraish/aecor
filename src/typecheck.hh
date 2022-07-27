@@ -10,7 +10,7 @@ struct TypeChecker {
 
   void check(AST *node);
 
-private:
+ private:
   void check_function(AST *node);
   void check_block(AST *node);
   void check_statement(AST *node);

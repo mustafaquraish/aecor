@@ -1,4 +1,6 @@
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <codegen.hh>
 #include <fstream>
@@ -6,15 +8,14 @@
 #include <lexer.hh>
 #include <parser.hh>
 #include <sstream>
-#include <errno.h>
-#include <string.h>
 
 using namespace std;
 
 std::string slurp_file(const char *filename) {
   std::ifstream file(filename);
   if (file.fail()) {
-    std::cerr << "Could not open file " << filename << ": " << strerror(errno) << std::endl;
+    std::cerr << "Could not open file " << filename << ": " << strerror(errno)
+              << std::endl;
     exit(1);
   }
   std::stringstream buffer;

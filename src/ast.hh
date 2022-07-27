@@ -5,16 +5,24 @@
 
 using namespace std;
 
-#define ENUM_AST_TYPES(F)       \
-  F(FunctionDef, "FunctionDef") \
-  F(Return, "Return")           \
-  F(IntLiteral, "IntLiteral")   \
-  F(Plus, "Plus")               \
-  F(Minus, "Minus")             \
-  F(Multiply, "Multiply")       \
-  F(Divide, "Divide")           \
-  F(Var, "Var")                 \
-  F(Call, "Call")               \
+#define ENUM_AST_TYPES(F)                                                      \
+  F(FunctionDef, "FunctionDef")                                                \
+  F(Return, "Return")                                                          \
+  F(IntLiteral, "IntLiteral")                                                  \
+  F(StringLiteral, "StringLiteral")                                            \
+  F(BoolLiteral, "BoolLiteral")                                                \
+  F(If, "If")                                                                  \
+  F(VarDeclaration, "VarDeclaration")                                          \
+  F(Assignment, "Assignment")                                                  \
+  F(Plus, "Plus")                                                              \
+  F(Minus, "Minus")                                                            \
+  F(Multiply, "Multiply")                                                      \
+  F(Divide, "Divide")                                                          \
+  F(LessThan, "LessThan")                                                      \
+  F(GreaterThan, "GreaterThan")                                                \
+  F(Var, "Var")                                                                \
+  F(While, "While")                                                            \
+  F(Call, "Call")                                                              \
   F(Block, "Block")
 
 enum class ASTType {
@@ -63,8 +71,24 @@ struct AST {
     } call;
 
     struct {
-      int value;
-    } int_literal;
+      Variable *var;
+      AST *init;
+    } var_decl;
+
+    struct {
+      AST *cond;
+      AST *body;
+      AST *els;
+    } if_stmt;
+
+    struct {
+      AST *cond;
+      AST *body;
+    } while_loop;
+
+    int int_literal;
+    string_view string_literal;
+    bool bool_literal;
   };
 
   AST(ASTType type, Location location);
@@ -72,7 +96,7 @@ struct AST {
 
 inline std::ostream &operator<<(std::ostream &os, const ASTType &type) {
   switch (type) {
-#define F(name, keyword) \
+#define F(name, keyword)                                                       \
   case ASTType::name: os << keyword; break;
     ENUM_AST_TYPES(F)
 #undef F

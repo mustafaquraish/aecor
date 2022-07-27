@@ -6,35 +6,45 @@
 #include <string_view>
 #include <vector>
 
-#define ENUM_KEYWORDS(F) \
-  F(Def, "def")          \
-  F(Int, "int")          \
-  F(Bool, "bool")        \
-  F(Void, "void")        \
+#define ENUM_KEYWORDS(F)                                                       \
+  F(Def, "def")                                                                \
+  F(I32, "i32")                                                                \
+  F(Bool, "bool")                                                              \
+  F(True, "true")                                                              \
+  F(False, "false")                                                            \
+  F(If, "if")                                                                  \
+  F(Else, "else")                                                              \
+  F(Let, "let")                                                                \
+  F(Void, "void")                                                              \
+  F(While, "while")                                                            \
   F(Return, "return")
 
-#define ENUM_TOKEN_TYPES(F)   \
-  F(Identifier, "Identifier") \
-  F(OpenParen, "OpenParen")   \
-  F(CloseParen, "CloseParen") \
-  F(Colon, "Colon")           \
-  F(Comma, "Comma")           \
-  F(Dot, "Dot")               \
-  F(Semicolon, "Semicolon")   \
-  F(OpenCurly, "OpenCurly")   \
-  F(CloseCurly, "CloseCurly") \
-  F(IntLiteral, "IntLiteral") \
-  F(Plus, "Plus")             \
-  F(Minus, "Minus")           \
-  F(Star, "Star")             \
-  F(Slash, "Slash")           \
-  F(Ampersand, "Ampersand")   \
-  F(Line, "Line")             \
-                              \
+#define ENUM_TOKEN_TYPES(F)                                                    \
+  F(Identifier, "Identifier")                                                  \
+  F(OpenParen, "OpenParen")                                                    \
+  F(CloseParen, "CloseParen")                                                  \
+  F(Colon, "Colon")                                                            \
+  F(Comma, "Comma")                                                            \
+  F(Dot, "Dot")                                                                \
+  F(Semicolon, "Semicolon")                                                    \
+  F(OpenCurly, "OpenCurly")                                                    \
+  F(LessThan, "LessThan")                                                      \
+  F(GreaterThan, "GreaterThan")                                                \
+  F(Equals, "Equals")                                                          \
+  F(CloseCurly, "CloseCurly")                                                  \
+  F(IntLiteral, "IntLiteral")                                                  \
+  F(StringLiteral, "StringLiteral")                                            \
+  F(Plus, "Plus")                                                              \
+  F(Minus, "Minus")                                                            \
+  F(Star, "Star")                                                              \
+  F(Slash, "Slash")                                                            \
+  F(Ampersand, "Ampersand")                                                    \
+  F(Line, "Line")                                                              \
+                                                                               \
   F(Eof, "Eof")
 
-#define ENUM_ALL_TOKENS(F) \
-  ENUM_KEYWORDS(F)         \
+#define ENUM_ALL_TOKENS(F)                                                     \
+  ENUM_KEYWORDS(F)                                                             \
   ENUM_TOKEN_TYPES(F)
 
 enum class TokenType {
@@ -57,7 +67,8 @@ struct Token {
 
   Token() {}
 
-  static Token from_type(TokenType type, Location location);
+  static Token from_type(TokenType type, Location location,
+                         std::string_view text = {});
   static Token from_name(std::string_view name, Location location);
   static Token from_int_literal(int value, Location location);
 };
@@ -69,7 +80,7 @@ inline std::ostream &operator<<(std::ostream &os, const Location &loc) {
 
 inline std::ostream &operator<<(std::ostream &os, const TokenType &type) {
   switch (type) {
-#define F(name, keyword) \
+#define F(name, keyword)                                                       \
   case TokenType::name: os << keyword; break;
     ENUM_ALL_TOKENS(F)
 #undef F

@@ -11,6 +11,7 @@ IndentPPDirectives: BeforeHash
 Language: Cpp
 NamespaceIndentation: None
 UseTab: Never
-ColumnLimit: 0
+ColumnLimit: 80
+AlignEscapedNewlines: Right
 
 ...
