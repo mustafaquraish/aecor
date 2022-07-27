@@ -110,6 +110,18 @@ AST *Parser::parse_factor() {
   AST *node = nullptr;
 
   switch (token().type) {
+    case TokenType::True: {
+      node               = new AST(ASTType::BoolLiteral, token().location);
+      node->bool_literal = true;
+      consume(TokenType::True);
+      break;
+    }
+    case TokenType::False: {
+      node               = new AST(ASTType::BoolLiteral, token().location);
+      node->bool_literal = true;
+      consume(TokenType::False);
+      break;
+    }
     case TokenType::IntLiteral: {
       node              = new AST(ASTType::IntLiteral, token().location);
       node->int_literal = token().int_lit;
@@ -164,6 +176,18 @@ AST *Parser::parse_statement() {
   AST *node = nullptr;
 
   switch (token().type) {
+    case TokenType::If: {
+      node = new AST(ASTType::If, token().location);
+      consume(TokenType::If);
+      node->if_stmt.cond = parse_expression();
+      node->if_stmt.body = parse_block();
+      if (consume_if(TokenType::Else)) {
+        node->if_stmt.els = parse_block();
+      } else {
+        node->if_stmt.els = nullptr;
+      }
+      break;
+    }
     case TokenType::Return: {
       node = new AST(ASTType::Return, token().location);
       consume(TokenType::Return);

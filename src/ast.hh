@@ -10,6 +10,8 @@ using namespace std;
   F(Return, "Return")                                                          \
   F(IntLiteral, "IntLiteral")                                                  \
   F(StringLiteral, "StringLiteral")                                            \
+  F(BoolLiteral, "BoolLiteral")                                                \
+  F(If, "If")                                                                  \
   F(VarDeclaration, "VarDeclaration")                                          \
   F(Plus, "Plus")                                                              \
   F(Minus, "Minus")                                                            \
@@ -69,8 +71,15 @@ struct AST {
       AST *init;
     } var_decl;
 
+    struct {
+      AST *cond;
+      AST *body;
+      AST *els;
+    } if_stmt;
+
     int int_literal;
     string_view string_literal;
+    bool bool_literal;
   };
 
   AST(ASTType type, Location location);

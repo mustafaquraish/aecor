@@ -76,8 +76,25 @@ void CodeGenerator::gen(AST *node, int indent) {
       break;
     }
 
+    case ASTType::BoolLiteral: {
+      out << (node->bool_literal ? "true" : "false");
+      break;
+    }
+
     case ASTType::Var: {
       out << node->var.name;
+      break;
+    }
+
+    case ASTType::If: {
+      out << "if (";
+      gen(node->if_stmt.cond, indent + 1);
+      out << ") ";
+      gen(node->if_stmt.body, indent + 1);
+      if (node->if_stmt.els) {
+        out << " else ";
+        gen(node->if_stmt.els, indent + 1);
+      }
       break;
     }
 
@@ -127,6 +144,7 @@ void CodeGenerator::gen(AST *node, int indent) {
 std::string CodeGenerator::generate(AST *node) {
   out.clear();
   out << "#include <stdio.h>\n";
+  out << "#include <stdbool.h>\n";
   out << "#include <stdlib.h>\n\n";
   for (auto child : *node->block.statements) {
     gen(child, 0);

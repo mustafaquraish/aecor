@@ -10,6 +10,10 @@
   F(Def, "def")                                                                \
   F(Int, "int")                                                                \
   F(Bool, "bool")                                                              \
+  F(True, "true")                                                              \
+  F(False, "false")                                                            \
+  F(If, "if")                                                                  \
+  F(Else, "else")                                                              \
   F(Let, "let")                                                                \
   F(Void, "void")                                                              \
   F(Return, "return")
