@@ -57,9 +57,11 @@ void CodeGenerator::gen(AST *node, int indent) {
     case ASTType::Minus:
     case ASTType::Multiply:
     case ASTType::Divide: {
+      out << "(";
       gen(node->binary.lhs, indent + 1);
       gen_op(node->type);
       gen(node->binary.rhs, indent + 1);
+      out << ")";
       break;
     }
 
@@ -95,6 +97,9 @@ void CodeGenerator::gen(AST *node, int indent) {
 
 std::string CodeGenerator::generate(AST *node) {
   out.clear();
-  for (auto child : *node->block.statements) { gen(child, 0); }
+  for (auto child : *node->block.statements) { 
+    gen(child, 0);
+    out << "\n";
+  }
   return out.str();
 }

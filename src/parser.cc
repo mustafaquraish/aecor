@@ -121,6 +121,12 @@ AST *Parser::parse_factor() {
       node->var.name = consume(TokenType::Identifier).text;
       break;
     }
+    case TokenType::OpenParen: {
+      consume(TokenType::OpenParen);
+      node = parse_expression();
+      consume(TokenType::CloseParen);
+      break;
+    }
     default: UNHANDLED_TYPE();
   }
 
