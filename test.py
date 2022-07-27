@@ -1,7 +1,6 @@
 from sys import argv
 from pathlib import Path
 from os import walk, system
-from enum import Enum
 import subprocess
 
 
