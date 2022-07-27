@@ -58,11 +58,11 @@ def handle_test(path, expected):
     return True
 
 
-def main():
-    if len(argv) == 1:
-        test_locations = [Path(__file__).parent / "tests"]
-    else:
-        test_locations = [Path(arg) for arg in argv[1:]]
+def main(test_paths: list[str]):
+    if len(test_paths) == 0:
+        test_paths = [Path(__file__).parent / "tests"]
+
+    test_locations = [Path(pth) for pth in test_paths]
 
     system("make")
 
@@ -88,4 +88,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(argv[1:])
