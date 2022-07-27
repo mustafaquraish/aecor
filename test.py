@@ -1,6 +1,6 @@
 from sys import argv
 from pathlib import Path
-from os import walk, system
+from os import system
 import subprocess
 
 
@@ -62,21 +62,24 @@ def main(test_paths: list[str]):
     if len(test_paths) == 0:
         test_paths = [Path(__file__).parent / "tests"]
 
-    test_locations = [Path(pth) for pth in test_paths]
+    test_paths = [Path(pth) for pth in test_paths]
 
     system("make")
 
     tests_to_run = []
-    for loc in test_locations:
-        if loc.is_file():
-            if expected := get_expected(loc):
-                tests_to_run.append((loc, expected))
-            continue
-        for root, _, files in walk(loc):
-            for file in files:
-                path = Path(root) / file
-                if expected := get_expected(path):
-                    tests_to_run.append((path, expected))
+    for path in test_paths:
+        files = []
+
+        if path.is_dir():
+            for path_ in path.glob('**/*'):
+                if path_.is_file():
+                    files.append(path_)
+        else:
+            files.append(path)
+
+        for file in files:
+            if expected := get_expected(file):
+                tests_to_run.append((file, expected))
 
     print(f'Running {len(tests_to_run)} tests:')
     for path, expected in tests_to_run:
