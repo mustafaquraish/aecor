@@ -30,6 +30,7 @@ std::vector<Token> Lexer::lex() {
       case ';': push(TokenType::Semicolon, 1); break;
       case '+': push(TokenType::Plus, 1); break;
       case '-': push(TokenType::Minus, 1); break;
+      case '=': push(TokenType::Equals, 1); break;
       case ',': push(TokenType::Comma, 1); break;
       case '.': push(TokenType::Dot, 1); break;
 

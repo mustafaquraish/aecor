@@ -10,6 +10,7 @@ using namespace std;
   F(Return, "Return")                                                          \
   F(IntLiteral, "IntLiteral")                                                  \
   F(StringLiteral, "StringLiteral")                                            \
+  F(VarDeclaration, "VarDeclaration")                                          \
   F(Plus, "Plus")                                                              \
   F(Minus, "Minus")                                                            \
   F(Multiply, "Multiply")                                                      \
@@ -62,6 +63,11 @@ struct AST {
       AST *callee;
       vector<AST *> *args;
     } call;
+
+    struct {
+      Variable *var;
+      AST *init;
+    } var_decl;
 
     int int_literal;
     string_view string_literal;

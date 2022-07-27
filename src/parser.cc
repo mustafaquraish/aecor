@@ -171,6 +171,25 @@ AST *Parser::parse_statement() {
       consume(TokenType::Semicolon);
       break;
     }
+    case TokenType::Let: {
+      node = new AST(ASTType::VarDeclaration, token().location);
+      consume(TokenType::Let);
+
+      auto name = consume(TokenType::Identifier);
+      consume(TokenType::Colon);
+      auto type = parse_type();
+
+      node->var_decl.var = new Variable{name.text, type};
+
+      if (token_is(TokenType::Equals)) {
+        consume(TokenType::Equals);
+        node->var_decl.init = parse_expression();
+      } else {
+        node->var_decl.init = nullptr;
+      }
+      consume(TokenType::Semicolon);
+      break;
+    }
     default: {
       node = parse_expression();
       consume(TokenType::Semicolon);

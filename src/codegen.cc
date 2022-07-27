@@ -108,6 +108,15 @@ void CodeGenerator::gen(AST *node, int indent) {
       break;
     }
 
+    case ASTType::VarDeclaration: {
+      out << *node->var_decl.var->type << " " << node->var_decl.var->name;
+      if (node->var_decl.init) {
+        out << " = ";
+        gen(node->var_decl.init, indent + 1);
+      }
+      break;
+    }
+
     default: {
       cerr << HERE << " UNHANDLED TYPE IN gen: " << node->type << std::endl;
       exit(1);

@@ -10,6 +10,7 @@
   F(Def, "def")                                                                \
   F(Int, "int")                                                                \
   F(Bool, "bool")                                                              \
+  F(Let, "let")                                                                \
   F(Void, "void")                                                              \
   F(Return, "return")
 
@@ -22,6 +23,7 @@
   F(Dot, "Dot")                                                                \
   F(Semicolon, "Semicolon")                                                    \
   F(OpenCurly, "OpenCurly")                                                    \
+  F(Equals, "Equals")                                                          \
   F(CloseCurly, "CloseCurly")                                                  \
   F(IntLiteral, "IntLiteral")                                                  \
   F(StringLiteral, "StringLiteral")                                            \
