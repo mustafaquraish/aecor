@@ -35,7 +35,7 @@ Type *Parser::parse_type() {
   Type *type = nullptr;
 
   switch (token().type) {
-    case TokenType::Int: type = new Type(BaseType::Int); break;
+    case TokenType::I32: type = new Type(BaseType::I32); break;
     case TokenType::Bool: type = new Type(BaseType::Bool); break;
     case TokenType::Void: type = new Type(BaseType::Void); break;
 
@@ -72,7 +72,7 @@ AST *Parser::parse_function() {
     node->func_def.return_type = parse_type();
   } else {
     if (name.text == "main") {
-      node->func_def.return_type = new Type(BaseType::Int);
+      node->func_def.return_type = new Type(BaseType::I32);
     } else {
       node->func_def.return_type = new Type(BaseType::Void);
     }
@@ -226,6 +226,10 @@ AST *Parser::parse_statement() {
         node->var_decl.init = nullptr;
       }
       consume(TokenType::Semicolon);
+      break;
+    }
+    case TokenType::OpenCurly: {
+      node = parse_block();
       break;
     }
     default: {

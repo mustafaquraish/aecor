@@ -1,5 +1,5 @@
 /// hello
 
-def main() : int {
+def main() : i32 {
     return 0;
 }

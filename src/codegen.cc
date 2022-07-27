@@ -164,6 +164,7 @@ std::string CodeGenerator::generate(AST *node) {
   out.clear();
   out << "#include <stdio.h>\n";
   out << "#include <stdbool.h>\n";
+  out << "#include <stdint.h>\n";
   out << "#include <stdlib.h>\n\n";
   for (auto child : *node->block.statements) {
     gen(child, 0);

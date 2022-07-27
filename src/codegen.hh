@@ -9,7 +9,6 @@ struct CodeGenerator {
   std::string generate(AST *node);
 
  private:
-  void gen_type(Type *type);
   void gen_op(ASTType type);
   void gen_indent(int indent);
   void gen(AST *node, int indent);

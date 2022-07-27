@@ -8,7 +8,7 @@
 
 #define ENUM_KEYWORDS(F)                                                       \
   F(Def, "def")                                                                \
-  F(Int, "int")                                                                \
+  F(I32, "i32")                                                                \
   F(Bool, "bool")                                                              \
   F(True, "true")                                                              \
   F(False, "false")                                                            \
