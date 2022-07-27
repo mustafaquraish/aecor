@@ -5,16 +5,17 @@
 
 using namespace std;
 
-#define ENUM_AST_TYPES(F)       \
-  F(FunctionDef, "FunctionDef") \
-  F(Return, "Return")           \
-  F(IntLiteral, "IntLiteral")   \
-  F(Plus, "Plus")               \
-  F(Minus, "Minus")             \
-  F(Multiply, "Multiply")       \
-  F(Divide, "Divide")           \
-  F(Var, "Var")                 \
-  F(Call, "Call")               \
+#define ENUM_AST_TYPES(F)                                                      \
+  F(FunctionDef, "FunctionDef")                                                \
+  F(Return, "Return")                                                          \
+  F(IntLiteral, "IntLiteral")                                                  \
+  F(StringLiteral, "StringLiteral")                                            \
+  F(Plus, "Plus")                                                              \
+  F(Minus, "Minus")                                                            \
+  F(Multiply, "Multiply")                                                      \
+  F(Divide, "Divide")                                                          \
+  F(Var, "Var")                                                                \
+  F(Call, "Call")                                                              \
   F(Block, "Block")
 
 enum class ASTType {
@@ -62,9 +63,8 @@ struct AST {
       vector<AST *> *args;
     } call;
 
-    struct {
-      int value;
-    } int_literal;
+    int int_literal;
+    string_view string_literal;
   };
 
   AST(ASTType type, Location location);
@@ -72,7 +72,7 @@ struct AST {
 
 inline std::ostream &operator<<(std::ostream &os, const ASTType &type) {
   switch (type) {
-#define F(name, keyword) \
+#define F(name, keyword)                                                       \
   case ASTType::name: os << keyword; break;
     ENUM_AST_TYPES(F)
 #undef F

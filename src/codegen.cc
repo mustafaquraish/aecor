@@ -13,9 +13,15 @@ void CodeGenerator::gen_op(ASTType type) {
     case ASTType::Divide: out << " / "; return;
     default: break;
   }
-  cerr << "\n"
-       << HERE << "UNHANDLED TYPE IN gen_op: " << type << std::endl;
+  cerr << "\n" << HERE << "UNHANDLED TYPE IN gen_op: " << type << std::endl;
   exit(1);
+}
+
+bool callee_is(AST *node, std::string_view name) {
+  if (node->type != ASTType::Call) return false;
+  if (node->call.callee->type != ASTType::Var) return false;
+  if (node->call.callee->var.name != name) return false;
+  return true;
 }
 
 void CodeGenerator::gen(AST *node, int indent) {
@@ -31,25 +37,25 @@ void CodeGenerator::gen(AST *node, int indent) {
         out << *arg->type << " " << arg->name;
       }
       out << ") ";
-      gen(node->func_def.body, indent);
+      gen(node->func_def.body, indent + 1);
       break;
     }
 
     case ASTType::Block: {
-      gen_indent(indent);
       out << "{\n";
       for (auto statement : *node->block.statements) {
+        gen_indent(indent);
         gen(statement, indent + 1);
+        out << ";\n";
       }
       out << "}\n";
       break;
     }
 
     case ASTType::Return: {
-      gen_indent(indent);
       out << "return ";
       gen(node->unary.expr, indent + 1);
-      out << ";\n";
+      out << "";
       break;
     }
 
@@ -66,7 +72,7 @@ void CodeGenerator::gen(AST *node, int indent) {
     }
 
     case ASTType::IntLiteral: {
-      out << node->int_literal.value;
+      out << node->int_literal;
       break;
     }
 
@@ -76,15 +82,29 @@ void CodeGenerator::gen(AST *node, int indent) {
     }
 
     case ASTType::Call: {
-      gen(node->call.callee, indent + 1);
+      bool newline_after_first = false;
+      if (callee_is(node, "print")) {
+        out << "printf";
+      } else if (callee_is(node, "println")) {
+        out << "printf";
+        newline_after_first = true;
+      } else {
+        gen(node->call.callee, indent + 1);
+      }
       out << "(";
       bool first = true;
       for (auto arg : *node->call.args) {
         if (!first) out << ", ";
-        first = false;
         gen(arg, indent + 1);
+        if (first && newline_after_first) out << " \"\\n\"";
+        first = false;
       }
       out << ")";
+      break;
+    }
+
+    case ASTType::StringLiteral: {
+      out << '"' << node->string_literal << '"';
       break;
     }
 
@@ -97,7 +117,9 @@ void CodeGenerator::gen(AST *node, int indent) {
 
 std::string CodeGenerator::generate(AST *node) {
   out.clear();
-  for (auto child : *node->block.statements) { 
+  out << "#include <stdio.h>\n";
+  out << "#include <stdlib.h>\n\n";
+  for (auto child : *node->block.statements) {
     gen(child, 0);
     out << "\n";
   }

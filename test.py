@@ -1,7 +1,7 @@
 from sys import argv
 from pathlib import Path
 from os import walk, system
-from enum import Enum
+from ast import literal_eval
 import subprocess
 
 def get_expected(filename):
@@ -41,20 +41,21 @@ def runcmd(*args, **kwargs):
 
 def handle_test(path, expected):
     if runcmd(f'./compiler {str(path)}') != 0:
-        print(f'  {path} - FAIL (compilation failed)')
+        print(f'[-] Compiling the test code failed')
         return expected.get("fail") == True
 
     process = subprocess.run(['./test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if "exit" in expected:
         if process.returncode != expected["exit"]:
-            print(f'Expected exit code {expected["exit"]}, got {process.returncode}')
+            print(f'[-] Expected exit code {expected["exit"]}, got {process.returncode}')
             return False
 
     if "out" in expected:
-        output = process.stdout.decode('utf-8')
-        if output != expected["out"]:
-            print(f'Expected output {repr(expected["out"])}, got {repr(output)}')
+        output = process.stdout.decode('utf-8').strip()
+        expected_out = literal_eval(expected["out"]).strip()
+        if output != expected_out:
+            print(f'[-] Expected output {repr(expected_out)}, got {repr(output)}')
             return False
 
     return True
@@ -67,7 +68,8 @@ def main():
     else:
         test_locations = [Path(arg) for arg in argv[1:]]
 
-    system("make")
+    if system("make") != 0:
+        return 1
 
     tests_to_run = []
     for loc in test_locations:

@@ -1,9 +1,11 @@
 #include "tokens.hh"
 
-Token Token::from_type(TokenType type, Location location) {
+Token Token::from_type(TokenType type, Location location,
+                       std::string_view text) {
   Token tok;
   tok.type     = type;
   tok.location = location;
+  tok.text     = text;
   return tok;
 }
 
@@ -13,9 +15,9 @@ Token Token::from_name(std::string_view identifier, Location location) {
   tok.location = location;
 
   if (false) {}
-#define F(name, text)            \
-  else if (identifier == text) { \
-    tok.type = TokenType::name;  \
+#define F(name, text)                                                          \
+  else if (identifier == text) {                                               \
+    tok.type = TokenType::name;                                                \
   }
   ENUM_KEYWORDS(F)
 #undef F

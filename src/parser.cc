@@ -4,9 +4,9 @@
 
 #include "tokens.hh"
 
-#define UNHANDLED_TYPE()                                                      \
-  cerr << token().location << ": Unexpected token: " << token().type << endl; \
-  cerr << HERE << " Source location: " << __FUNCTION__ << endl;               \
+#define UNHANDLED_TYPE()                                                       \
+  cerr << token().location << ": Unexpected token: " << token().type << endl;  \
+  cerr << HERE << " Source location: " << __FUNCTION__ << endl;                \
   exit(1);
 
 Token &Parser::consume_impl(TokenType token_type, const char *sloc) {
@@ -111,9 +111,15 @@ AST *Parser::parse_factor() {
 
   switch (token().type) {
     case TokenType::IntLiteral: {
-      node                    = new AST(ASTType::IntLiteral, token().location);
-      node->int_literal.value = token().int_lit;
+      node              = new AST(ASTType::IntLiteral, token().location);
+      node->int_literal = token().int_lit;
       consume(TokenType::IntLiteral);
+      break;
+    }
+    case TokenType::StringLiteral: {
+      node                 = new AST(ASTType::StringLiteral, token().location);
+      node->string_literal = token().text;
+      consume(TokenType::StringLiteral);
       break;
     }
     case TokenType::Identifier: {
@@ -165,7 +171,11 @@ AST *Parser::parse_statement() {
       consume(TokenType::Semicolon);
       break;
     }
-    default: UNHANDLED_TYPE();
+    default: {
+      node = parse_expression();
+      consume(TokenType::Semicolon);
+      break;
+    }
   }
 
   return node;
@@ -179,7 +189,8 @@ ASTType token_to_op(TokenType type) {
     case TokenType::Slash: return ASTType::Divide;
     default: break;
   }
-  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type << endl;
+  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type
+       << endl;
   exit(1);
 }
 

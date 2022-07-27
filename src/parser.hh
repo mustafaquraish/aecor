@@ -34,8 +34,7 @@ struct Parser {
 
   bool token_is(TokenType token_type) { return token().type == token_type; }
 
-  Parser(vector<Token> tokens)
-      : tokens(tokens) {}
+  Parser(vector<Token> tokens) : tokens(tokens) {}
   Token &token() { return tokens[curr]; };
 };
 

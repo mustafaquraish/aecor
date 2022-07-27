@@ -15,7 +15,10 @@ struct Lexer {
   Lexer(std::string_view source, std::string_view filename = "<unknown>")
       : source(source), filename(filename), i(0), line(1), column(1) {}
 
-  Location location() { return Location{filename, line, column}; }
+  Location location(int line_off = -1) {
+    if (line_off < 0) line_off = column;
+    return Location{filename, line, line_off};
+  }
 
   void push(TokenType type, int length = 0) {
     tokens.push_back(Token::from_type(type, location()));

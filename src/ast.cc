@@ -3,9 +3,6 @@
 
 #include "tokens.hh"
 
-AST::AST(ASTType type, Location location)
-    : type(type), location(location) {
-  if (type == ASTType::Block) {
-    block.statements = new vector<AST *>();
-  }
+AST::AST(ASTType type, Location location) : type(type), location(location) {
+  if (type == ASTType::Block) { block.statements = new vector<AST *>(); }
 }

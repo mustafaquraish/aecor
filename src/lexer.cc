@@ -2,9 +2,7 @@
 #include <utils.hh>
 
 char Lexer::peek(int offset) {
-  if (i + offset >= source.size()) {
-    return 0;
-  }
+  if (i + offset >= source.size()) { return 0; }
   return source[i + offset];
 }
 
@@ -39,9 +37,7 @@ std::vector<Token> Lexer::lex() {
         // Ignoring comments
         if (peek() == '/') {
           ++i;
-          while (i < source.length() && source[i] != '\n') {
-            ++i;
-          }
+          while (i < source.length() && source[i] != '\n') { ++i; }
           ++line;
           column = 1;
         } else {
@@ -63,7 +59,7 @@ std::vector<Token> Lexer::lex() {
             ++i;
           }
 
-          push(Token::from_int_literal(value, location()));
+          push(Token::from_int_literal(value, location(start)));
           column += i - start;
           --i;
 
@@ -79,8 +75,21 @@ std::vector<Token> Lexer::lex() {
           column += i - start;
           --i;
 
+        } else if (source[i] == '"') {
+          int start = i + 1;
+
+          // help, boolean expressions are hard
+          while (source[i] == '\\' || peek() != '"') { ++i; }
+          ++i;
+
+          auto view = source.substr(start, i - start);
+          push(Token::from_type(TokenType::StringLiteral, location(start),
+                                view));
+          column += i - start;
+
         } else {
-          std::cerr << location() << ": unexpected character '" << source[i] << "' at index " << i << std::endl;
+          std::cerr << location() << ": unexpected character '" << source[i]
+                    << "' at index " << i << std::endl;
           std::cerr << HERE << " Location in source" << std::endl;
           exit(1);
         }
