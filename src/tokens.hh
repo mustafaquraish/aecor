@@ -18,6 +18,8 @@
   F(OpenParen, "OpenParen")   \
   F(CloseParen, "CloseParen") \
   F(Colon, "Colon")           \
+  F(Comma, "Comma")           \
+  F(Dot, "Dot")               \
   F(Semicolon, "Semicolon")   \
   F(OpenCurly, "OpenCurly")   \
   F(CloseCurly, "CloseCurly") \

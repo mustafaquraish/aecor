@@ -13,12 +13,19 @@ using namespace std;
   F(Minus, "Minus")             \
   F(Multiply, "Multiply")       \
   F(Divide, "Divide")           \
+  F(Var, "Var")                 \
+  F(Call, "Call")               \
   F(Block, "Block")
 
 enum class ASTType {
 #define F(name, text) name,
   ENUM_AST_TYPES(F)
 #undef F
+};
+
+struct Variable {
+  string_view name;
+  Type *type;
 };
 
 struct AST {
@@ -28,6 +35,7 @@ struct AST {
   union {
     struct {
       string_view name;
+      vector<Variable *> *params;
       Type *return_type;
       AST *body;
     } func_def;
@@ -46,13 +54,20 @@ struct AST {
     } binary;
 
     struct {
+      string_view name;
+    } var;
+
+    struct {
+      AST *callee;
+      vector<AST *> *args;
+    } call;
+
+    struct {
       int value;
     } int_literal;
   };
 
-  AST(ASTType type, Location location) : type(type), location(location) {
-    if (type == ASTType::Block) { block.statements = new vector<AST *>(); }
-  }
+  AST(ASTType type, Location location);
 };
 
 inline std::ostream &operator<<(std::ostream &os, const ASTType &type) {

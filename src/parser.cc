@@ -54,7 +54,18 @@ AST *Parser::parse_function() {
   node->func_def.name = name.text;
 
   consume(TokenType::OpenParen);
+
   // TODO: Add arguments
+  auto params = new vector<Variable *>();
+  while (!token_is(TokenType::CloseParen)) {
+    auto name = consume(TokenType::Identifier);
+    consume(TokenType::Colon);
+    auto type = parse_type();
+    params->push_back(new Variable{name.text, type});
+    if (!consume_if(TokenType::Comma)) break;
+  }
+  node->func_def.params = params;
+
   consume(TokenType::CloseParen);
   consume(TokenType::Colon);
 
@@ -105,7 +116,33 @@ AST *Parser::parse_factor() {
       consume(TokenType::IntLiteral);
       break;
     }
+    case TokenType::Identifier: {
+      node           = new AST(ASTType::Var, token().location);
+      node->var.name = consume(TokenType::Identifier).text;
+      break;
+    }
     default: UNHANDLED_TYPE();
+  }
+
+  auto done = false;
+  while (!done) {
+    switch (token().type) {
+      case TokenType::OpenParen: {
+        consume(TokenType::OpenParen);
+        auto args = new vector<AST *>();
+        while (!token_is(TokenType::CloseParen)) {
+          args->push_back(parse_expression());
+          if (!consume_if(TokenType::Comma)) break;
+        }
+        consume(TokenType::CloseParen);
+        auto call         = new AST(ASTType::Call, token().location);
+        call->call.callee = node;
+        call->call.args   = args;
+        node              = call;
+        break;
+      }
+      default: done = true;
+    }
   }
 
   return node;
@@ -134,11 +171,9 @@ ASTType token_to_op(TokenType type) {
     case TokenType::Minus: return ASTType::Minus;
     case TokenType::Star: return ASTType::Multiply;
     case TokenType::Slash: return ASTType::Divide;
-    default: {
-    }
+    default: break;
   }
-  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type
-       << endl;
+  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type << endl;
   exit(1);
 }
 

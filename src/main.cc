@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
   }
 
   auto filename = argv[1];
-  auto source = slurp_file(filename);
+  auto source   = slurp_file(filename);
 
   auto lexer  = Lexer(source, filename);
   auto tokens = lexer.lex();
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
   auto program = parser.parse_program();
 
   auto generator = CodeGenerator();
-  auto ccode = generator.generate(program);
+  auto ccode     = generator.generate(program);
 
   std::ofstream out("test.c");
   out << ccode;

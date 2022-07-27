@@ -13,7 +13,8 @@ void CodeGenerator::gen_op(ASTType type) {
     case ASTType::Divide: out << " / "; return;
     default: break;
   }
-  cerr << "\n" << HERE << "UNHANDLED TYPE IN gen_op: " << type << std::endl;
+  cerr << "\n"
+       << HERE << "UNHANDLED TYPE IN gen_op: " << type << std::endl;
   exit(1);
 }
 
@@ -21,7 +22,15 @@ void CodeGenerator::gen(AST *node, int indent) {
   switch (node->type) {
     case ASTType::FunctionDef: {
       gen_indent(indent);
-      out << *node->func_def.return_type << " " << node->func_def.name << "() ";
+      out << *node->func_def.return_type << " " << node->func_def.name << "(";
+
+      bool first = true;
+      for (auto arg : *node->func_def.params) {
+        if (!first) out << ", ";
+        first = false;
+        out << *arg->type << " " << arg->name;
+      }
+      out << ") ";
       gen(node->func_def.body, indent);
       break;
     }
@@ -59,8 +68,26 @@ void CodeGenerator::gen(AST *node, int indent) {
       break;
     }
 
+    case ASTType::Var: {
+      out << node->var.name;
+      break;
+    }
+
+    case ASTType::Call: {
+      gen(node->call.callee, indent + 1);
+      out << "(";
+      bool first = true;
+      for (auto arg : *node->call.args) {
+        if (!first) out << ", ";
+        first = false;
+        gen(arg, indent + 1);
+      }
+      out << ")";
+      break;
+    }
+
     default: {
-      cerr << HERE << "UNHANDLED TYPE IN gen: " << node->type << std::endl;
+      cerr << HERE << " UNHANDLED TYPE IN gen: " << node->type << std::endl;
       exit(1);
     }
   }

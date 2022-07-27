@@ -21,8 +21,10 @@ struct Type {
   BaseType base;
   Type *ptr_to;
 
-  Type(BaseType base) : base(base), ptr_to(nullptr) {}
-  Type(BaseType base, Type *ptr_to) : base(base), ptr_to(ptr_to) {}
+  Type(BaseType base)
+      : base(base), ptr_to(nullptr) {}
+  Type(BaseType base, Type *ptr_to)
+      : base(base), ptr_to(ptr_to) {}
   Type(BaseType base, BaseType ptr_to_typ)
       : base(base), ptr_to(new Type(ptr_to_typ)) {}
 

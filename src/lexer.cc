@@ -8,7 +8,6 @@ char Lexer::peek(int offset) {
   return source[i + offset];
 }
 
-
 std::vector<Token> Lexer::lex() {
   for (i = 0; i < source.length(); ++i) {
     switch (source[i]) {
@@ -33,6 +32,8 @@ std::vector<Token> Lexer::lex() {
       case ';': push(TokenType::Semicolon, 1); break;
       case '+': push(TokenType::Plus, 1); break;
       case '-': push(TokenType::Minus, 1); break;
+      case ',': push(TokenType::Comma, 1); break;
+      case '.': push(TokenType::Dot, 1); break;
 
       case '/': {
         // Ignoring comments
@@ -79,8 +80,7 @@ std::vector<Token> Lexer::lex() {
           --i;
 
         } else {
-          std::cerr << location() << ": unexpected character '" << source[i] << "' at index " << i
-                    << std::endl;
+          std::cerr << location() << ": unexpected character '" << source[i] << "' at index " << i << std::endl;
           std::cerr << HERE << " Location in source" << std::endl;
           exit(1);
         }

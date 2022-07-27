@@ -3,4 +3,9 @@
 
 #include "tokens.hh"
 
-// FIXME: Stuff
+AST::AST(ASTType type, Location location)
+    : type(type), location(location) {
+  if (type == ASTType::Block) {
+    block.statements = new vector<AST *>();
+  }
+}
