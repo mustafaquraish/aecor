@@ -1,58 +1,91 @@
 import subprocess
+from dataclasses import dataclass
+from enum import Enum
 from os import system
 from pathlib import Path
 from sys import argv
 
 
-def get_expected(filename):
-    expected = {}
-    with open(filename) as f:
-        for line in f:
+class ExpectedOutputType(Enum):
+    """Possible test results"""
+
+    FAIL = 1
+    EXIT_WITH_CODE = 2
+    EXIT_WITH_OUTPUT = 3
+
+
+@dataclass(frozen=True)
+class Expected:
+    """A container for the expected output of a test"""
+
+    expected_output_type: ExpectedOutputType
+    value: str | int | None
+
+
+def get_expected(filename) -> Expected | None:
+    expected = None
+    with open(filename) as file:
+        for line in file:
+            # exit as soon as the first non-commented line is found
             if not line.startswith("///"):
                 break
+
+            # remove the comment marker and any leading or trailing
+            # whitespace from the line
             line = line[3:].strip()
+
+            # if the line does not contain any characters after the
+            # comment marker, continue
             if line == "":
                 continue
 
             if line == "fail":
-                expected[line] = True
+                expected = Expected(
+                    expected_output_type=ExpectedOutputType.FAIL,
+                    value=None,
+                )
                 break
 
             if ":" not in line:
                 print(f'[-] Invalid parameters in {filename}: "{line}"')
-                return None
+                break
 
             name, value = map(str.strip, line.split(":"))
             if name == "exit":
-                expected[name] = int(value)
+                expected = Expected(
+                    expected_output_type=ExpectedOutputType.EXIT_WITH_CODE,
+                    value=int(value),
+                )
+                break
             elif name == "out":
-                expected[name] = value
+                expected = Expected(
+                    expected_output_type=ExpectedOutputType.EXIT_WITH_OUTPUT,
+                    value=value,
+                )
+                break
             else:
                 print(f'[-] Invalid parameter in {filename}: {line}')
-                return None
-
-    if not expected:
-        return None
+                break
 
     return expected
 
 
-def handle_test(path, expected):
+def handle_test(path: Path, expected: Expected) -> bool:
     if system(f'./compiler {str(path)}') != 0:
         print(f'  {path} - FAIL (compilation failed)')
-        return expected.get("fail") is True
+        return expected.expected_output_type == ExpectedOutputType.FAIL
 
     process = subprocess.run(['./test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    if "exit" in expected:
-        if process.returncode != expected["exit"]:
-            print(f'Expected exit code {expected["exit"]}, got {process.returncode}')
+    if expected.expected_output_type == ExpectedOutputType.EXIT_WITH_CODE:
+        if process.returncode != expected.value:
+            print(f'Expected exit code {expected.value}, got {process.returncode}')
             return False
 
-    if "out" in expected:
+    if expected.expected_output_type == ExpectedOutputType.EXIT_WITH_OUTPUT:
         output = process.stdout.decode('utf-8')
-        if output != expected["out"]:
-            print(f'Expected output {repr(expected["out"])}, got {repr(output)}')
+        if output != expected.value:
+            print(f'Expected output {repr(expected.value)}, got {repr(output)}')
             return False
 
     return True
