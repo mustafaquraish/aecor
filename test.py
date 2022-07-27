@@ -1,7 +1,7 @@
-from sys import argv
-from pathlib import Path
-from os import system
 import subprocess
+from os import system
+from pathlib import Path
+from sys import argv
 
 
 def get_expected(filename):
