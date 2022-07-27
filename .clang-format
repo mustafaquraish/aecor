@@ -1,0 +1,15 @@
+﻿---
+BasedOnStyle: Google
+AlignConsecutiveAssignments: 'true'
+AllowShortBlocksOnASingleLine: 'true'
+AllowShortCaseLabelsOnASingleLine: 'true'
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortLambdasOnASingleLine: Inline
+IndentCaseLabels: 'true'
+IndentPPDirectives: BeforeHash
+Language: Cpp
+NamespaceIndentation: None
+UseTab: Never
+
+...
