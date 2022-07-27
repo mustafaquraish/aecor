@@ -58,7 +58,8 @@ def handle_test(path, expected):
     return True
 
 
-def main(test_paths: list[str]):
+def main():
+    test_paths = argv[1:]
     if len(test_paths) == 0:
         test_paths = [Path(__file__).parent / "tests"]
 
@@ -91,4 +92,4 @@ def main(test_paths: list[str]):
 
 
 if __name__ == "__main__":
-    main(argv[1:])
+    main()
