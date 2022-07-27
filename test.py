@@ -27,16 +27,11 @@ def get_expected(filename) -> Expected | None:
     expected = None
     with open(filename) as file:
         for line in file:
-            # exit as soon as the first non-commented line is found
             if not line.startswith("///"):
                 break
 
-            # remove the comment marker and any leading or trailing
-            # whitespace from the line
             line = line[3:].strip()
 
-            # if the line does not contain any characters after the
-            # comment marker, continue
             if line == "":
                 continue
 
