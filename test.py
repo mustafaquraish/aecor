@@ -84,7 +84,7 @@ def handle_test(path: Path, expected: Expected) -> bool:
             return False
 
     if expected.expected_output_type == ExpectedOutputType.EXIT_WITH_OUTPUT:
-        output = process.stdout.decode('utf-8')
+        output = process.stdout.decode('utf-8').strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
             print(f'[-] Expected output {repr(expected_out)}, got {repr(output)}')
