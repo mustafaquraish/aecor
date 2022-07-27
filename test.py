@@ -40,7 +40,7 @@ def get_expected(filename):
 def handle_test(path, expected):
     if system(f'./compiler {str(path)}') != 0:
         print(f'  {path} - FAIL (compilation failed)')
-        return expected.get("fail") == True
+        return expected.get("fail") is True
 
     process = subprocess.run(['./test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
