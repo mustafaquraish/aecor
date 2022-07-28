@@ -41,11 +41,11 @@ int main(int argc, char *argv[]) {
   auto generator = CodeGenerator();
   auto ccode     = generator.generate(program);
 
-  std::ofstream out("test.c");
+  std::ofstream out("out.c");
   out << ccode;
   out.close();
 
-  auto exit_code = system("gcc test.c -o test");
+  auto exit_code = system("gcc out.c -o out");
   if (exit_code != 0) {
     std::cerr << "[-] Compilation failed" << std::endl;
     return exit_code;

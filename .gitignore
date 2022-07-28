@@ -1,0 +1,12 @@
+build
+.vscode
+.idea
+*.dSYM
+.DS_Store
+
+test.ae
+out.c
+
+a.out
+out
+aecor

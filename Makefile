@@ -12,12 +12,12 @@ CFLAGS    = -ggdb3 -I src/ -std=c++20
 
 .PHONY: all run clean
 
-all: compiler
+all: aecor
 
 $(DEPFILES):
 	@mkdir -p "$(@D)"
 
-compiler: $(OBJS) | $(BIN)
+aecor: $(OBJS) | $(BIN)
 	@echo "- Building final executable $@"
 	@clang++ $(CFLAGS) $^ -o $@ -lm
 
@@ -33,6 +33,6 @@ build/deps:
 	@mkdir -p $@
 
 clean:
-	rm -rf build compiler
+	rm -rf build aecor
 
 include $(wildcard $(DEPFILES))
