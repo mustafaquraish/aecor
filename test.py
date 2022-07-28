@@ -1,59 +1,86 @@
-from sys import argv
-from pathlib import Path
-from os import walk, system
-from ast import literal_eval
 import subprocess
+from ast import literal_eval
+from dataclasses import dataclass
+from enum import Enum
+from os import system
+from pathlib import Path
+from sys import argv
 
-def get_expected(filename):
-    expected = {}
-    with open(filename) as f:
-        for line in f:
+
+class ExpectedOutputType(Enum):
+    """Possible test results"""
+
+    FAIL = 1
+    EXIT_WITH_CODE = 2
+    EXIT_WITH_OUTPUT = 3
+
+
+@dataclass(frozen=True)
+class Expected:
+    """A container for the expected output of a test"""
+
+    type: ExpectedOutputType
+    value: str | int | None
+
+
+def get_expected(filename) -> Expected | None:
+    expected = None
+    with open(filename) as file:
+        for line in file:
             if not line.startswith("///"):
                 break
+
             line = line[3:].strip()
+
             if line == "":
                 continue
 
             if line == "fail":
-                expected[line] = True
+                expected = Expected(
+                    type=ExpectedOutputType.FAIL,
+                    value=None,
+                )
                 break
 
             if ":" not in line:
                 print(f'[-] Invalid parameters in {filename}: "{line}"')
-                return None
+                break
 
             name, value = map(str.strip, line.split(":"))
             if name == "exit":
-                expected[name] = int(value)
+                expected = Expected(
+                    type=ExpectedOutputType.EXIT_WITH_CODE,
+                    value=int(value),
+                )
+                break
             elif name == "out":
-                expected[name] = value
+                expected = Expected(
+                    type=ExpectedOutputType.EXIT_WITH_OUTPUT,
+                    value=value,
+                )
+                break
             else:
                 print(f'[-] Invalid parameter in {filename}: {line}')
-                return None
-
-    if not expected:
-        return None
+                break
 
     return expected
 
-def runcmd(*args, **kwargs):
-    return system(*args, **kwargs)
 
-def handle_test(path, expected):
-    if runcmd(f'./compiler {str(path)}') != 0:
+def handle_test(path: Path, expected: Expected) -> bool:
+    if system(f'./compiler {str(path)}') != 0:
         print(f'[-] Compiling the test code failed')
-        return expected.get("fail") == True
+        return expected.type == ExpectedOutputType.FAIL
 
     process = subprocess.run(['./test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    if "exit" in expected:
-        if process.returncode != expected["exit"]:
-            print(f'[-] Expected exit code {expected["exit"]}, got {process.returncode}')
+    if expected.type == ExpectedOutputType.EXIT_WITH_CODE:
+        if process.returncode != expected.value:
+            print(f'[-] Expected exit code {expected.value}, got {process.returncode}')
             return False
 
-    if "out" in expected:
+    if expected.type == ExpectedOutputType.EXIT_WITH_OUTPUT:
         output = process.stdout.decode('utf-8').strip()
-        expected_out = literal_eval(expected["out"]).strip()
+        expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
             print(f'[-] Expected output {repr(expected_out)}, got {repr(output)}')
             return False
@@ -61,27 +88,30 @@ def handle_test(path, expected):
     return True
 
 
-
 def main():
-    if len(argv) == 1:
-        test_locations = [Path(__file__).parent / "tests"]
-    else:
-        test_locations = [Path(arg) for arg in argv[1:]]
+    test_paths = argv[1:]
+    if len(test_paths) == 0:
+        test_paths = [Path(__file__).parent / "tests"]
+
+    test_paths = [Path(pth) for pth in test_paths]
 
     if system("make") != 0:
         return 1
 
     tests_to_run = []
-    for loc in test_locations:
-        if loc.is_file():
-            if expected := get_expected(loc):
-                tests_to_run.append((loc, expected))
-            continue
-        for root, _, files in walk(loc):
-            for file in files:
-                path = Path(root) / file
-                if expected := get_expected(path):
-                    tests_to_run.append((path, expected))
+    for path in test_paths:
+        files = []
+
+        if path.is_dir():
+            for path_ in path.glob('**/*'):
+                if path_.is_file():
+                    files.append(path_)
+        else:
+            files.append(path)
+
+        for file in files:
+            if expected := get_expected(file):
+                tests_to_run.append((file, expected))
 
     print(f'Running {len(tests_to_run)} tests:')
     for path, expected in tests_to_run:
