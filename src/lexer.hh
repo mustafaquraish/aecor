@@ -10,6 +10,7 @@ struct Lexer {
   int i;
   int line;
   int column;
+  bool seen_newline;
   std::vector<Token> tokens;
 
   Lexer(std::string_view source, std::string_view filename = "<unknown>")
@@ -21,15 +22,19 @@ struct Lexer {
   }
 
   void push(TokenType type, int length = 0) {
-    tokens.push_back(Token::from_type(type, location()));
+    push(Token::from_type(type, location()));
     column += length;
   }
 
   void push_name(std::string_view text) {
-    tokens.push_back(Token::from_name(text, location()));
+    push(Token::from_name(text, location()));
   }
 
-  void push(Token token) { tokens.push_back(token); }
+  void push(Token token) {
+    token.newline_before = seen_newline;
+    tokens.push_back(token);
+    seen_newline = false;
+  }
 
   char peek(int offset = 1);
   std::vector<Token> lex();

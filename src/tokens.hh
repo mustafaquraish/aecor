@@ -64,6 +64,7 @@ struct Token {
   Location location;
   std::string_view text;
   int int_lit;
+  bool newline_before = false;
 
   Token() {}
 

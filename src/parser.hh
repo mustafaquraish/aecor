@@ -17,11 +17,11 @@ struct Parser {
 
   Type *parse_type();
 
-  AST *parse_factor();
-  AST *parse_term();
-  AST *parse_additive();
-  AST *parse_relational();
-  AST *parse_expression();
+  AST *parse_factor(bool in_parens);
+  AST *parse_term(bool in_parens);
+  AST *parse_additive(bool in_parens);
+  AST *parse_relational(bool in_parens);
+  AST *parse_expression(bool in_parens = false);
 
   AST *parse_program();
   AST *parse_function();
@@ -34,6 +34,7 @@ struct Parser {
   bool consume_if(TokenType token_type);
 
   bool token_is(TokenType token_type) { return token().type == token_type; }
+  void consume_line_end();
 
   Parser(vector<Token> tokens) : tokens(tokens) {}
   Token &token() { return tokens[curr]; };
