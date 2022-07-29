@@ -14,6 +14,7 @@ using namespace std;
   F(If, "If")                                                                  \
   F(VarDeclaration, "VarDeclaration")                                          \
   F(Assignment, "Assignment")                                                  \
+                                                                               \
   F(Plus, "Plus")                                                              \
   F(Minus, "Minus")                                                            \
   F(Multiply, "Multiply")                                                      \

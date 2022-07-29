@@ -6,7 +6,7 @@
 using namespace std;
 
 #define ENUM_BASE_TYPES(F)                                                     \
-  F(I32, "int32_t")                                                                \
+  F(I32, "int32_t")                                                            \
   F(Bool, "bool")                                                              \
   F(Void, "void")
 
