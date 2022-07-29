@@ -36,9 +36,7 @@ void Parser::consume_line_end() {
     curr++;
     return;
   }
-  if (token().newline_before) {
-    return;
-  }
+  if (token().newline_before) { return; }
 
   std::cerr << token().location << ": expected semicolon or newline, but got "
             << token().type << std::endl;
@@ -163,8 +161,9 @@ AST *Parser::parse_statement() {
       consume(TokenType::Let);
 
       auto name = consume(TokenType::Identifier);
-      consume(TokenType::Colon);
-      auto type = parse_type();
+
+      Type *type = nullptr;
+      if (consume_if(TokenType::Colon)) { type = parse_type(); }
 
       node->var_decl.var = new Variable{name.text, type};
 
@@ -205,7 +204,6 @@ ASTType token_to_op(TokenType type) {
        << endl;
   exit(1);
 }
-
 
 AST *Parser::parse_factor(bool in_parens) {
   AST *node = nullptr;

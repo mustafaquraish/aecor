@@ -1,0 +1,11 @@
+/// out: ""
+
+def main() : i32 {
+    let x = 5
+    let y = 7
+    let z = true
+    {
+        let p = 3
+    }
+    return x
+}

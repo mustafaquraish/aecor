@@ -6,9 +6,9 @@
 #include <fstream>
 #include <iostream>
 #include <lexer.hh>
-#include <typecheck.hh>
 #include <parser.hh>
 #include <sstream>
+#include <typecheck.hh>
 
 using namespace std;
 

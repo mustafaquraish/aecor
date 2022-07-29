@@ -20,7 +20,7 @@ std::vector<Token> Lexer::lex() {
       case '\n':
         ++line;
         seen_newline = true;
-        column = 1;
+        column       = 1;
         break;
 
       case '(': push(TokenType::OpenParen, 1); break;
