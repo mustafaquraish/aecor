@@ -5,7 +5,7 @@ from enum import Enum
 from os import system
 from pathlib import Path
 from sys import argv
-
+from typing import Union, Optional
 
 class ExpectedOutputType(Enum):
     """Possible test results"""
@@ -20,10 +20,10 @@ class Expected:
     """A container for the expected output of a test"""
 
     type: ExpectedOutputType
-    value: str | int | None
+    value: Union[int, str, None]
 
 
-def get_expected(filename) -> Expected | None:
+def get_expected(filename) -> Optional[Expected]:
     expected = None
     with open(filename) as file:
         for line in file:
