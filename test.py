@@ -67,8 +67,10 @@ def get_expected(filename) -> Expected | None:
 
 
 def handle_test(path: Path, expected: Expected) -> bool:
-    if system(f'./aecor {str(path)}') != 0:
-        print(f'[-] Compiling the test code failed')
+    process = subprocess.run(['./aecor', str(path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if process.returncode != 0:
+        if expected.type != ExpectedOutputType.FAIL:
+            print(f'[-] Compiling the test code failed')
         return expected.type == ExpectedOutputType.FAIL
 
     process = subprocess.run(['./out'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)

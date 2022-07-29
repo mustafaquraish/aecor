@@ -6,6 +6,7 @@
 #include <fstream>
 #include <iostream>
 #include <lexer.hh>
+#include <typecheck.hh>
 #include <parser.hh>
 #include <sstream>
 
@@ -37,6 +38,9 @@ int main(int argc, char *argv[]) {
 
   auto parser  = Parser(tokens);
   auto program = parser.parse_program();
+
+  auto checker = TypeChecker();
+  checker.check(program);
 
   auto generator = CodeGenerator();
   auto ccode     = generator.generate(program);
