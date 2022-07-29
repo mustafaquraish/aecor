@@ -1,0 +1,5 @@
+/// fail
+
+def main() {
+    let x: i32 = bool
+}
