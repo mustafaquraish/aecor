@@ -45,17 +45,18 @@ void CodeGenerator::gen(AST *node, int indent) {
         out << *arg->type << " " << arg->name;
       }
       out << ") ";
-      gen(node->func_def.body, indent + 1);
+      gen(node->func_def.body, indent);
       break;
     }
 
     case ASTType::Block: {
       out << "{\n";
       for (auto statement : *node->block.statements) {
-        gen_indent(indent);
+        gen_indent(indent + 1);
         gen(statement, indent + 1);
         out << ";\n";
       }
+      gen_indent(indent);
       out << "}\n";
       break;
     }
@@ -100,12 +101,13 @@ void CodeGenerator::gen(AST *node, int indent) {
 
     case ASTType::If: {
       out << "if (";
-      gen(node->if_stmt.cond, indent + 1);
+      gen(node->if_stmt.cond, indent);
       out << ") ";
-      gen(node->if_stmt.body, indent + 1);
+      gen(node->if_stmt.body, indent);
       if (node->if_stmt.els) {
-        out << " else ";
-        gen(node->if_stmt.els, indent + 1);
+        gen_indent(indent);
+        out << "else ";
+        gen(node->if_stmt.els, indent);
       }
       break;
     }
