@@ -5,9 +5,7 @@
 #include "tokens.hh"
 
 #define UNHANDLED_TYPE()                                                       \
-  cerr << token().location << ": Unexpected token: " << token().type << endl;  \
-  cerr << HERE << " Source location: " << __FUNCTION__ << endl;                \
-  exit(1);
+  error_loc(token().location, format("Unexpected token: " << token().type))
 
 Token &Parser::consume_impl(TokenType token_type, const char *sloc) {
   auto &ret = expect_impl(token_type, sloc);
@@ -17,10 +15,7 @@ Token &Parser::consume_impl(TokenType token_type, const char *sloc) {
 
 Token &Parser::expect_impl(TokenType token_type, const char *sloc) {
   if (token_is(token_type)) return token();
-  std::cerr << token().location << ": expected " << token_type << " but got "
-            << token().type << std::endl;
-  std::cerr << sloc << " Location in compiler" << std::endl;
-  exit(1);
+  error_loc(token().location, format("Expected token: " << token_type));
 };
 
 bool Parser::consume_if(TokenType token_type) {
@@ -38,10 +33,7 @@ void Parser::consume_line_end() {
   }
   if (token().newline_before) { return; }
 
-  std::cerr << token().location << ": expected semicolon or newline, but got "
-            << token().type << std::endl;
-  std::cerr << HERE << " Location in compiler" << std::endl;
-  exit(1);
+  error_loc(token().location, "Expected newline / semicolon");
 }
 
 Type *Parser::parse_type() {
@@ -200,8 +192,7 @@ ASTType token_to_op(TokenType type) {
     case TokenType::GreaterThan: return ASTType::GreaterThan;
     default: break;
   }
-  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type
-       << endl;
+  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type << endl;
   exit(1);
 }
 

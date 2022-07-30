@@ -46,11 +46,6 @@ bool TypeChecker::check_valid_type(Type *type) {
   }
 }
 
-void TypeChecker::error(AST *node, const char *msg) {
-  cerr << node->location << ": " << msg << endl;
-  exit(1);
-}
-
 // Stubs
 void TypeChecker::check_function(AST *node) {
   auto prev_func                 = curr_func;
@@ -80,13 +75,15 @@ void TypeChecker::check_statement(AST *node) {
   switch (node->type) {
     case ASTType::Block: check_block(node); return;
     case ASTType::Return: {
-      if (!curr_func) { error(node, "Return statement outside of function"); }
+      if (!curr_func) {
+        error_loc(node->location, "Return statement outside of function"); 
+      }
       if (curr_func->func_def.return_type->base == BaseType::Void) {
-        error(node, "Cannot return from void function");
+        error_loc(node->location, "Cannot return from void function");
       }
       auto ret_type = check_expression(node->unary.expr);
       if (*ret_type != *curr_func->func_def.return_type) {
-        error(node, "Return type does not match function return type");
+        error_loc(node->unary.expr->location, "Return type does not match function return type");
       }
       return;
     }
@@ -97,11 +94,11 @@ void TypeChecker::check_statement(AST *node) {
         if (!node->var_decl.var->type) {
           node->var_decl.var->type = init_type;
         } else if (*node->var_decl.var->type != *init_type) {
-          error(node, "Variable type does not match initializer type");
+          error_loc(node->var_decl.init->location, "Variable type does not match initializer type");
         }
       } else {
         if (!node->var_decl.var->type) {
-          error(node, "Variable type cannot be inferred, specify explicitly");
+          error_loc(node->location, "Variable type cannot be inferred, specify explicitly");
         }
         check_valid_type(node->var_decl.var->type);
       }
@@ -111,7 +108,8 @@ void TypeChecker::check_statement(AST *node) {
     case ASTType::While: {
       auto cond_type = check_expression(node->while_loop.cond);
       if (cond_type->base != BaseType::Bool) {
-        error(node, "Condition must be boolean");
+        auto &loc = node->while_loop.cond->location;
+        error_loc(loc, "Condition must be boolean");
       }
       check_statement(node->while_loop.body);
       return;
@@ -119,7 +117,7 @@ void TypeChecker::check_statement(AST *node) {
     case ASTType::If: {
       auto cond_type = check_expression(node->if_stmt.cond);
       if (cond_type->base != BaseType::Bool) {
-        error(node, "Condition must be boolean");
+        error_loc(node->if_stmt.cond->location, "Condition must be boolean");
       }
       check_statement(node->if_stmt.body);
       if (node->if_stmt.els) { check_statement(node->if_stmt.els); }
@@ -132,7 +130,7 @@ void TypeChecker::check_statement(AST *node) {
 Type *TypeChecker::check_call(AST *node) {
   // TODO: Allow expressions evaluating to functions?
   if (node->call.callee->type != ASTType::Var) {
-    error(node, "Functions need to explicitly be specified by name.");
+    error_loc(node->call.callee->location, "Functions need to explicitly be specified by name.");
   }
   auto &name = node->call.callee->var.name;
 
@@ -142,10 +140,10 @@ Type *TypeChecker::check_call(AST *node) {
     return new Type(BaseType::Void);
   }
 
-  if (functions.count(name) == 0) { error(node, "Function not found"); }
+  if (functions.count(name) == 0) { error_loc(node->location, "Function not found"); }
   auto func = functions[name];
   if (func->func_def.params->size() != node->call.args->size()) {
-    error(node, "Number of arghuments does not match function signature");
+    error_loc(node->location, "Number of arguments does not match function signature");
   }
   auto &params = *func->func_def.params;
   for (int i = 0; i < params.size(); i++) {
@@ -153,7 +151,7 @@ Type *TypeChecker::check_call(AST *node) {
     auto arg      = node->call.args->at(i);
     auto arg_type = check_expression(arg);
     if (*param->type != *arg_type) {
-      error(node, "Argument type does not match function parameter type");
+      error_loc(arg->location, "Argument type does not match function parameter type");
     }
   }
 
@@ -169,7 +167,7 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::StringLiteral: return new Type(BaseType::Void);
     case ASTType::Var: {
       auto var = find_var(node->var.name);
-      if (var == nullptr) { error(node, "Variable not found"); }
+      if (var == nullptr) { error_loc(node->location, "Variable not found"); }
       return var->type;
     }
     // TODO: Allow more comlex binary expressions, will eventually need support
@@ -181,7 +179,7 @@ Type *TypeChecker::check_expression(AST *node) {
       auto lhs_type = check_expression(node->binary.lhs);
       auto rhs_type = check_expression(node->binary.rhs);
       if (lhs_type->base != BaseType::I32 || rhs_type->base != BaseType::I32) {
-        error(node, "Operands must be integers");
+        error_loc(node->location, "Operands must be integers");
       }
       return new Type(BaseType::I32);
     }
@@ -191,7 +189,7 @@ Type *TypeChecker::check_expression(AST *node) {
       auto lhs_type = check_expression(node->binary.lhs);
       auto rhs_type = check_expression(node->binary.rhs);
       if (lhs_type->base != BaseType::I32 || rhs_type->base != BaseType::I32) {
-        error(node, "Operands must be integers");
+        error_loc(node->location, "Operands must be integers");
       }
       return new Type(BaseType::Bool);
     }
@@ -200,14 +198,13 @@ Type *TypeChecker::check_expression(AST *node) {
       auto lhs = check_expression(node->binary.lhs);
       auto rhs = check_expression(node->binary.rhs);
       if (*lhs != *rhs) {
-        error(node, "Variable type does not match assignment type");
+        error_loc(node->location, "Variable type does not match assignment type");
       }
       return lhs;
     }
 
     default: break;
   }
-  cerr << HERE << " UNHANDLED TYPE IN check_expression: " << node->type
-       << std::endl;
+  cerr << HERE << " UNHANDLED TYPE IN check_expression: " << node->type << std::endl;
   exit(1);
 }

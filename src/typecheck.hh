@@ -25,7 +25,6 @@ struct TypeChecker {
   Type *check_expression(AST *node);
 
   Variable *find_var(std::string_view name);
-  void error(AST *node, const char *msg);
 
   void push_scope() { scopes.push_back({}); }
   void pop_scope() { scopes.pop_back(); }

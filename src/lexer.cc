@@ -54,7 +54,8 @@ std::vector<Token> Lexer::lex() {
       case '|': push(TokenType::Line, 1); break;
 
       default: {
-        // kwywords / idents / literals
+        auto loc = location();
+        // keywords / idents / literals
         if (isdigit(source[i])) {
           int start = i;
           int value = 0;
@@ -63,7 +64,7 @@ std::vector<Token> Lexer::lex() {
             ++i;
           }
 
-          push(Token::from_int_literal(value, location(start)));
+          push(Token::from_int_literal(value, loc));
           column += i - start;
           --i;
 
@@ -87,15 +88,11 @@ std::vector<Token> Lexer::lex() {
           ++i;
 
           auto view = source.substr(start, i - start);
-          push(Token::from_type(TokenType::StringLiteral, location(start),
-                                view));
+          push(Token::from_type(TokenType::StringLiteral, loc, view));
           column += i - start;
 
         } else {
-          std::cerr << location() << ": unexpected character '" << source[i]
-                    << "' at index " << i << std::endl;
-          std::cerr << HERE << " Location in source" << std::endl;
-          exit(1);
+          error_loc(loc, format("Unrecognized character '" << source[i] << "'"));
         }
       }
     }
