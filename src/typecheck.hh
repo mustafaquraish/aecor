@@ -6,11 +6,11 @@
 
 using namespace std;
 
-struct Scope {
-  std::unordered_map<string_view, Variable *> variables;
-};
-
 struct TypeChecker {
+  struct Scope {
+    std::unordered_map<string_view, Variable *> variables;
+  };
+
   TypeChecker() {}
 
   void check(AST *node);

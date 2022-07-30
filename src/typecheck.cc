@@ -109,6 +109,10 @@ void TypeChecker::check_statement(AST *node) {
       push_var(node->var_decl.var, node->location);
       return;
     }
+    case ASTType::Defer: {
+      check_expression(node->unary.expr);
+      return;
+    }
     case ASTType::While: {
       auto cond_type = check_expression(node->while_loop.cond);
       if (cond_type->base != BaseType::Bool) {

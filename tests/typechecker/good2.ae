@@ -1,11 +1,10 @@
 /// out: ""
 
-def main() : i32 {
-    let x: i32 = 5
-    let y: i32 = 7
-    let z: bool = true
+def main() {
+    let x = 5
+    let y = 7
     {
-        let p: i32 = 3
+        let p = 3
     }
     return x
 }

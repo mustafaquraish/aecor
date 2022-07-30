@@ -12,6 +12,7 @@ using namespace std;
   F(Block, "Block")                                                            \
   F(BoolLiteral, "BoolLiteral")                                                \
   F(Call, "Call")                                                              \
+  F(Defer, "Defer")                                                            \
   F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
   F(For, "For")                                                                \

@@ -10,6 +10,7 @@
   F(And, "and")                                                                \
   F(Bool, "bool")                                                              \
   F(Def, "def")                                                                \
+  F(Defer, "defer")                                                            \
   F(Else, "else")                                                              \
   F(False, "false")                                                            \
   F(For, "for")                                                                \

@@ -176,6 +176,13 @@ AST *Parser::parse_statement() {
       node->for_loop.body = parse_statement();
       break;
     }
+    case TokenType::Defer: {
+      node = new AST(ASTType::Defer, token().location);
+      consume(TokenType::Defer);
+      node->unary.expr = parse_statement();
+      consume_line_end();
+      break;
+    }
     case TokenType::Return: {
       node = new AST(ASTType::Return, token().location);
       consume(TokenType::Return);
