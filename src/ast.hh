@@ -7,10 +7,12 @@ using namespace std;
 
 #define ENUM_AST_TYPES(F)                                                      \
   F(Assignment, "Assignment")                                                  \
+  F(Address, "Address")                                                        \
   F(And, "And")                                                                \
   F(Block, "Block")                                                            \
   F(BoolLiteral, "BoolLiteral")                                                \
   F(Call, "Call")                                                              \
+  F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
   F(FunctionDef, "FunctionDef")                                                \
   F(GreaterThan, "GreaterThan")                                                \

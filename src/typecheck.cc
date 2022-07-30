@@ -38,6 +38,7 @@ bool TypeChecker::check_valid_type(Type *type) {
     case BaseType::I32:
     case BaseType::Bool:
     case BaseType::Void: return true;
+    case BaseType::Pointer: return check_valid_type(type->ptr_to);
     default: {
       cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << type->base
            << std::endl;
@@ -76,14 +77,15 @@ void TypeChecker::check_statement(AST *node) {
     case ASTType::Block: check_block(node); return;
     case ASTType::Return: {
       if (!curr_func) {
-        error_loc(node->location, "Return statement outside of function"); 
+        error_loc(node->location, "Return statement outside of function");
       }
       if (curr_func->func_def.return_type->base == BaseType::Void) {
         error_loc(node->location, "Cannot return from void function");
       }
       auto ret_type = check_expression(node->unary.expr);
       if (*ret_type != *curr_func->func_def.return_type) {
-        error_loc(node->unary.expr->location, "Return type does not match function return type");
+        error_loc(node->unary.expr->location,
+                  "Return type does not match function return type");
       }
       return;
     }
@@ -94,11 +96,13 @@ void TypeChecker::check_statement(AST *node) {
         if (!node->var_decl.var->type) {
           node->var_decl.var->type = init_type;
         } else if (*node->var_decl.var->type != *init_type) {
-          error_loc(node->var_decl.init->location, "Variable type does not match initializer type");
+          error_loc(node->var_decl.init->location,
+                    "Variable type does not match initializer type");
         }
       } else {
         if (!node->var_decl.var->type) {
-          error_loc(node->var_decl.var->location, "Variable type cannot be inferred, specify explicitly");
+          error_loc(node->var_decl.var->location,
+                    "Variable type cannot be inferred, specify explicitly");
         }
         check_valid_type(node->var_decl.var->type);
       }
@@ -130,7 +134,8 @@ void TypeChecker::check_statement(AST *node) {
 Type *TypeChecker::check_call(AST *node) {
   // TODO: Allow expressions evaluating to functions?
   if (node->call.callee->type != ASTType::Var) {
-    error_loc(node->call.callee->location, "Functions need to explicitly be specified by name.");
+    error_loc(node->call.callee->location,
+              "Functions need to explicitly be specified by name.");
   }
   auto &name = node->call.callee->var.name;
 
@@ -140,10 +145,13 @@ Type *TypeChecker::check_call(AST *node) {
     return new Type(BaseType::Void);
   }
 
-  if (functions.count(name) == 0) { error_loc(node->location, "Function not found"); }
+  if (functions.count(name) == 0) {
+    error_loc(node->location, "Function not found");
+  }
   auto func = functions[name];
   if (func->func_def.params->size() != node->call.args->size()) {
-    error_loc(node->location, "Number of arguments does not match function signature");
+    error_loc(node->location,
+              "Number of arguments does not match function signature");
   }
   auto &params = *func->func_def.params;
   for (int i = 0; i < params.size(); i++) {
@@ -151,7 +159,8 @@ Type *TypeChecker::check_call(AST *node) {
     auto arg      = node->call.args->at(i);
     auto arg_type = check_expression(arg);
     if (*param->type != *arg_type) {
-      error_loc(arg->location, "Argument type does not match function parameter type");
+      error_loc(arg->location,
+                "Argument type does not match function parameter type");
     }
   }
 
@@ -215,17 +224,34 @@ Type *TypeChecker::check_expression(AST *node) {
       return new Type(BaseType::Bool);
     }
 
+    case ASTType::Address: {
+      // TODO: Only allow pointers to l-values, reject literals;
+      auto expr_type = check_expression(node->unary.expr);
+      return new Type(BaseType::Pointer, expr_type);
+    }
+
+    case ASTType::Dereference: {
+      auto expr_type = check_expression(node->unary.expr);
+      if (expr_type->base != BaseType::Pointer) {
+        error_loc(node->unary.expr->location,
+                  "Expression must be a pointer-type");
+      }
+      return expr_type->ptr_to;
+    }
+
     case ASTType::Assignment: {
       auto lhs = check_expression(node->binary.lhs);
       auto rhs = check_expression(node->binary.rhs);
       if (*lhs != *rhs) {
-        error_loc(node->location, "Variable type does not match assignment type");
+        error_loc(node->location,
+                  "Variable type does not match assignment type");
       }
       return lhs;
     }
 
     default: break;
   }
-  cerr << HERE << " UNHANDLED TYPE IN check_expression: " << node->type << std::endl;
+  cerr << HERE << " UNHANDLED TYPE IN check_expression: " << node->type
+       << std::endl;
   exit(1);
 }

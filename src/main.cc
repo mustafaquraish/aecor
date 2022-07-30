@@ -3,8 +3,8 @@
 #include <string.h>
 
 #include <codegen.hh>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <lexer.hh>
 #include <parser.hh>
 #include <typecheck.hh>

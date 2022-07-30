@@ -46,8 +46,20 @@ Type *Parser::parse_type() {
 
     default: UNHANDLED_TYPE();
   }
-
   ++curr;
+
+  auto running = true;
+  while (running) {
+    switch (token().type) {
+      case TokenType::Ampersand:
+        type = new Type(BaseType::Pointer, type);
+        ++curr;
+        break;
+
+      default: running = false; break;
+    }
+  }
+
   return type;
 }
 
@@ -216,8 +228,20 @@ AST *Parser::parse_factor(bool in_parens) {
       break;
     }
     case TokenType::Not: {
-      node             = new AST(ASTType::Not, token().location);
+      node = new AST(ASTType::Not, token().location);
       consume(TokenType::Not);
+      node->unary.expr = parse_factor(true);
+      break;
+    }
+    case TokenType::Ampersand: {
+      node = new AST(ASTType::Address, token().location);
+      consume(TokenType::Ampersand);
+      node->unary.expr = parse_factor(true);
+      break;
+    }
+    case TokenType::Star: {
+      node = new AST(ASTType::Dereference, token().location);
+      consume(TokenType::Star);
       node->unary.expr = parse_factor(true);
       break;
     }
@@ -252,14 +276,14 @@ AST *Parser::parse_factor(bool in_parens) {
     if (!in_parens && token().newline_before) break;
     switch (token().type) {
       case TokenType::OpenParen: {
-        consume(TokenType::OpenParen);
-        auto args = new vector<AST *>();
+        auto paren_loc = consume(TokenType::OpenParen).location;
+        auto args      = new vector<AST *>();
         while (!token_is(TokenType::CloseParen)) {
           args->push_back(parse_expression());
           if (!consume_if(TokenType::Comma)) break;
         }
         consume(TokenType::CloseParen);
-        auto call         = new AST(ASTType::Call, token().location);
+        auto call         = new AST(ASTType::Call, paren_loc);
         call->call.callee = node;
         call->call.args   = args;
         node              = call;

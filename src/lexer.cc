@@ -92,7 +92,8 @@ std::vector<Token> Lexer::lex() {
           column += i - start + 2;
 
         } else {
-          error_loc(loc, format("Unrecognized character '" << source[i] << "'"));
+          error_loc(loc,
+                    format("Unrecognized character '" << source[i] << "'"));
         }
       }
     }

@@ -15,6 +15,10 @@ void CodeGenerator::gen_op(ASTType type) {
     case ASTType::Divide: out << " / "; return;
     case ASTType::LessThan: out << " < "; return;
     case ASTType::GreaterThan: out << " > "; return;
+
+    case ASTType::Address: out << "&"; return;
+    case ASTType::Dereference: out << "*"; return;
+    case ASTType::Not: out << "!"; return;
     default: break;
   }
   cerr << "\n" << HERE << "UNHANDLED TYPE IN gen_op: " << type << std::endl;
@@ -157,8 +161,11 @@ void CodeGenerator::gen(AST *node, int indent) {
       break;
     }
 
-    case ASTType::Not: {
-      out << "(!";
+    case ASTType::Not:
+    case ASTType::Address:
+    case ASTType::Dereference: {
+      out << "(";
+      gen_op(node->type);
       gen(node->unary.expr, indent + 1);
       out << ")";
       break;
