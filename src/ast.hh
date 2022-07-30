@@ -14,6 +14,7 @@ using namespace std;
   F(Call, "Call")                                                              \
   F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
+  F(For, "For")                                                                \
   F(FunctionDef, "FunctionDef")                                                \
   F(GreaterThan, "GreaterThan")                                                \
   F(If, "If")                                                                  \
@@ -91,6 +92,14 @@ struct AST {
       AST *cond;
       AST *body;
     } while_loop;
+
+    struct {
+      AST *init;
+      AST *cond;
+      AST *incr;
+
+      AST *body;
+    } for_loop;
 
     int int_literal;
     string_view string_literal;

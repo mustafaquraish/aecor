@@ -12,6 +12,7 @@
   F(Def, "def")                                                                \
   F(Else, "else")                                                              \
   F(False, "false")                                                            \
+  F(For, "for")                                                                \
   F(I32, "i32")                                                                \
   F(If, "if")                                                                  \
   F(Let, "let")                                                                \

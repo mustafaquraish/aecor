@@ -150,7 +150,30 @@ AST *Parser::parse_statement() {
       node = new AST(ASTType::While, token().location);
       consume(TokenType::While);
       node->while_loop.cond = parse_expression();
-      node->while_loop.body = parse_block();
+      node->while_loop.body = parse_statement();
+      break;
+    }
+    case TokenType::For: {
+      node = new AST(ASTType::For, token().location);
+      consume(TokenType::For);
+
+      node->for_loop.init = nullptr;
+      node->for_loop.cond = nullptr;
+      node->for_loop.incr = nullptr;
+
+      // FIXME: Allow variable declarations in here
+      if (!token_is(TokenType::Semicolon))
+        node->for_loop.init = parse_expression();
+      consume(TokenType::Semicolon);
+      if (!token_is(TokenType::Semicolon))
+        node->for_loop.cond = parse_expression();
+      consume(TokenType::Semicolon);
+
+      // FIXME: Should we always require a curly?
+      if (!token_is(TokenType::CloseCurly))
+        node->for_loop.incr = parse_expression();
+
+      node->for_loop.body = parse_statement();
       break;
     }
     case TokenType::Return: {

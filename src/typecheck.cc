@@ -118,6 +118,17 @@ void TypeChecker::check_statement(AST *node) {
       check_statement(node->while_loop.body);
       return;
     }
+    case ASTType::For: {
+      if (node->for_loop.init) check_expression(node->for_loop.init);
+      if (node->for_loop.cond) {
+        auto cond_type = check_expression(node->for_loop.cond);
+        if (cond_type->base != BaseType::Bool) {
+          error_loc(node->for_loop.cond->location, "Condition must be boolean");
+        }
+      }
+      if (node->for_loop.incr) check_expression(node->for_loop.incr);
+      return;
+    }
     case ASTType::If: {
       auto cond_type = check_expression(node->if_stmt.cond);
       if (cond_type->base != BaseType::Bool) {

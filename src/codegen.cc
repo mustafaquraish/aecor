@@ -161,6 +161,18 @@ void CodeGenerator::gen(AST *node, int indent) {
       break;
     }
 
+    case ASTType::For: {
+      out << "for (";
+      if (node->for_loop.init) gen(node->for_loop.init, indent + 1);
+      out << "; ";
+      if (node->for_loop.cond) gen(node->for_loop.cond, indent + 1);
+      out << "; ";
+      if (node->for_loop.incr) gen(node->for_loop.incr, indent + 1);
+      out << ")";
+      gen(node->for_loop.body, indent + 1);
+      break;
+    }
+
     case ASTType::Not:
     case ASTType::Address:
     case ASTType::Dereference: {
