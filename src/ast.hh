@@ -21,6 +21,7 @@ using namespace std;
   F(If, "If")                                                                  \
   F(IntLiteral, "IntLiteral")                                                  \
   F(LessThan, "LessThan")                                                      \
+  F(Member, "Member")                                                          \
   F(Minus, "Minus")                                                            \
   F(Multiply, "Multiply")                                                      \
   F(Not, "Not")                                                                \
@@ -28,6 +29,7 @@ using namespace std;
   F(Plus, "Plus")                                                              \
   F(Return, "Return")                                                          \
   F(StringLiteral, "StringLiteral")                                            \
+  F(Struct, "Struct")                                                          \
   F(Var, "Var")                                                                \
   F(VarDeclaration, "VarDeclaration")                                          \
   F(While, "While")
@@ -57,6 +59,11 @@ struct AST {
     } func_def;
 
     struct {
+      Type *struct_type;
+      vector<Variable *> *fields;
+    } struct_def;
+
+    struct {
       vector<AST *> *statements;
     } block;
 
@@ -77,6 +84,12 @@ struct AST {
       AST *callee;
       vector<AST *> *args;
     } call;
+
+    struct {
+      AST *lhs;
+      string_view name;
+      bool is_pointer;
+    } member;
 
     struct {
       Variable *var;

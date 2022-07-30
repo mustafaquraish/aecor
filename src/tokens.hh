@@ -20,6 +20,7 @@
   F(Not, "not")                                                                \
   F(Or, "or")                                                                  \
   F(Return, "return")                                                          \
+  F(Struct, "struct")                                                          \
   F(True, "true")                                                              \
   F(Void, "void")                                                              \
   F(While, "while")

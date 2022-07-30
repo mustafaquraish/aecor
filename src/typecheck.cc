@@ -5,6 +5,7 @@ void TypeChecker::check(AST *node) {
   for (auto child : *node->block.statements) {
     switch (child->type) {
       case ASTType::FunctionDef: check_function(child); break;
+      case ASTType::Struct: check_struct(child); break;
       default: {
         cerr << HERE << " UNHANDLED TYPE IN check: " << child->type
              << std::endl;
@@ -18,6 +19,15 @@ Variable *TypeChecker::find_var(std::string_view name) {
   for (int i = scopes.size() - 1; i >= 0; i--) {
     auto &vars = scopes[i].variables;
     if (auto var = vars.find(name); var != vars.end()) { return var->second; }
+  }
+  return nullptr;
+}
+
+Variable *TypeChecker::get_struct_member(std::string_view struct_name,
+                                         std::string_view member) {
+  auto _struct = structs[struct_name];
+  for (auto field : *_struct->struct_def.fields) {
+    if (field->name == member) { return field; }
   }
   return nullptr;
 }
@@ -39,6 +49,7 @@ bool TypeChecker::check_valid_type(Type *type) {
     case BaseType::Bool:
     case BaseType::Void: return true;
     case BaseType::Pointer: return check_valid_type(type->ptr_to);
+    case BaseType::Struct: return structs.count(type->struct_name) > 0;
     default: {
       cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << type->base
            << std::endl;
@@ -64,6 +75,15 @@ void TypeChecker::check_function(AST *node) {
 
   pop_scope();
   curr_func = prev_func;
+}
+
+void TypeChecker::check_struct(AST *node) {
+  auto name = node->struct_def.struct_type->struct_name;
+  if (structs.count(name) > 0) {
+    error_loc(node->location, "Struct already defined");
+  }
+  for (auto field : *node->struct_def.fields) { check_valid_type(field->type); }
+  structs[name] = node;
 }
 
 void TypeChecker::check_block(AST *node) {
@@ -262,6 +282,22 @@ Type *TypeChecker::check_expression(AST *node) {
                   "Variable type does not match assignment type");
       }
       return lhs;
+    }
+
+    case ASTType::Member: {
+      auto lhs_type = check_expression(node->member.lhs);
+      if (!lhs_type->is_struct_or_ptr()) {
+        error_loc(node->member.lhs->location,
+                  "LHS of member access must be a (pointer to) struct");
+      }
+      node->member.is_pointer = (lhs_type->base == BaseType::Pointer);
+      auto struct_type = lhs_type;
+      if (lhs_type->base == BaseType::Pointer) {
+        struct_type = lhs_type->ptr_to;
+      }
+      auto field = get_struct_member(struct_type->struct_name, node->member.name);
+      if (!field) { error_loc(node->location, "Field not found in struct"); }
+      return field->type;
     }
 
     default: break;

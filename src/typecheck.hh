@@ -19,6 +19,7 @@ struct TypeChecker {
   void check_function(AST *node);
   void check_block(AST *node);
   void check_statement(AST *node);
+  void check_struct(AST *node);
 
   bool check_valid_type(Type *type);
   Type *check_call(AST *node);
@@ -30,8 +31,10 @@ struct TypeChecker {
   void pop_scope() { scopes.pop_back(); }
 
   void push_var(Variable *var, Location loc);
+  Variable *get_struct_member(std::string_view struct_name, std::string_view member);
 
   std::vector<Scope> scopes;
   std::unordered_map<string_view, AST *> functions;
+  std::unordered_map<string_view, AST *> structs;
   AST *curr_func = nullptr;
 };

@@ -67,6 +67,18 @@ void CodeGenerator::gen_function(AST *node, int indent) {
   gen_block(node->func_def.body, indent);
 }
 
+void CodeGenerator::gen_struct(AST *node, int indent) {
+  auto name = node->struct_def.struct_type->struct_name;
+
+  out << "typedef struct " << name << " " << name << ";\n";
+  out << "struct " << name << " {\n";
+  for (auto field : *node->struct_def.fields) {
+    gen_indent(indent + 1);
+    out << *field->type << " " << field->name << ";\n";
+  }
+  out << "};\n\n";
+}
+
 void CodeGenerator::gen_expression(AST *node, int indent) {
   switch (node->type) {
     case ASTType::Not:
@@ -126,6 +138,13 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
         first = false;
       }
       out << ")";
+      break;
+    }
+
+    case ASTType::Member: {
+      auto lhs = node->member.lhs;
+      gen_expression(lhs, indent);
+      out << (node->member.is_pointer ? "->" : ".") << node->member.name;
       break;
     }
 
@@ -222,6 +241,7 @@ std::string CodeGenerator::generate(AST *node) {
   for (auto node : *node->block.statements) {
     switch (node->type) {
       case ASTType::FunctionDef: gen_function(node, 0); break;
+      case ASTType::Struct: gen_struct(node, 0); break;
       default: {
         cerr << HERE << " UNHANDLED TYPE IN generate: " << node->type
              << std::endl;
