@@ -79,7 +79,6 @@ AST *Parser::parse_function() {
 
   consume(TokenType::OpenParen);
 
-  // TODO: Add arguments
   auto params = new vector<Variable *>();
   while (!token_is(TokenType::CloseParen)) {
     auto name = consume(TokenType::Identifier);
@@ -359,11 +358,11 @@ AST *Parser::parse_factor(bool in_parens) {
       }
       case TokenType::Dot: {
         consume(TokenType::Dot);
-        auto name    = consume(TokenType::Identifier);
-        auto member    = new AST(ASTType::Member, name.location);
-        member->member.lhs = node;
+        auto name           = consume(TokenType::Identifier);
+        auto member         = new AST(ASTType::Member, name.location);
+        member->member.lhs  = node;
         member->member.name = name.text;
-        node = member;
+        node                = member;
         break;
       }
       default: done = true;
