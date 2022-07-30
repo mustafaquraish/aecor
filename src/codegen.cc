@@ -7,9 +7,11 @@ void CodeGenerator::gen_indent(int indent) {
 
 void CodeGenerator::gen_op(ASTType type) {
   switch (type) {
+    case ASTType::And: out << " && "; return;
     case ASTType::Plus: out << " + "; return;
     case ASTType::Minus: out << " - "; return;
     case ASTType::Multiply: out << " * "; return;
+    case ASTType::Or: out << " || "; return;
     case ASTType::Divide: out << " / "; return;
     case ASTType::LessThan: out << " < "; return;
     case ASTType::GreaterThan: out << " > "; return;
@@ -61,6 +63,8 @@ void CodeGenerator::gen(AST *node, int indent) {
       break;
     }
 
+    case ASTType::And:
+    case ASTType::Or:
     case ASTType::LessThan:
     case ASTType::GreaterThan:
     case ASTType::Plus:
@@ -150,6 +154,13 @@ void CodeGenerator::gen(AST *node, int indent) {
       gen(node->while_loop.cond, indent + 1);
       out << ") ";
       gen(node->while_loop.body, indent + 1);
+      break;
+    }
+
+    case ASTType::Not: {
+      out << "(!";
+      gen(node->unary.expr, indent + 1);
+      out << ")";
       break;
     }
 

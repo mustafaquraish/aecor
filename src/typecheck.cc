@@ -194,6 +194,27 @@ Type *TypeChecker::check_expression(AST *node) {
       return new Type(BaseType::Bool);
     }
 
+    case ASTType::And:
+    case ASTType::Or: {
+      auto lhs_type = check_expression(node->binary.lhs);
+      if (lhs_type->base != BaseType::Bool) {
+        error_loc(node->binary.lhs->location, "Expression must be boolean");
+      }
+      auto rhs_type = check_expression(node->binary.rhs);
+      if (rhs_type->base != BaseType::Bool) {
+        error_loc(node->binary.rhs->location, "Expression must be boolean");
+      }
+      return new Type(BaseType::Bool);
+    }
+
+    case ASTType::Not: {
+      auto expr_type = check_expression(node->unary.expr);
+      if (expr_type->base != BaseType::Bool) {
+        error_loc(node->unary.expr->location, "Expression must be boolean");
+      }
+      return new Type(BaseType::Bool);
+    }
+
     case ASTType::Assignment: {
       auto lhs = check_expression(node->binary.lhs);
       auto rhs = check_expression(node->binary.rhs);

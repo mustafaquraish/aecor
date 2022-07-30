@@ -7,6 +7,7 @@
 #include <vector>
 
 #define ENUM_KEYWORDS(F)                                                       \
+  F(And, "and")                                                                \
   F(Bool, "bool")                                                              \
   F(Def, "def")                                                                \
   F(Else, "else")                                                              \
@@ -14,6 +15,8 @@
   F(I32, "i32")                                                                \
   F(If, "if")                                                                  \
   F(Let, "let")                                                                \
+  F(Not, "not")                                                                \
+  F(Or, "or")                                                                  \
   F(Return, "return")                                                          \
   F(True, "true")                                                              \
   F(Void, "void")                                                              \

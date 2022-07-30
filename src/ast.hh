@@ -7,6 +7,7 @@ using namespace std;
 
 #define ENUM_AST_TYPES(F)                                                      \
   F(Assignment, "Assignment")                                                  \
+  F(And, "And")                                                                \
   F(Block, "Block")                                                            \
   F(BoolLiteral, "BoolLiteral")                                                \
   F(Call, "Call")                                                              \
@@ -18,6 +19,8 @@ using namespace std;
   F(LessThan, "LessThan")                                                      \
   F(Minus, "Minus")                                                            \
   F(Multiply, "Multiply")                                                      \
+  F(Not, "Not")                                                                \
+  F(Or, "Or")                                                                  \
   F(Plus, "Plus")                                                              \
   F(Return, "Return")                                                          \
   F(StringLiteral, "StringLiteral")                                            \

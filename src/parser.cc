@@ -184,15 +184,18 @@ AST *Parser::parse_statement() {
 
 ASTType token_to_op(TokenType type) {
   switch (type) {
-    case TokenType::Plus: return ASTType::Plus;
-    case TokenType::Minus: return ASTType::Minus;
-    case TokenType::Star: return ASTType::Multiply;
-    case TokenType::Slash: return ASTType::Divide;
-    case TokenType::LessThan: return ASTType::LessThan;
+    case TokenType::And: return ASTType::And;
     case TokenType::GreaterThan: return ASTType::GreaterThan;
+    case TokenType::LessThan: return ASTType::LessThan;
+    case TokenType::Minus: return ASTType::Minus;
+    case TokenType::Or: return ASTType::Or;
+    case TokenType::Plus: return ASTType::Plus;
+    case TokenType::Slash: return ASTType::Divide;
+    case TokenType::Star: return ASTType::Multiply;
     default: break;
   }
-  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type << endl;
+  cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type
+       << endl;
   exit(1);
 }
 
@@ -208,8 +211,14 @@ AST *Parser::parse_factor(bool in_parens) {
     }
     case TokenType::False: {
       node               = new AST(ASTType::BoolLiteral, token().location);
-      node->bool_literal = true;
+      node->bool_literal = false;
       consume(TokenType::False);
+      break;
+    }
+    case TokenType::Not: {
+      node             = new AST(ASTType::Not, token().location);
+      consume(TokenType::Not);
+      node->unary.expr = parse_factor(true);
       break;
     }
     case TokenType::IntLiteral: {
@@ -302,8 +311,34 @@ AST *Parser::parse_relational(bool in_parens) {
   return lhs;
 }
 
-AST *Parser::parse_expression(bool in_parens) {
+AST *Parser::parse_logical_and(bool in_parens) {
   auto lhs = parse_relational(in_parens);
+  while (token_is(TokenType::And)) {
+    if (!in_parens && token().newline_before) break;
+    auto node = new AST(token_to_op(token().type), token().location);
+    ++curr;
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_logical_and(in_parens);
+    lhs              = node;
+  }
+  return lhs;
+}
+
+AST *Parser::parse_logical_or(bool in_parens) {
+  auto lhs = parse_logical_and(in_parens);
+  while (token_is(TokenType::Or)) {
+    if (!in_parens && token().newline_before) break;
+    auto node = new AST(token_to_op(token().type), token().location);
+    ++curr;
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_logical_or(in_parens);
+    lhs              = node;
+  }
+  return lhs;
+}
+
+AST *Parser::parse_expression(bool in_parens) {
+  auto lhs = parse_logical_or(in_parens);
 
   while (consume_if(TokenType::Equals)) {
     if (!in_parens && token().newline_before) break;

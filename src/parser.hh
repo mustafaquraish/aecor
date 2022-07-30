@@ -21,6 +21,8 @@ struct Parser {
   AST *parse_term(bool in_parens);
   AST *parse_additive(bool in_parens);
   AST *parse_relational(bool in_parens);
+  AST *parse_logical_and(bool in_parens);
+  AST *parse_logical_or(bool in_parens);
   AST *parse_expression(bool in_parens = false);
 
   AST *parse_program();
