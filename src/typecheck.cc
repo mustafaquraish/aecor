@@ -98,7 +98,7 @@ void TypeChecker::check_statement(AST *node) {
         }
       } else {
         if (!node->var_decl.var->type) {
-          error_loc(node->location, "Variable type cannot be inferred, specify explicitly");
+          error_loc(node->var_decl.var->location, "Variable type cannot be inferred, specify explicitly");
         }
         check_valid_type(node->var_decl.var->type);
       }

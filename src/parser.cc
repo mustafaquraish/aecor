@@ -66,7 +66,7 @@ AST *Parser::parse_function() {
     auto name = consume(TokenType::Identifier);
     consume(TokenType::Colon);
     auto type = parse_type();
-    params->push_back(new Variable{name.text, type});
+    params->push_back(new Variable{name.text, type, name.location});
     if (!consume_if(TokenType::Comma)) break;
   }
   node->func_def.params = params;
@@ -157,7 +157,7 @@ AST *Parser::parse_statement() {
       Type *type = nullptr;
       if (consume_if(TokenType::Colon)) { type = parse_type(); }
 
-      node->var_decl.var = new Variable{name.text, type};
+      node->var_decl.var = new Variable{name.text, type, name.location};
 
       if (token_is(TokenType::Equals)) {
         consume(TokenType::Equals);

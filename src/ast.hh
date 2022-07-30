@@ -37,6 +37,7 @@ enum class ASTType {
 struct Variable {
   string_view name;
   Type *type;
+  Location location;
 };
 
 struct AST {
