@@ -2,7 +2,9 @@
 
 #include <iostream>
 
+#include "ast.hh"
 #include "tokens.hh"
+#include "types.hh"
 
 #define UNHANDLED_TYPE()                                                       \
   error_loc(token().location, format("Unexpected token: " << token().type))
@@ -43,6 +45,11 @@ Type *Parser::parse_type() {
     case TokenType::I32: type = new Type(BaseType::I32); break;
     case TokenType::Bool: type = new Type(BaseType::Bool); break;
     case TokenType::Void: type = new Type(BaseType::Void); break;
+    case TokenType::Identifier: {
+      type              = new Type(BaseType::Struct);
+      type->struct_name = token().text;
+      break;
+    }
 
     default: UNHANDLED_TYPE();
   }
@@ -99,6 +106,32 @@ AST *Parser::parse_function() {
   return node;
 };
 
+AST *Parser::parse_struct() {
+  consume(TokenType::Struct);
+
+  auto name = consume(TokenType::Identifier);
+  consume(TokenType::OpenCurly);
+
+  auto node = new AST(ASTType::Struct, name.location);
+
+  auto fields = new vector<Variable *>();
+  while (!token_is(TokenType::CloseCurly)) {
+    auto name = consume(TokenType::Identifier);
+    consume(TokenType::Colon);
+    auto type = parse_type();
+    fields->push_back(new Variable{name.text, type, name.location});
+    consume_line_end();
+  }
+  consume(TokenType::CloseCurly);
+
+  node->struct_def.fields      = fields;
+  auto type                    = new Type(BaseType::Struct);
+  type->struct_name            = name.text;
+  node->struct_def.struct_type = type;
+
+  return node;
+}
+
 AST *Parser::parse_program() {
   auto node = new AST(ASTType::Block, {{}, {}, {}});
 
@@ -110,6 +143,11 @@ AST *Parser::parse_program() {
         break;
       }
 
+      case TokenType::Struct: {
+        auto structure = parse_struct();
+        node->block.statements->push_back(structure);
+        break;
+      }
       default: UNHANDLED_TYPE();
     }
   };
@@ -317,6 +355,15 @@ AST *Parser::parse_factor(bool in_parens) {
         call->call.callee = node;
         call->call.args   = args;
         node              = call;
+        break;
+      }
+      case TokenType::Dot: {
+        consume(TokenType::Dot);
+        auto name    = consume(TokenType::Identifier);
+        auto member    = new AST(ASTType::Member, name.location);
+        member->member.lhs = node;
+        member->member.name = name.text;
+        node = member;
         break;
       }
       default: done = true;
