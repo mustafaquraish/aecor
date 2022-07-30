@@ -89,7 +89,7 @@ std::vector<Token> Lexer::lex() {
 
           auto view = source.substr(start, i - start);
           push(Token::from_type(TokenType::StringLiteral, loc, view));
-          column += i - start;
+          column += i - start + 2;
 
         } else {
           error_loc(loc, format("Unrecognized character '" << source[i] << "'"));
