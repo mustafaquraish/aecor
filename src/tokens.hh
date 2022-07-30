@@ -7,41 +7,40 @@
 #include <vector>
 
 #define ENUM_KEYWORDS(F)                                                       \
-  F(Def, "def")                                                                \
-  F(I32, "i32")                                                                \
   F(Bool, "bool")                                                              \
-  F(True, "true")                                                              \
-  F(False, "false")                                                            \
-  F(If, "if")                                                                  \
+  F(Def, "def")                                                                \
   F(Else, "else")                                                              \
+  F(False, "false")                                                            \
+  F(I32, "i32")                                                                \
+  F(If, "if")                                                                  \
   F(Let, "let")                                                                \
+  F(Return, "return")                                                          \
+  F(True, "true")                                                              \
   F(Void, "void")                                                              \
-  F(While, "while")                                                            \
-  F(Return, "return")
+  F(While, "while")
 
 #define ENUM_TOKEN_TYPES(F)                                                    \
-  F(Identifier, "Identifier")                                                  \
-  F(OpenParen, "OpenParen")                                                    \
+  F(Ampersand, "Ampersand")                                                    \
+  F(CloseCurly, "CloseCurly")                                                  \
   F(CloseParen, "CloseParen")                                                  \
   F(Colon, "Colon")                                                            \
   F(Comma, "Comma")                                                            \
   F(Dot, "Dot")                                                                \
-  F(Semicolon, "Semicolon")                                                    \
-  F(OpenCurly, "OpenCurly")                                                    \
-  F(LessThan, "LessThan")                                                      \
-  F(GreaterThan, "GreaterThan")                                                \
+  F(Eof, "Eof")                                                                \
   F(Equals, "Equals")                                                          \
-  F(CloseCurly, "CloseCurly")                                                  \
+  F(GreaterThan, "GreaterThan")                                                \
+  F(Identifier, "Identifier")                                                  \
   F(IntLiteral, "IntLiteral")                                                  \
-  F(StringLiteral, "StringLiteral")                                            \
-  F(Plus, "Plus")                                                              \
-  F(Minus, "Minus")                                                            \
-  F(Star, "Star")                                                              \
-  F(Slash, "Slash")                                                            \
-  F(Ampersand, "Ampersand")                                                    \
+  F(LessThan, "LessThan")                                                      \
   F(Line, "Line")                                                              \
-                                                                               \
-  F(Eof, "Eof")
+  F(Minus, "Minus")                                                            \
+  F(OpenCurly, "OpenCurly")                                                    \
+  F(OpenParen, "OpenParen")                                                    \
+  F(Plus, "Plus")                                                              \
+  F(Semicolon, "Semicolon")                                                    \
+  F(Slash, "Slash")                                                            \
+  F(Star, "Star")                                                              \
+  F(StringLiteral, "StringLiteral")
 
 #define ENUM_ALL_TOKENS(F)                                                     \
   ENUM_KEYWORDS(F)                                                             \

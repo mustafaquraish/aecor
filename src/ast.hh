@@ -6,25 +6,24 @@
 using namespace std;
 
 #define ENUM_AST_TYPES(F)                                                      \
-  F(FunctionDef, "FunctionDef")                                                \
-  F(Return, "Return")                                                          \
-  F(IntLiteral, "IntLiteral")                                                  \
-  F(StringLiteral, "StringLiteral")                                            \
-  F(BoolLiteral, "BoolLiteral")                                                \
-  F(If, "If")                                                                  \
-  F(VarDeclaration, "VarDeclaration")                                          \
   F(Assignment, "Assignment")                                                  \
-                                                                               \
-  F(Plus, "Plus")                                                              \
+  F(Block, "Block")                                                            \
+  F(BoolLiteral, "BoolLiteral")                                                \
+  F(Call, "Call")                                                              \
+  F(Divide, "Divide")                                                          \
+  F(FunctionDef, "FunctionDef")                                                \
+  F(GreaterThan, "GreaterThan")                                                \
+  F(If, "If")                                                                  \
+  F(IntLiteral, "IntLiteral")                                                  \
+  F(LessThan, "LessThan")                                                      \
   F(Minus, "Minus")                                                            \
   F(Multiply, "Multiply")                                                      \
-  F(Divide, "Divide")                                                          \
-  F(LessThan, "LessThan")                                                      \
-  F(GreaterThan, "GreaterThan")                                                \
+  F(Plus, "Plus")                                                              \
+  F(Return, "Return")                                                          \
+  F(StringLiteral, "StringLiteral")                                            \
   F(Var, "Var")                                                                \
-  F(While, "While")                                                            \
-  F(Call, "Call")                                                              \
-  F(Block, "Block")
+  F(VarDeclaration, "VarDeclaration")                                          \
+  F(While, "While")
 
 enum class ASTType {
 #define F(name, text) name,
