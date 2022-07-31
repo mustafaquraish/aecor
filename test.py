@@ -5,7 +5,7 @@ from enum import Enum
 from os import system
 from pathlib import Path
 from sys import argv
-from typing import Union, Optional
+from typing import Union, Optional, Tuple
 
 class ExpectedOutputType(Enum):
     """Possible test results"""
@@ -64,36 +64,34 @@ def get_expected(filename) -> Optional[Expected]:
     return expected
 
 
-def handle_test(path: Path, expected: Expected) -> bool:
+def handle_test(path: Path, expected: Expected) -> Tuple[bool, str]:
     process = subprocess.run(['./aecor', str(path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if process.returncode != 0:
-        if expected.type != ExpectedOutputType.FAIL:
-            print(f'[-] Compiling the test code failed')
-        else:
-            error = process.stderr.decode("utf-8").strip()
-            expected_error = expected.value
+    if expected.type == ExpectedOutputType.FAIL:
+        if process.returncode == 0:
+            return False, "Expected compilation failure, but succeeded"
+        error = process.stderr.decode("utf-8").strip()
+        expected_error = expected.value
 
-            if expected_error in error:
-                return True
-            else:
-                return False
-        return expected.type == ExpectedOutputType.FAIL
+        if expected_error in error:
+            return True, "(Success)"
+        else:
+            return False, f"Did not find expected error message: {expected_error}"
+    elif process.returncode != 0:
+        return False, "Compilation failed"
 
     process = subprocess.run(['./out'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if expected.type == ExpectedOutputType.EXIT_WITH_CODE:
         if process.returncode != expected.value:
-            print(f'[-] Expected exit code {expected.value}, got {process.returncode}')
-            return False
+            return False, "Expected exit code {expected.value}, but got {process.returncode}"
 
     if expected.type == ExpectedOutputType.EXIT_WITH_OUTPUT:
         output = process.stdout.decode('utf-8').strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
-            print(f'[-] Expected output {repr(expected_out)}, got {repr(output)}')
-            return False
+            return False, f'Expected output {repr(expected_out)}, got {repr(output)}'
 
-    return True
+    return True, "(Success)"
 
 
 def main():
@@ -120,14 +118,27 @@ def main():
         for file in files:
             if expected := get_expected(file):
                 tests_to_run.append((file, expected))
+            else:
+                print(f"[-] Skipping test: {file}")
 
-    print(f'Running {len(tests_to_run)} tests:')
-    for path, expected in tests_to_run:
-        passed = handle_test(path, expected)
+    num_passed = 0
+    num_failed = 0
+    num_total = len(tests_to_run)
+
+    for i, (path, expected) in enumerate(tests_to_run):
+        print(f" \33[2K[\033[92m{num_passed:3d}\033[0m", end="")
+        print(f"/\033[91m{num_failed:3d}\033[0m]", end="")
+        print(f" Running test {i+1}/{num_total}: {path}\r", end="", flush=True)
+        passed, msg = handle_test(path, expected)
         if passed:
-            print(f'  \033[92mPASS\033[0m:  {path}')
+            num_passed += 1
         else:
-            print(f'  \033[91mFAIL\033[0m:  {path}')
+            num_failed += 1
+            print(f"\33[2K\033[91m[-] Failed {path}\033[0m")
+            print(f"  - {msg}", flush=True)
+    print("\33[2K")
+    print(f"Tests passed: \033[92m{num_passed}\033[0m")
+    print(f"Tests failed: \033[91m{num_failed}\033[0m")
 
 
 if __name__ == "__main__":

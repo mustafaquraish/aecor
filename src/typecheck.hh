@@ -27,9 +27,10 @@ struct TypeChecker {
 
   void check_struct(AST *node);
 
-  bool check_valid_type(Type *type);
   Type *check_call(AST *node);
   Type *check_expression(AST *node);
+
+  bool type_is_valid(Type *type);
 
   Variable *find_var(std::string_view name);
 

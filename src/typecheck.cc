@@ -12,14 +12,13 @@ void TypeChecker::dfs_structs(AST *node, vector<AST *> &results,
   generated.insert(node);
 
   for (auto field : *node->struct_def.fields) {
-    check_valid_type(field->type);
+    if (!type_is_valid(field->type)) {
+      error_loc(field->location, "Type of field is undefined");
+    }
 
     if (field->type->base == BaseType::Struct) {
       auto neighbor_name = field->type->struct_name;
-      if (structs.count(neighbor_name) == 0) {
-        error_loc(field->location, "Type of field is undefined");
-      }
-      auto neighbor = structs[neighbor_name];
+      auto neighbor      = structs[neighbor_name];
       if (generated.count(neighbor) == 0) {
         dfs_structs(neighbor, results, generated);
       }
@@ -52,8 +51,12 @@ void TypeChecker::check_all_structs(Program *program) {
 void TypeChecker::check_all_functions(Program *program) {
   for (auto func : program->functions) {
     auto name = func->func_def.name;
-    for (auto param : *func->func_def.params) { check_valid_type(param->type); }
-    check_valid_type(func->func_def.return_type);
+    for (auto param : *func->func_def.params) {
+      if (!type_is_valid(param->type))
+        error_loc(param->location, "Invalid parameter type");
+    }
+    if (!type_is_valid(func->func_def.return_type))
+      error_loc(func->location, "Invalid return type");
 
     if (functions.count(name) > 0) {
       error_loc(func->location, "Function is already defined");
@@ -85,27 +88,24 @@ Variable *TypeChecker::get_struct_member(std::string_view struct_name,
 void TypeChecker::push_var(Variable *var, Location loc) {
   auto &scope = scopes.back();
   if (scope.variables.count(var->name) > 0) {
-    cerr << loc << ": Variable " << var->name << " already defined in scope"
-         << std::endl;
-    exit(1);
+    error_loc(loc, "Variable is already defined in scope");
   }
   scope.variables[var->name] = var;
 }
 
-bool TypeChecker::check_valid_type(Type *type) {
+bool TypeChecker::type_is_valid(Type *type) {
   // TODO: Keep track of defined structs and look them up later.
   switch (type->base) {
     case BaseType::I32:
     case BaseType::Bool:
     case BaseType::Void: return true;
-    case BaseType::Pointer: return check_valid_type(type->ptr_to);
+    case BaseType::Pointer: return type_is_valid(type->ptr_to);
     case BaseType::Struct: return structs.count(type->struct_name) > 0;
-    default: {
-      cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << type->base
-           << std::endl;
-      exit(1);
-    }
+    default: break;
   }
+  cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << type->base
+       << std::endl;
+  exit(1);
 }
 
 // Stubs
@@ -114,11 +114,8 @@ void TypeChecker::check_function(AST *node) {
   curr_func      = node;
   push_scope();
 
-  for (auto param : *node->func_def.params) {
-    check_valid_type(param->type);
-    push_var(param, node->location);
-  }
-  check_valid_type(node->func_def.return_type);
+  // The types of parameters and return are checked in decl-pass
+  for (auto param : *node->func_def.params) { push_var(param, node->location); }
 
   check_block(node->func_def.body);
 
@@ -164,7 +161,9 @@ void TypeChecker::check_statement(AST *node) {
           error_loc(node->var_decl.var->location,
                     "Variable type cannot be inferred, specify explicitly");
         }
-        check_valid_type(node->var_decl.var->type);
+        if (!type_is_valid(node->var_decl.var->type)) {
+          error_loc(node->var_decl.var->location, "Invalid variable type");
+        }
       }
       push_var(node->var_decl.var, node->location);
       return;
@@ -281,12 +280,10 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::And:
     case ASTType::Or: {
       auto lhs_type = check_expression(node->binary.lhs);
-      if (lhs_type->base != BaseType::Bool) {
-        error_loc(node->binary.lhs->location, "Expression must be boolean");
-      }
       auto rhs_type = check_expression(node->binary.rhs);
-      if (rhs_type->base != BaseType::Bool) {
-        error_loc(node->binary.rhs->location, "Expression must be boolean");
+      if (lhs_type->base != BaseType::Bool ||
+          rhs_type->base != BaseType::Bool) {
+        error_loc(node->location, "Operands must be boolean");
       }
       return new Type(BaseType::Bool);
     }

@@ -1,0 +1,5 @@
+/// fail: Variable not found
+
+def main() {
+    return x
+}

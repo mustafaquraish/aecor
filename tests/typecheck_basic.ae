@@ -1,5 +1,14 @@
 /// out: ""
 
+def foo(): i32 {
+    let x = 5
+    let y = 7
+    {
+        let p = 3
+    }
+    return x
+}
+
 def main() : i32 {
     let x: i32 = 5
     let y: i32 = 7

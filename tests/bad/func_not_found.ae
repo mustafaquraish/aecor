@@ -1,0 +1,5 @@
+/// fail: Function not found
+
+def main() {
+  foo()
+}

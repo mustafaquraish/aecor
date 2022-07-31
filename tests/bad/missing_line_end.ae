@@ -1,0 +1,5 @@
+/// fail: Expected newline / semicolon
+
+struct Foo {
+    a: i32 b: i32
+}

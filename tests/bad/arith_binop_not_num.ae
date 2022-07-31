@@ -1,0 +1,5 @@
+/// fail: Operands must be integers
+
+def main() {
+    let x = true + 5
+}
