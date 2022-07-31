@@ -1,4 +1,4 @@
-/// fail
+/// fail: Return type does not match function return type
 
 def main() : i32 {
     let x: i32 = 5

@@ -1,4 +1,4 @@
-/// fail
+/// fail: Unexpected token
 
 def main() {
     let x: i32 = bool

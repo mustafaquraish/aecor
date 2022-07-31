@@ -1,4 +1,4 @@
-/// fail
+/// fail: Variable not found
 
 def main() : i32 {
     let x: i32 = 5

@@ -35,13 +35,6 @@ def get_expected(filename) -> Optional[Expected]:
             if line == "":
                 continue
 
-            if line == "fail":
-                expected = Expected(
-                    type=ExpectedOutputType.FAIL,
-                    value=None,
-                )
-                break
-
             if ":" not in line:
                 print(f'[-] Invalid parameters in {filename}: "{line}"')
                 break
@@ -59,6 +52,11 @@ def get_expected(filename) -> Optional[Expected]:
                     value=value,
                 )
                 break
+            elif name == "fail":
+                expected = Expected(
+                    type=ExpectedOutputType.FAIL,
+                    value=value,
+                )
             else:
                 print(f'[-] Invalid parameter in {filename}: {line}')
                 break
@@ -71,6 +69,14 @@ def handle_test(path: Path, expected: Expected) -> bool:
     if process.returncode != 0:
         if expected.type != ExpectedOutputType.FAIL:
             print(f'[-] Compiling the test code failed')
+        else:
+            error = process.stderr.decode("utf-8").strip()
+            expected_error = expected.value
+
+            if expected_error in error:
+                return True
+            else:
+                return False
         return expected.type == ExpectedOutputType.FAIL
 
     process = subprocess.run(['./out'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -93,7 +99,7 @@ def handle_test(path: Path, expected: Expected) -> bool:
 def main():
     test_paths = argv[1:]
     if len(test_paths) == 0:
-        test_paths = [Path(__file__).parent / "tests"]
+        test_paths = ["tests"]
 
     test_paths = [Path(pth) for pth in test_paths]
 
@@ -119,9 +125,9 @@ def main():
     for path, expected in tests_to_run:
         passed = handle_test(path, expected)
         if passed:
-            print(f'  {path} - PASS')
+            print(f'  \033[92mPASS\033[0m:  {path}')
         else:
-            print(f'  {path} - FAIL')
+            print(f'  \033[91mFAIL\033[0m:  {path}')
 
 
 if __name__ == "__main__":

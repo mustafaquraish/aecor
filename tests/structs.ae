@@ -7,7 +7,7 @@ struct Square {
 
 struct Shapes {
     s: Square
-    b: Square&
+    b: &Square
 }
 
 def main() {

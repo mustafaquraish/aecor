@@ -1,9 +1,9 @@
 /// out: "10 20\n20 10"
 
-def swap_i32(a: i32&, b: i32&) {
-    let tmp = *a;
-    *a = *b;
-    *b = tmp;
+def swap_i32(a: &i32, b: &i32) {
+    let tmp = *a
+    *a = *b
+    *b = tmp
 }
 
 def main() {
