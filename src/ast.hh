@@ -123,6 +123,11 @@ struct AST {
   AST(ASTType type, Location location);
 };
 
+struct Program {
+  vector<AST *> functions;
+  vector<AST *> structs;
+};
+
 inline std::ostream &operator<<(std::ostream &os, const ASTType &type) {
   switch (type) {
 #define F(name, keyword)                                                       \

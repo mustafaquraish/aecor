@@ -2,6 +2,7 @@
 
 #include <ast.hh>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 using namespace std;
@@ -12,13 +13,16 @@ struct TypeChecker {
   };
 
   TypeChecker() {}
+  void dfs_structs(AST *node, vector<AST *> &results,
+                   unordered_set<AST *> &generated);
+  void check_all_structs(Program *program);
 
-  void check(AST *node);
+  void check_program(Program *program);
 
- private:
   void check_function(AST *node);
   void check_block(AST *node);
   void check_statement(AST *node);
+
   void check_struct(AST *node);
 
   bool check_valid_type(Type *type);
@@ -31,7 +35,8 @@ struct TypeChecker {
   void pop_scope() { scopes.pop_back(); }
 
   void push_var(Variable *var, Location loc);
-  Variable *get_struct_member(std::string_view struct_name, std::string_view member);
+  Variable *get_struct_member(std::string_view struct_name,
+                              std::string_view member);
 
   std::vector<Scope> scopes;
   std::unordered_map<string_view, AST *> functions;

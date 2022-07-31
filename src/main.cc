@@ -27,10 +27,10 @@ int main(int argc, char *argv[]) {
   auto program = parser.parse_program();
 
   auto checker = TypeChecker();
-  checker.check(program);
+  checker.check_program(program);
 
   auto generator = CodeGenerator();
-  auto ccode     = generator.generate(program);
+  auto ccode     = generator.gen_program(program);
 
   std::ofstream out("out.c");
   out << ccode;

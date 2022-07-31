@@ -41,20 +41,6 @@ void Parser::consume_line_end() {
 Type *Parser::parse_type() {
   Type *type = nullptr;
 
-  switch (token().type) {
-    case TokenType::I32: type = new Type(BaseType::I32); break;
-    case TokenType::Bool: type = new Type(BaseType::Bool); break;
-    case TokenType::Void: type = new Type(BaseType::Void); break;
-    case TokenType::Identifier: {
-      type              = new Type(BaseType::Struct);
-      type->struct_name = token().text;
-      break;
-    }
-
-    default: UNHANDLED_TYPE();
-  }
-  ++curr;
-
   auto running = true;
   while (running) {
     switch (token().type) {
@@ -67,7 +53,28 @@ Type *Parser::parse_type() {
     }
   }
 
-  return type;
+  Type *base = nullptr;
+
+  switch (token().type) {
+    case TokenType::I32: base = new Type(BaseType::I32); break;
+    case TokenType::Bool: base = new Type(BaseType::Bool); break;
+    case TokenType::Void: base = new Type(BaseType::Void); break;
+    case TokenType::Identifier: {
+      base              = new Type(BaseType::Struct);
+      base->struct_name = token().text;
+      break;
+    }
+
+    default: UNHANDLED_TYPE();
+  }
+
+  base->ptr_to = type;
+
+  base = Type::reverse_type_ll(base);
+
+  ++curr;
+
+  return base;
 }
 
 AST *Parser::parse_function() {
@@ -131,20 +138,20 @@ AST *Parser::parse_struct() {
   return node;
 }
 
-AST *Parser::parse_program() {
-  auto node = new AST(ASTType::Block, {{}, {}, {}});
+Program *Parser::parse_program() {
+  auto node = new Program();
 
   while (!token_is(TokenType::Eof)) {
     switch (token().type) {
       case TokenType::Def: {
         auto func = parse_function();
-        node->block.statements->push_back(func);
+        node->functions.push_back(func);
         break;
       }
 
       case TokenType::Struct: {
         auto structure = parse_struct();
-        node->block.statements->push_back(structure);
+        node->structs.push_back(structure);
         break;
       }
       default: UNHANDLED_TYPE();

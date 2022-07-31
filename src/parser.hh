@@ -25,7 +25,7 @@ struct Parser {
   AST *parse_logical_or(bool in_parens);
   AST *parse_expression(bool in_parens = false);
 
-  AST *parse_program();
+  Program *parse_program();
   AST *parse_function();
   AST *parse_struct();
   AST *parse_block();

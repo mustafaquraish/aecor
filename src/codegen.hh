@@ -11,7 +11,7 @@ struct CodeGenerator {
 
   CodeGenerator() {}
 
-  std::string generate(AST *node);
+  std::string gen_program(Program *program);
 
  private:
   void gen_op(ASTType type);

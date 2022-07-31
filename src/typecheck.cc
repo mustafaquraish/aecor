@@ -1,19 +1,54 @@
 #include <typecheck.hh>
+#include <unordered_set>
 #include <utils.hh>
 
-void TypeChecker::check(AST *node) {
-  for (auto child : *node->block.statements) {
-    switch (child->type) {
-      case ASTType::FunctionDef: check_function(child); break;
-      case ASTType::Struct: check_struct(child); break;
-      default: {
-        cerr << HERE << " UNHANDLED TYPE IN check: " << child->type
-             << std::endl;
-        exit(1);
+void TypeChecker::check_program(Program *program) {
+  check_all_structs(program);
+
+  for (auto func : program->functions) { check_function(func); }
+}
+
+void TypeChecker::dfs_structs(AST *node, vector<AST *> &results,
+                              unordered_set<AST *> &generated) {
+  generated.insert(node);
+
+  for (auto field : *node->struct_def.fields) {
+    check_valid_type(field->type);
+
+    if (field->type->base == BaseType::Struct) {
+      auto neighbor_name = field->type->struct_name;
+      if (structs.count(neighbor_name) == 0) {
+        error_loc(field->location, "Type of field is undefined");
+      }
+      auto neighbor = structs[neighbor_name];
+      if (generated.count(neighbor) == 0) {
+        dfs_structs(neighbor, results, generated);
       }
     }
   }
+  results.push_back(node);
 }
+
+void TypeChecker::check_all_structs(Program *program) {
+  unordered_set<AST *> generated;
+  vector<AST *> results;
+
+  for (auto node : program->structs) {
+    auto name = node->struct_def.struct_type->struct_name;
+
+    if (structs.count(name) > 0) {
+      error_loc(node->location, "Struct has already been defined");
+    }
+
+    structs[name] = node;
+  }
+
+  for (auto node : program->structs) {
+    if (generated.count(node) == 0) { dfs_structs(node, results, generated); }
+  }
+
+  program->structs = results;
+};
 
 Variable *TypeChecker::find_var(std::string_view name) {
   for (int i = scopes.size() - 1; i >= 0; i--) {
@@ -75,15 +110,6 @@ void TypeChecker::check_function(AST *node) {
 
   pop_scope();
   curr_func = prev_func;
-}
-
-void TypeChecker::check_struct(AST *node) {
-  auto name = node->struct_def.struct_type->struct_name;
-  if (structs.count(name) > 0) {
-    error_loc(node->location, "Struct already defined");
-  }
-  for (auto field : *node->struct_def.fields) { check_valid_type(field->type); }
-  structs[name] = node;
 }
 
 void TypeChecker::check_block(AST *node) {
@@ -291,11 +317,12 @@ Type *TypeChecker::check_expression(AST *node) {
                   "LHS of member access must be a (pointer to) struct");
       }
       node->member.is_pointer = (lhs_type->base == BaseType::Pointer);
-      auto struct_type = lhs_type;
+      auto struct_type        = lhs_type;
       if (lhs_type->base == BaseType::Pointer) {
         struct_type = lhs_type->ptr_to;
       }
-      auto field = get_struct_member(struct_type->struct_name, node->member.name);
+      auto field =
+          get_struct_member(struct_type->struct_name, node->member.name);
       if (!field) { error_loc(node->location, "Field not found in struct"); }
       return field->type;
     }

@@ -1,6 +1,8 @@
 #include <codegen.hh>
 #include <utils.hh>
 
+#include "ast.hh"
+
 void CodeGenerator::gen_indent(int indent) {
   for (int i = 0; i < indent; i++) out << "  ";
 }
@@ -232,22 +234,13 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
   }
 }
 
-std::string CodeGenerator::generate(AST *node) {
+std::string CodeGenerator::gen_program(Program *program) {
   out.clear();
   out << "#include <stdio.h>\n";
   out << "#include <stdbool.h>\n";
   out << "#include <stdint.h>\n";
   out << "#include <stdlib.h>\n\n";
-  for (auto node : *node->block.statements) {
-    switch (node->type) {
-      case ASTType::FunctionDef: gen_function(node, 0); break;
-      case ASTType::Struct: gen_struct(node, 0); break;
-      default: {
-        cerr << HERE << " UNHANDLED TYPE IN generate: " << node->type
-             << std::endl;
-        exit(1);
-      }
-    }
-  }
+  for (auto structure : program->structs) { gen_struct(structure, 0); }
+  for (auto func : program->functions) { gen_function(func, 0); }
   return out.str();
 }
