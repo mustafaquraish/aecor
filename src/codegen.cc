@@ -71,10 +71,20 @@ void CodeGenerator::gen_function(AST *node, int indent) {
   out << "\n\n";
 }
 
+void CodeGenerator::gen_struct_decls(Program *program) {
+  if (program->structs.size() == 0) return;
+
+  out << "/* struct declarations */\n";
+  for (auto _struct : program->structs) {
+    auto name = _struct->struct_def.struct_type->struct_name;
+    out << "typedef struct " << name << " " << name << ";\n";
+  }
+  out << "\n";
+}
+
 void CodeGenerator::gen_struct(AST *node, int indent) {
   auto name = node->struct_def.struct_type->struct_name;
 
-  out << "typedef struct " << name << " " << name << ";\n";
   out << "struct " << name << " {\n";
   for (auto field : *node->struct_def.fields) {
     gen_indent(indent + 1);
@@ -84,6 +94,9 @@ void CodeGenerator::gen_struct(AST *node, int indent) {
 }
 
 void CodeGenerator::gen_function_decls(Program *program) {
+  if (program->functions.size() == 0) return;
+
+  out << "/* function declarations */\n";
   for (auto func : program->functions) {
     out << *func->func_def.return_type << " " << func->func_def.name << "(";
 
@@ -95,6 +108,7 @@ void CodeGenerator::gen_function_decls(Program *program) {
     }
     out << ");\n";
   }
+  out << "\n";
 }
 
 void CodeGenerator::gen_expression(AST *node, int indent) {
@@ -258,10 +272,9 @@ std::string CodeGenerator::gen_program(Program *program) {
   out << "#include <stdint.h>\n";
   out << "#include <stdlib.h>\n\n";
 
+  gen_struct_decls(program);
   for (auto structure : program->structs) { gen_struct(structure, 0); }
   gen_function_decls(program);
-  out << '\n';
   for (auto func : program->functions) { gen_function(func, 0); }
-  out << '\n';
   return out.str();
 }

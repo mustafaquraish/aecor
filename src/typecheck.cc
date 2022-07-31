@@ -28,9 +28,6 @@ void TypeChecker::dfs_structs(AST *node, vector<AST *> &results,
 }
 
 void TypeChecker::check_all_structs(Program *program) {
-  unordered_set<AST *> generated;
-  vector<AST *> results;
-
   for (auto node : program->structs) {
     auto name = node->struct_def.struct_type->struct_name;
 
@@ -41,6 +38,9 @@ void TypeChecker::check_all_structs(Program *program) {
     structs[name] = node;
   }
 
+  // TODO: Check for loops in the dependency graph, and error
+  unordered_set<AST *> generated;
+  vector<AST *> results;
   for (auto node : program->structs) {
     if (generated.count(node) == 0) { dfs_structs(node, results, generated); }
   }

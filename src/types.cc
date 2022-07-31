@@ -11,7 +11,7 @@ bool Type::operator==(const Type &other) const {
   return true;
 }
 
-Type *Type::reverse_type_ll(Type *list) {
+Type *Type::reverse_linked_list(Type *list) {
   Type *rev = nullptr;
 
   for (Type *curr = list; curr;) {

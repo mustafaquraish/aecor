@@ -36,7 +36,7 @@ struct Type {
 
   bool operator==(const Type &other) const;
 
-  static Type *reverse_type_ll(Type *);
+  static Type *reverse_linked_list(Type *);
 };
 
 inline std::ostream &operator<<(std::ostream &os, const Type &type) {

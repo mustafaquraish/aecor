@@ -41,6 +41,7 @@ void Parser::consume_line_end() {
 Type *Parser::parse_type() {
   Type *type = nullptr;
 
+  // Type Prefixes here
   auto running = true;
   while (running) {
     switch (token().type) {
@@ -68,11 +69,14 @@ Type *Parser::parse_type() {
     default: UNHANDLED_TYPE();
   }
 
+  // We want to have Ptr1->Ptr2->Base, but we have Base->Ptr2->Ptr1
+  // So, we'll just reverse the type linked-list.
+  // This will be more useful once we have something like Base->Ptr->Arr
   base->ptr_to = type;
-
-  base = Type::reverse_type_ll(base);
-
+  base = Type::reverse_linked_list(base);
   ++curr;
+
+  // Type Postfixes here
 
   return base;
 }
