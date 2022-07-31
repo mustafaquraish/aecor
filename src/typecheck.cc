@@ -7,11 +7,11 @@ void TypeChecker::check_program(Program *program) {
   check_all_functions(program);
 }
 
-void TypeChecker::dfs_structs(AST *node, vector<AST *> &results,
-                              unordered_set<AST *> &generated) {
-  generated.insert(node);
+void TypeChecker::dfs_structs(StructDef *_struct, vector<StructDef *> &results,
+                              unordered_set<StructDef *> &generated) {
+  generated.insert(_struct);
 
-  for (auto field : *node->struct_def.fields) {
+  for (auto field : *_struct->fields) {
     if (!type_is_valid(field->type)) {
       error_loc(field->type->location, "Type of field is undefined");
     }
@@ -24,23 +24,23 @@ void TypeChecker::dfs_structs(AST *node, vector<AST *> &results,
       }
     }
   }
-  results.push_back(node);
+  results.push_back(_struct);
 }
 
 void TypeChecker::check_all_structs(Program *program) {
-  for (auto node : program->structs) {
-    auto name = node->struct_def.struct_type->struct_name;
+  for (auto _struct : program->structs) {
+    auto name = _struct->type->struct_name;
 
     if (structs.count(name) > 0) {
-      error_loc(node->location, "Struct has already been defined");
+      error_loc(_struct->location, "Struct has already been defined");
     }
 
-    structs[name] = node;
+    structs[name] = _struct;
   }
 
   // TODO: Check for loops in the dependency graph, and error
-  unordered_set<AST *> generated;
-  vector<AST *> results;
+  unordered_set<StructDef *> generated;
+  vector<StructDef *> results;
   for (auto node : program->structs) {
     if (generated.count(node) == 0) { dfs_structs(node, results, generated); }
   }
@@ -50,13 +50,13 @@ void TypeChecker::check_all_structs(Program *program) {
 
 void TypeChecker::check_all_functions(Program *program) {
   for (auto func : program->functions) {
-    auto name = func->func_def.name;
-    for (auto param : *func->func_def.params) {
+    auto name = func->name;
+    for (auto param : *func->params) {
       if (!type_is_valid(param->type))
         error_loc(param->type->location, "Invalid parameter type");
     }
-    if (!type_is_valid(func->func_def.return_type))
-      error_loc(func->func_def.return_type->location, "Invalid return type");
+    if (!type_is_valid(func->return_type))
+      error_loc(func->return_type->location, "Invalid return type");
 
     if (functions.count(name) > 0) {
       error_loc(func->location, "Function is already defined");
@@ -79,7 +79,7 @@ Variable *TypeChecker::find_var(std::string_view name) {
 Variable *TypeChecker::get_struct_member(std::string_view struct_name,
                                          std::string_view member) {
   auto _struct = structs[struct_name];
-  for (auto field : *_struct->struct_def.fields) {
+  for (auto field : *_struct->fields) {
     if (field->name == member) { return field; }
   }
   return nullptr;
@@ -109,15 +109,15 @@ bool TypeChecker::type_is_valid(Type *type) {
 }
 
 // Stubs
-void TypeChecker::check_function(AST *node) {
+void TypeChecker::check_function(FunctionDef *func) {
   auto prev_func = curr_func;
-  curr_func      = node;
+  curr_func      = func;
   push_scope();
 
   // The types of parameters and return are checked in decl-pass
-  for (auto param : *node->func_def.params) { push_var(param, node->location); }
+  for (auto param : *func->params) { push_var(param, func->location); }
 
-  check_block(node->func_def.body);
+  check_block(func->body);
 
   pop_scope();
   curr_func = prev_func;
@@ -136,11 +136,11 @@ void TypeChecker::check_statement(AST *node) {
       if (!curr_func) {
         error_loc(node->location, "Return statement outside of function");
       }
-      if (curr_func->func_def.return_type->base == BaseType::Void) {
+      if (curr_func->return_type->base == BaseType::Void) {
         error_loc(node->location, "Cannot return from void function");
       }
       auto ret_type = check_expression(node->unary.expr);
-      if (*ret_type != *curr_func->func_def.return_type) {
+      if (*ret_type != *curr_func->return_type) {
         error_loc(node->unary.expr->location,
                   "Return type does not match function return type");
       }
@@ -223,11 +223,11 @@ Type *TypeChecker::check_call(AST *node) {
     error_loc(node->location, "Function not found");
   }
   auto func = functions[name];
-  if (func->func_def.params->size() != node->call.args->size()) {
+  if (func->params->size() != node->call.args->size()) {
     error_loc(node->location,
               "Number of arguments does not match function signature");
   }
-  auto &params = *func->func_def.params;
+  auto &params = *func->params;
   for (int i = 0; i < params.size(); i++) {
     auto param    = params[i];
     auto arg      = node->call.args->at(i);
@@ -238,7 +238,7 @@ Type *TypeChecker::check_call(AST *node) {
     }
   }
 
-  return func->func_def.return_type;
+  return func->return_type;
 }
 
 Type *TypeChecker::check_expression(AST *node) {

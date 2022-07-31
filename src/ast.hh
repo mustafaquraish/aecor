@@ -16,7 +16,6 @@ using namespace std;
   F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
   F(For, "For")                                                                \
-  F(FunctionDef, "FunctionDef")                                                \
   F(GreaterThan, "GreaterThan")                                                \
   F(If, "If")                                                                  \
   F(IntLiteral, "IntLiteral")                                                  \
@@ -29,7 +28,6 @@ using namespace std;
   F(Plus, "Plus")                                                              \
   F(Return, "Return")                                                          \
   F(StringLiteral, "StringLiteral")                                            \
-  F(Struct, "Struct")                                                          \
   F(UnaryMinus, "UnaryMinus")                                                  \
   F(Var, "Var")                                                                \
   F(VarDeclaration, "VarDeclaration")                                          \
@@ -52,18 +50,6 @@ struct AST {
   Location location;
 
   union {
-    struct {
-      string_view name;
-      vector<Variable *> *params;
-      Type *return_type;
-      AST *body;
-    } func_def;
-
-    struct {
-      Type *struct_type;
-      vector<Variable *> *fields;
-    } struct_def;
-
     struct {
       vector<AST *> *statements;
     } block;
@@ -124,9 +110,31 @@ struct AST {
   AST(ASTType type, Location location);
 };
 
+struct FunctionDef {
+  string_view name;
+  vector<Variable *> *params;
+  Type *return_type;
+  AST *body;
+
+  bool is_method;
+  string_view struct_name;
+  Location location;
+
+  FunctionDef(Location loc) : location(loc) {}
+};
+
+struct StructDef {
+  Type *type;
+  string_view name;
+  vector<Variable *> *fields;
+  Location location;
+
+  StructDef(Location loc) : location(loc) {}
+};
+
 struct Program {
-  vector<AST *> functions;
-  vector<AST *> structs;
+  vector<FunctionDef *> functions;
+  vector<StructDef *> structs;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const ASTType &type) {

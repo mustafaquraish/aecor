@@ -26,8 +26,8 @@ struct Parser {
   AST *parse_expression(bool in_parens = false);
 
   Program *parse_program();
-  AST *parse_function();
-  AST *parse_struct();
+  FunctionDef *parse_function();
+  StructDef *parse_struct();
   AST *parse_block();
   AST *parse_statement();
 

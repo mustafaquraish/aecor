@@ -57,17 +57,17 @@ void CodeGenerator::gen_block(AST *node, int indent) {
   out << "}";
 }
 
-void CodeGenerator::gen_function(AST *node, int indent) {
-  out << *node->func_def.return_type << " " << node->func_def.name << "(";
+void CodeGenerator::gen_function(FunctionDef *func, int indent) {
+  out << *func->return_type << " " << func->name << "(";
 
   bool first = true;
-  for (auto arg : *node->func_def.params) {
+  for (auto arg : *func->params) {
     if (!first) out << ", ";
     first = false;
     out << *arg->type << " " << arg->name;
   }
   out << ") ";
-  gen_block(node->func_def.body, indent);
+  gen_block(func->body, indent);
   out << "\n\n";
 }
 
@@ -76,17 +76,17 @@ void CodeGenerator::gen_struct_decls(Program *program) {
 
   out << "/* struct declarations */\n";
   for (auto _struct : program->structs) {
-    auto name = _struct->struct_def.struct_type->struct_name;
+    auto name = _struct->name;
     out << "typedef struct " << name << " " << name << ";\n";
   }
   out << "\n";
 }
 
-void CodeGenerator::gen_struct(AST *node, int indent) {
-  auto name = node->struct_def.struct_type->struct_name;
+void CodeGenerator::gen_struct(StructDef *_struct, int indent) {
+  auto name = _struct->type->struct_name;
 
   out << "struct " << name << " {\n";
-  for (auto field : *node->struct_def.fields) {
+  for (auto field : *_struct->fields) {
     gen_indent(indent + 1);
     out << *field->type << " " << field->name << ";\n";
   }
@@ -98,10 +98,10 @@ void CodeGenerator::gen_function_decls(Program *program) {
 
   out << "/* function declarations */\n";
   for (auto func : program->functions) {
-    out << *func->func_def.return_type << " " << func->func_def.name << "(";
+    out << *func->return_type << " " << func->name << "(";
 
     bool first = true;
-    for (auto arg : *func->func_def.params) {
+    for (auto arg : *func->params) {
       if (!first) out << ", ";
       first = false;
       out << *arg->type << " " << arg->name;

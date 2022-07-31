@@ -13,19 +13,19 @@ struct TypeChecker {
   };
 
   TypeChecker() {}
-  void dfs_structs(AST *node, vector<AST *> &results,
-                   unordered_set<AST *> &generated);
+  void dfs_structs(StructDef *_struct, vector<StructDef *> &results,
+                   unordered_set<StructDef *> &generated);
 
   void check_all_functions(Program *program);
   void check_all_structs(Program *program);
 
   void check_program(Program *program);
 
-  void check_function(AST *node);
   void check_block(AST *node);
   void check_statement(AST *node);
 
-  void check_struct(AST *node);
+  void check_struct(StructDef *node);
+  void check_function(FunctionDef *node);
 
   Type *check_call(AST *node);
   Type *check_expression(AST *node);
@@ -42,7 +42,7 @@ struct TypeChecker {
                               std::string_view member);
 
   std::vector<Scope> scopes;
-  std::unordered_map<string_view, AST *> functions;
-  std::unordered_map<string_view, AST *> structs;
-  AST *curr_func = nullptr;
+  std::unordered_map<string_view, FunctionDef *> functions;
+  std::unordered_map<string_view, StructDef *> structs;
+  FunctionDef *curr_func = nullptr;
 };

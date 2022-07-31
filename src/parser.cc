@@ -81,12 +81,12 @@ Type *Parser::parse_type() {
   return base;
 }
 
-AST *Parser::parse_function() {
-  auto node = new AST(ASTType::FunctionDef, token().location);
+FunctionDef *Parser::parse_function() {
   consume(TokenType::Def);
 
   auto name           = consume(TokenType::Identifier);
-  node->func_def.name = name.text;
+  auto func = new FunctionDef(name.location);
+  func->name = name.text;
 
   consume(TokenType::OpenParen);
 
@@ -98,31 +98,33 @@ AST *Parser::parse_function() {
     params->push_back(new Variable{name.text, type, name.location});
     if (!consume_if(TokenType::Comma)) break;
   }
-  node->func_def.params = params;
+
+  func->params = params;
 
   consume(TokenType::CloseParen);
 
   if (consume_if(TokenType::Colon)) {
-    node->func_def.return_type = parse_type();
+    func->return_type = parse_type();
   } else {
     if (name.text == "main") {
-      node->func_def.return_type = new Type(BaseType::I32, name.location);
+      func->return_type = new Type(BaseType::I32, name.location);
     } else {
-      node->func_def.return_type = new Type(BaseType::Void, name.location);
+      func->return_type = new Type(BaseType::Void, name.location);
     }
   }
 
-  node->func_def.body = parse_block();
-  return node;
+  func->body = parse_block();
+  return func;
 };
 
-AST *Parser::parse_struct() {
+StructDef *Parser::parse_struct() {
   consume(TokenType::Struct);
 
   auto name = consume(TokenType::Identifier);
   consume(TokenType::OpenCurly);
 
-  auto node = new AST(ASTType::Struct, name.location);
+  auto _struct = new StructDef(name.location);
+  _struct->name = name.text;
 
   auto fields = new vector<Variable *>();
   while (!token_is(TokenType::CloseCurly)) {
@@ -134,34 +136,34 @@ AST *Parser::parse_struct() {
   }
   consume(TokenType::CloseCurly);
 
-  node->struct_def.fields      = fields;
-  auto type                    = new Type(BaseType::Struct, name.location);
-  type->struct_name            = name.text;
-  node->struct_def.struct_type = type;
+  _struct->fields      = fields;
+  auto type            = new Type(BaseType::Struct, name.location);
+  type->struct_name    = name.text;
+  _struct->type = type;
 
-  return node;
+  return _struct;
 }
 
 Program *Parser::parse_program() {
-  auto node = new Program();
+  auto program = new Program();
 
   while (!token_is(TokenType::Eof)) {
     switch (token().type) {
       case TokenType::Def: {
         auto func = parse_function();
-        node->functions.push_back(func);
+        program->functions.push_back(func);
         break;
       }
 
       case TokenType::Struct: {
         auto structure = parse_struct();
-        node->structs.push_back(structure);
+        program->structs.push_back(structure);
         break;
       }
       default: UNHANDLED_TYPE();
     }
   };
-  return node;
+  return program;
 };
 
 AST *Parser::parse_block() {
