@@ -30,6 +30,7 @@
   F(CloseCurly, "CloseCurly")                                                  \
   F(CloseParen, "CloseParen")                                                  \
   F(Colon, "Colon")                                                            \
+  F(ColonColon, "ColonColon")                                                  \
   F(Comma, "Comma")                                                            \
   F(Dot, "Dot")                                                                \
   F(Eof, "Eof")                                                                \

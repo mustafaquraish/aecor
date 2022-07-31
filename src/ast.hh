@@ -12,6 +12,7 @@ using namespace std;
   F(Block, "Block")                                                            \
   F(BoolLiteral, "BoolLiteral")                                                \
   F(Call, "Call")                                                              \
+  F(MethodCall, "MethodCall")                                                  \
   F(Defer, "Defer")                                                            \
   F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
@@ -45,6 +46,8 @@ struct Variable {
   Location location;
 };
 
+struct FunctionDef;
+
 struct AST {
   ASTType type;
   Location location;
@@ -70,6 +73,7 @@ struct AST {
     struct {
       AST *callee;
       vector<AST *> *args;
+      FunctionDef *function;
     } call;
 
     struct {
@@ -112,7 +116,7 @@ struct AST {
 
 struct FunctionDef {
   string_view name;
-  vector<Variable *> *params;
+  vector<Variable *> params;
   Type *return_type;
   AST *body;
 
@@ -126,8 +130,9 @@ struct FunctionDef {
 struct StructDef {
   Type *type;
   string_view name;
-  vector<Variable *> *fields;
+  vector<Variable *> fields;
   Location location;
+  vector<FunctionDef *> methods;
 
   StructDef(Location loc) : location(loc) {}
 };

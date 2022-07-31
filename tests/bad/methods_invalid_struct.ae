@@ -1,0 +1,3 @@
+/// fail: Struct for method does not exist
+
+def Foo::bar() {}

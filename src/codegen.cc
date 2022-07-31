@@ -58,10 +58,12 @@ void CodeGenerator::gen_block(AST *node, int indent) {
 }
 
 void CodeGenerator::gen_function(FunctionDef *func, int indent) {
-  out << *func->return_type << " " << func->name << "(";
+  out << *func->return_type << " ";
+  gen_function_name(func);
+  out << "(";
 
   bool first = true;
-  for (auto arg : *func->params) {
+  for (auto arg : func->params) {
     if (!first) out << ", ";
     first = false;
     out << *arg->type << " " << arg->name;
@@ -86,11 +88,19 @@ void CodeGenerator::gen_struct(StructDef *_struct, int indent) {
   auto name = _struct->type->struct_name;
 
   out << "struct " << name << " {\n";
-  for (auto field : *_struct->fields) {
+  for (auto field : _struct->fields) {
     gen_indent(indent + 1);
     out << *field->type << " " << field->name << ";\n";
   }
   out << "};\n\n";
+}
+
+void CodeGenerator::gen_function_name(FunctionDef *func) {
+  if (func->is_method) {
+    out << func->struct_name << "__" << func->name;
+  } else {
+    out << func->name;
+  }
 }
 
 void CodeGenerator::gen_function_decls(Program *program) {
@@ -98,10 +108,12 @@ void CodeGenerator::gen_function_decls(Program *program) {
 
   out << "/* function declarations */\n";
   for (auto func : program->functions) {
-    out << *func->return_type << " " << func->name << "(";
+    out << *func->return_type << " ";
+    gen_function_name(func);
+    out << "(";
 
     bool first = true;
-    for (auto arg : *func->params) {
+    for (auto arg : func->params) {
       if (!first) out << ", ";
       first = false;
       out << *arg->type << " " << arg->name;
@@ -152,7 +164,8 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       break;
     }
 
-    case ASTType::Call: {
+    case ASTType::Call:
+    case ASTType::MethodCall: {
       bool newline_after_first = false;
       if (callee_is(node, "print")) {
         out << "printf";
@@ -160,7 +173,7 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
         out << "printf";
         newline_after_first = true;
       } else {
-        gen_expression(node->call.callee, indent);
+        gen_function_name(node->call.function);
       }
       out << "(";
       bool first = true;

@@ -29,7 +29,6 @@ std::vector<Token> Lexer::lex() {
       case '}': push(TokenType::CloseCurly, 1); break;
       case '<': push(TokenType::LessThan, 1); break;
       case '>': push(TokenType::GreaterThan, 1); break;
-      case ':': push(TokenType::Colon, 1); break;
       case ';': push(TokenType::Semicolon, 1); break;
       case '+': push(TokenType::Plus, 1); break;
       case '-': push(TokenType::Minus, 1); break;
@@ -37,6 +36,13 @@ std::vector<Token> Lexer::lex() {
       case ',': push(TokenType::Comma, 1); break;
       case '.': push(TokenType::Dot, 1); break;
 
+      case ':': {
+        if (peek() == ':')
+          push(TokenType::ColonColon, 2);
+        else
+          push(TokenType::Colon, 1);
+        break;
+      }
       case '/': {
         // Ignoring comments
         if (peek() == '/') {

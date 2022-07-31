@@ -11,7 +11,7 @@ void TypeChecker::dfs_structs(StructDef *_struct, vector<StructDef *> &results,
                               unordered_set<StructDef *> &generated) {
   generated.insert(_struct);
 
-  for (auto field : *_struct->fields) {
+  for (auto field : _struct->fields) {
     if (!type_is_valid(field->type)) {
       error_loc(field->type->location, "Type of field is undefined");
     }
@@ -36,6 +36,7 @@ void TypeChecker::check_all_structs(Program *program) {
     }
 
     structs[name] = _struct;
+    methods[name] = {};
   }
 
   // TODO: Check for loops in the dependency graph, and error
@@ -50,8 +51,19 @@ void TypeChecker::check_all_structs(Program *program) {
 
 void TypeChecker::check_all_functions(Program *program) {
   for (auto func : program->functions) {
-    auto name = func->name;
-    for (auto param : *func->params) {
+    auto name        = func->name;
+    auto struct_name = func->struct_name;
+
+    if (func->is_method) {
+      if (structs.count(struct_name) == 0) {
+        error_loc(func->location, "Struct for method does not exist");
+      }
+      if (methods[struct_name].count(name) > 0) {
+        error_loc(func->location, "Method is already defined in struct");
+      }
+    }
+
+    for (auto param : func->params) {
       if (!type_is_valid(param->type))
         error_loc(param->type->location, "Invalid parameter type");
     }
@@ -62,9 +74,12 @@ void TypeChecker::check_all_functions(Program *program) {
       error_loc(func->location, "Function is already defined");
     }
 
-    functions[name] = func;
+    if (func->is_method) {
+      methods[struct_name][name] = func;
+    } else {
+      functions[name] = func;
+    }
   }
-
   for (auto func : program->functions) { check_function(func); }
 }
 
@@ -79,7 +94,7 @@ Variable *TypeChecker::find_var(std::string_view name) {
 Variable *TypeChecker::get_struct_member(std::string_view struct_name,
                                          std::string_view member) {
   auto _struct = structs[struct_name];
-  for (auto field : *_struct->fields) {
+  for (auto field : _struct->fields) {
     if (field->name == member) { return field; }
   }
   return nullptr;
@@ -103,8 +118,7 @@ bool TypeChecker::type_is_valid(Type *type) {
     case BaseType::Struct: return structs.count(type->struct_name) > 0;
     default: break;
   }
-  cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << *type
-       << std::endl;
+  cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << *type << std::endl;
   exit(1);
 }
 
@@ -115,7 +129,7 @@ void TypeChecker::check_function(FunctionDef *func) {
   push_scope();
 
   // The types of parameters and return are checked in decl-pass
-  for (auto param : *func->params) { push_var(param, func->location); }
+  for (auto param : func->params) { push_var(param, func->location); }
 
   check_block(func->body);
 
@@ -162,7 +176,8 @@ void TypeChecker::check_statement(AST *node) {
                     "Variable type cannot be inferred, specify explicitly");
         }
         if (!type_is_valid(node->var_decl.var->type)) {
-          error_loc(node->var_decl.var->type->location, "Invalid variable type");
+          error_loc(node->var_decl.var->type->location,
+                    "Invalid variable type");
         }
       }
       push_var(node->var_decl.var, node->location);
@@ -205,6 +220,57 @@ void TypeChecker::check_statement(AST *node) {
   }
 }
 
+Type *TypeChecker::check_method_call(AST *node) {
+  if (node->call.callee->type != ASTType::Member) {
+    error_loc(node->call.callee->location,
+              "Method call is not to a member, internal compiler error");
+  }
+  auto callee   = node->call.callee;
+  auto lhs_type = check_expression(callee->member.lhs);
+  if (!lhs_type->is_struct_or_ptr()) {
+    error_loc(callee->location,
+              "LHS of member access must be a (pointer to) struct");
+  }
+  bool is_pointer  = (lhs_type->base == BaseType::Pointer);
+  auto struct_type = lhs_type;
+  if (lhs_type->base == BaseType::Pointer) { struct_type = lhs_type->ptr_to; }
+
+  auto struct_name = struct_type->struct_name;
+  auto name        = callee->member.name;
+  if (methods.count(struct_name) == 0) {
+    error_loc(callee->location, "Struct not defined");
+  }
+  if (methods[struct_name].count(name) == 0) {
+    error_loc(callee->location, "Method not defined");
+  }
+  auto func = methods[struct_name][name];
+
+  auto first_arg = callee->member.lhs;
+  if (!is_pointer) {
+    auto ptr        = new AST(ASTType::Address, first_arg->location);
+    ptr->unary.expr = first_arg;
+    first_arg       = ptr;
+  }
+  node->call.args->insert(node->call.args->begin(), first_arg);
+
+  if (func->params.size() != node->call.args->size()) {
+    error_loc(node->location,
+              "Number of arguments does not match function signature");
+  }
+  auto &params = func->params;
+  for (int i = 0; i < params.size(); i++) {
+    auto param    = params[i];
+    auto arg      = node->call.args->at(i);
+    auto arg_type = check_expression(arg);
+    if (*param->type != *arg_type) {
+      error_loc(arg->location,
+                "Argument type does not match function parameter type");
+    }
+  }
+  node->call.function = func;
+  return func->return_type;
+}
+
 Type *TypeChecker::check_call(AST *node) {
   // TODO: Allow expressions evaluating to functions?
   if (node->call.callee->type != ASTType::Var) {
@@ -223,11 +289,11 @@ Type *TypeChecker::check_call(AST *node) {
     error_loc(node->location, "Function not found");
   }
   auto func = functions[name];
-  if (func->params->size() != node->call.args->size()) {
+  if (func->params.size() != node->call.args->size()) {
     error_loc(node->location,
               "Number of arguments does not match function signature");
   }
-  auto &params = *func->params;
+  auto &params = func->params;
   for (int i = 0; i < params.size(); i++) {
     auto param    = params[i];
     auto arg      = node->call.args->at(i);
@@ -238,16 +304,19 @@ Type *TypeChecker::check_call(AST *node) {
     }
   }
 
+  node->call.function = func;
   return func->return_type;
 }
 
 Type *TypeChecker::check_expression(AST *node) {
   switch (node->type) {
     case ASTType::Call: return check_call(node);
+    case ASTType::MethodCall: return check_method_call(node);
     case ASTType::IntLiteral: return new Type(BaseType::I32, node->location);
     case ASTType::BoolLiteral: return new Type(BaseType::Bool, node->location);
     // THIS IS AN UGLY HACK, FIX STRINGS PLS
-    case ASTType::StringLiteral: return new Type(BaseType::Void, node->location);
+    case ASTType::StringLiteral:
+      return new Type(BaseType::Void, node->location);
     case ASTType::Var: {
       auto var = find_var(node->var.name);
       if (var == nullptr) { error_loc(node->location, "Variable not found"); }

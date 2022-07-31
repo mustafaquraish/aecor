@@ -57,9 +57,15 @@ Type *Parser::parse_type() {
   Type *base = nullptr;
 
   switch (token().type) {
-    case TokenType::I32: base = new Type(BaseType::I32, token().location); break;
-    case TokenType::Bool: base = new Type(BaseType::Bool, token().location); break;
-    case TokenType::Void: base = new Type(BaseType::Void, token().location); break;
+    case TokenType::I32:
+      base = new Type(BaseType::I32, token().location);
+      break;
+    case TokenType::Bool:
+      base = new Type(BaseType::Bool, token().location);
+      break;
+    case TokenType::Void:
+      base = new Type(BaseType::Void, token().location);
+      break;
     case TokenType::Identifier: {
       base              = new Type(BaseType::Struct, token().location);
       base->struct_name = token().text;
@@ -73,7 +79,7 @@ Type *Parser::parse_type() {
   // So, we'll just reverse the type linked-list.
   // This will be more useful once we have something like Base->Ptr->Arr
   base->ptr_to = type;
-  base = Type::reverse_linked_list(base);
+  base         = Type::reverse_linked_list(base);
   ++curr;
 
   // Type Postfixes here
@@ -84,24 +90,49 @@ Type *Parser::parse_type() {
 FunctionDef *Parser::parse_function() {
   consume(TokenType::Def);
 
-  auto name           = consume(TokenType::Identifier);
-  auto func = new FunctionDef(name.location);
-  func->name = name.text;
+  auto struct_name = string_view();
+  auto is_method   = false;
+  auto name        = consume(TokenType::Identifier);
+  if (consume_if(TokenType::ColonColon)) {
+    is_method   = true;
+    struct_name = name.text;
+    name        = consume(TokenType::Identifier);
+  }
+
+  auto func         = new FunctionDef(name.location);
+  func->name        = name.text;
+  func->struct_name = struct_name;
+  func->is_method   = is_method;
 
   consume(TokenType::OpenParen);
-
-  auto params = new vector<Variable *>();
+  bool first = true;
   while (!token_is(TokenType::CloseParen)) {
-    auto name = consume(TokenType::Identifier);
-    consume(TokenType::Colon);
-    auto type = parse_type();
-    params->push_back(new Variable{name.text, type, name.location});
+    auto name  = consume(TokenType::Identifier);
+    Type *type = nullptr;
+    if (first) {
+      first = false;
+      if (is_method) {
+        if (name.text == "this") {
+          auto struct_type         = new Type(BaseType::Struct, name.location);
+          struct_type->struct_name = struct_name;
+          type = new Type(BaseType::Pointer, struct_type, name.location);
+        } else {
+          error_loc(name.location, "Expected 'this', static methods not supported yet");
+        }
+      }
+    }
+    if (!type) {
+      consume(TokenType::Colon);
+      type = parse_type();
+    }
+    func->params.push_back(new Variable{name.text, type, name.location});
     if (!consume_if(TokenType::Comma)) break;
   }
 
-  func->params = params;
-
   consume(TokenType::CloseParen);
+  if (func->is_method && func->params.size() == 0) {
+    error_loc(name.location, "Expected 'this' as first argument, static methods not supported yet");
+  }
 
   if (consume_if(TokenType::Colon)) {
     func->return_type = parse_type();
@@ -123,23 +154,21 @@ StructDef *Parser::parse_struct() {
   auto name = consume(TokenType::Identifier);
   consume(TokenType::OpenCurly);
 
-  auto _struct = new StructDef(name.location);
+  auto _struct  = new StructDef(name.location);
   _struct->name = name.text;
 
-  auto fields = new vector<Variable *>();
   while (!token_is(TokenType::CloseCurly)) {
     auto name = consume(TokenType::Identifier);
     consume(TokenType::Colon);
     auto type = parse_type();
-    fields->push_back(new Variable{name.text, type, name.location});
+    _struct->fields.push_back(new Variable{name.text, type, name.location});
     consume_line_end();
   }
   consume(TokenType::CloseCurly);
 
-  _struct->fields      = fields;
-  auto type            = new Type(BaseType::Struct, name.location);
-  type->struct_name    = name.text;
-  _struct->type = type;
+  auto type         = new Type(BaseType::Struct, name.location);
+  type->struct_name = name.text;
+  _struct->type     = type;
 
   return _struct;
 }
@@ -307,6 +336,19 @@ AST *Parser::parse_factor(bool in_parens) {
       consume(TokenType::False);
       break;
     }
+    case TokenType::Dot: {
+      node = new AST(ASTType::Member, token().location);
+
+      auto lhs = new AST(ASTType::Var, token().location);
+      lhs->var.name = "this";
+      consume(TokenType::Dot);
+
+      auto name = consume(TokenType::Identifier);
+
+      node->member.lhs = lhs;
+      node->member.name = name.text;
+      break;
+    }
     case TokenType::Not: {
       node = new AST(ASTType::Not, token().location);
       consume(TokenType::Not);
@@ -369,7 +411,9 @@ AST *Parser::parse_factor(bool in_parens) {
           if (!consume_if(TokenType::Comma)) break;
         }
         consume(TokenType::CloseParen);
-        auto call         = new AST(ASTType::Call, paren_loc);
+        auto call_type = ASTType::Call;
+        if (node->type == ASTType::Member) { call_type = ASTType::MethodCall; }
+        auto call         = new AST(call_type, paren_loc);
         call->call.callee = node;
         call->call.args   = args;
         node              = call;

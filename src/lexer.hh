@@ -23,6 +23,7 @@ struct Lexer {
 
   void push(TokenType type, int length = 0) {
     push(Token::from_type(type, location()));
+    i += length - 1;
     column += length;
   }
 

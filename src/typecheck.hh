@@ -27,6 +27,7 @@ struct TypeChecker {
   void check_struct(StructDef *node);
   void check_function(FunctionDef *node);
 
+  Type *check_method_call(AST *node);
   Type *check_call(AST *node);
   Type *check_expression(AST *node);
 
@@ -41,8 +42,9 @@ struct TypeChecker {
   Variable *get_struct_member(std::string_view struct_name,
                               std::string_view member);
 
-  std::vector<Scope> scopes;
-  std::unordered_map<string_view, FunctionDef *> functions;
-  std::unordered_map<string_view, StructDef *> structs;
+  vector<Scope> scopes;
+  unordered_map<string_view, FunctionDef *> functions;
+  unordered_map<string_view, StructDef *> structs;
+  unordered_map<string_view, unordered_map<string_view, FunctionDef *>> methods;
   FunctionDef *curr_func = nullptr;
 };
