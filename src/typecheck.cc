@@ -4,8 +4,7 @@
 
 void TypeChecker::check_program(Program *program) {
   check_all_structs(program);
-
-  for (auto func : program->functions) { check_function(func); }
+  check_all_functions(program);
 }
 
 void TypeChecker::dfs_structs(AST *node, vector<AST *> &results,
@@ -49,6 +48,22 @@ void TypeChecker::check_all_structs(Program *program) {
 
   program->structs = results;
 };
+
+void TypeChecker::check_all_functions(Program *program) {
+  for (auto func : program->functions) {
+    auto name = func->func_def.name;
+    for (auto param : *func->func_def.params) { check_valid_type(param->type); }
+    check_valid_type(func->func_def.return_type);
+
+    if (functions.count(name) > 0) {
+      error_loc(func->location, "Function is already defined");
+    }
+
+    functions[name] = func;
+  }
+
+  for (auto func : program->functions) { check_function(func); }
+}
 
 Variable *TypeChecker::find_var(std::string_view name) {
   for (int i = scopes.size() - 1; i >= 0; i--) {
@@ -95,9 +110,8 @@ bool TypeChecker::check_valid_type(Type *type) {
 
 // Stubs
 void TypeChecker::check_function(AST *node) {
-  auto prev_func                 = curr_func;
-  curr_func                      = node;
-  functions[node->func_def.name] = node;
+  auto prev_func = curr_func;
+  curr_func      = node;
   push_scope();
 
   for (auto param : *node->func_def.params) {
@@ -283,6 +297,14 @@ Type *TypeChecker::check_expression(AST *node) {
         error_loc(node->unary.expr->location, "Expression must be boolean");
       }
       return new Type(BaseType::Bool);
+    }
+
+    case ASTType::UnaryMinus: {
+      auto expr_type = check_expression(node->unary.expr);
+      if (expr_type->base != BaseType::I32) {
+        error_loc(node->unary.expr->location, "Expression must be a number");
+      }
+      return new Type(BaseType::I32);
     }
 
     case ASTType::Address: {

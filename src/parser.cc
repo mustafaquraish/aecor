@@ -307,6 +307,12 @@ AST *Parser::parse_factor(bool in_parens) {
       node->unary.expr = parse_factor(true);
       break;
     }
+    case TokenType::Minus: {
+      node = new AST(ASTType::UnaryMinus, token().location);
+      consume(TokenType::Minus);
+      node->unary.expr = parse_factor(true);
+      break;
+    }
     case TokenType::Ampersand: {
       node = new AST(ASTType::Address, token().location);
       consume(TokenType::Ampersand);

@@ -30,6 +30,7 @@ using namespace std;
   F(Return, "Return")                                                          \
   F(StringLiteral, "StringLiteral")                                            \
   F(Struct, "Struct")                                                          \
+  F(UnaryMinus, "UnaryMinus")                                                  \
   F(Var, "Var")                                                                \
   F(VarDeclaration, "VarDeclaration")                                          \
   F(While, "While")

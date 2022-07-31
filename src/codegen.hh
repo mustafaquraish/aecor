@@ -21,6 +21,7 @@ struct CodeGenerator {
   void gen_expression(AST *node, int indent);
   void gen_statement(AST *node, int indent);
   void gen_function(AST *node, int indent);
+  void gen_function_decls(Program *program);
   void gen_struct(AST *node, int indent);
 
   std::stringstream out;

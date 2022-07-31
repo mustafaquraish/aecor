@@ -21,6 +21,7 @@ void CodeGenerator::gen_op(ASTType type) {
     case ASTType::Address: out << "&"; return;
     case ASTType::Dereference: out << "*"; return;
     case ASTType::Not: out << "!"; return;
+    case ASTType::UnaryMinus: out << "-"; return;
     default: break;
   }
   cerr << "\n" << HERE << "UNHANDLED TYPE IN gen_op: " << type << std::endl;
@@ -67,6 +68,7 @@ void CodeGenerator::gen_function(AST *node, int indent) {
   }
   out << ") ";
   gen_block(node->func_def.body, indent);
+  out << "\n\n";
 }
 
 void CodeGenerator::gen_struct(AST *node, int indent) {
@@ -81,9 +83,24 @@ void CodeGenerator::gen_struct(AST *node, int indent) {
   out << "};\n\n";
 }
 
+void CodeGenerator::gen_function_decls(Program *program) {
+  for (auto func : program->functions) {
+    out << *func->func_def.return_type << " " << func->func_def.name << "(";
+
+    bool first = true;
+    for (auto arg : *func->func_def.params) {
+      if (!first) out << ", ";
+      first = false;
+      out << *arg->type << " " << arg->name;
+    }
+    out << ");\n";
+  }
+}
+
 void CodeGenerator::gen_expression(AST *node, int indent) {
   switch (node->type) {
     case ASTType::Not:
+    case ASTType::UnaryMinus:
     case ASTType::Address:
     case ASTType::Dereference: {
       out << "(";
@@ -240,7 +257,11 @@ std::string CodeGenerator::gen_program(Program *program) {
   out << "#include <stdbool.h>\n";
   out << "#include <stdint.h>\n";
   out << "#include <stdlib.h>\n\n";
+
   for (auto structure : program->structs) { gen_struct(structure, 0); }
+  gen_function_decls(program);
+  out << '\n';
   for (auto func : program->functions) { gen_function(func, 0); }
+  out << '\n';
   return out.str();
 }

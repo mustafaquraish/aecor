@@ -15,6 +15,8 @@ struct TypeChecker {
   TypeChecker() {}
   void dfs_structs(AST *node, vector<AST *> &results,
                    unordered_set<AST *> &generated);
+
+  void check_all_functions(Program *program);
   void check_all_structs(Program *program);
 
   void check_program(Program *program);
