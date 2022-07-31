@@ -46,7 +46,7 @@ Type *Parser::parse_type() {
   while (running) {
     switch (token().type) {
       case TokenType::Ampersand:
-        type = new Type(BaseType::Pointer, type);
+        type = new Type(BaseType::Pointer, type, token().location);
         ++curr;
         break;
 
@@ -57,11 +57,11 @@ Type *Parser::parse_type() {
   Type *base = nullptr;
 
   switch (token().type) {
-    case TokenType::I32: base = new Type(BaseType::I32); break;
-    case TokenType::Bool: base = new Type(BaseType::Bool); break;
-    case TokenType::Void: base = new Type(BaseType::Void); break;
+    case TokenType::I32: base = new Type(BaseType::I32, token().location); break;
+    case TokenType::Bool: base = new Type(BaseType::Bool, token().location); break;
+    case TokenType::Void: base = new Type(BaseType::Void, token().location); break;
     case TokenType::Identifier: {
-      base              = new Type(BaseType::Struct);
+      base              = new Type(BaseType::Struct, token().location);
       base->struct_name = token().text;
       break;
     }
@@ -106,9 +106,9 @@ AST *Parser::parse_function() {
     node->func_def.return_type = parse_type();
   } else {
     if (name.text == "main") {
-      node->func_def.return_type = new Type(BaseType::I32);
+      node->func_def.return_type = new Type(BaseType::I32, name.location);
     } else {
-      node->func_def.return_type = new Type(BaseType::Void);
+      node->func_def.return_type = new Type(BaseType::Void, name.location);
     }
   }
 
@@ -135,7 +135,7 @@ AST *Parser::parse_struct() {
   consume(TokenType::CloseCurly);
 
   node->struct_def.fields      = fields;
-  auto type                    = new Type(BaseType::Struct);
+  auto type                    = new Type(BaseType::Struct, name.location);
   type->struct_name            = name.text;
   node->struct_def.struct_type = type;
 

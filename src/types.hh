@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <string_view>
+#include <tokens.hh>
 
 using namespace std;
 
@@ -22,11 +23,14 @@ struct Type {
   BaseType base;
   Type *ptr_to;
   string_view struct_name;
+  Location location;
 
-  Type(BaseType base) : base(base), ptr_to(nullptr) {}
-  Type(BaseType base, Type *ptr_to) : base(base), ptr_to(ptr_to) {}
-  Type(BaseType base, BaseType ptr_to_typ)
-      : base(base), ptr_to(new Type(ptr_to_typ)) {}
+  Type(BaseType base, Location loc)
+      : base(base), ptr_to(nullptr), location(loc) {}
+  Type(BaseType base, Type *ptr_to, Location loc)
+      : base(base), ptr_to(ptr_to), location(loc) {}
+  Type(BaseType base, BaseType ptr_to_typ, Location loc)
+      : base(base), ptr_to(new Type(ptr_to_typ, loc)), location(loc) {}
 
   bool is_struct_or_ptr() const {
     if (base == BaseType::Struct) return true;

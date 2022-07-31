@@ -13,7 +13,7 @@ void TypeChecker::dfs_structs(AST *node, vector<AST *> &results,
 
   for (auto field : *node->struct_def.fields) {
     if (!type_is_valid(field->type)) {
-      error_loc(field->location, "Type of field is undefined");
+      error_loc(field->type->location, "Type of field is undefined");
     }
 
     if (field->type->base == BaseType::Struct) {
@@ -53,10 +53,10 @@ void TypeChecker::check_all_functions(Program *program) {
     auto name = func->func_def.name;
     for (auto param : *func->func_def.params) {
       if (!type_is_valid(param->type))
-        error_loc(param->location, "Invalid parameter type");
+        error_loc(param->type->location, "Invalid parameter type");
     }
     if (!type_is_valid(func->func_def.return_type))
-      error_loc(func->location, "Invalid return type");
+      error_loc(func->func_def.return_type->location, "Invalid return type");
 
     if (functions.count(name) > 0) {
       error_loc(func->location, "Function is already defined");
@@ -103,7 +103,7 @@ bool TypeChecker::type_is_valid(Type *type) {
     case BaseType::Struct: return structs.count(type->struct_name) > 0;
     default: break;
   }
-  cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << type->base
+  cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << *type
        << std::endl;
   exit(1);
 }
@@ -162,7 +162,7 @@ void TypeChecker::check_statement(AST *node) {
                     "Variable type cannot be inferred, specify explicitly");
         }
         if (!type_is_valid(node->var_decl.var->type)) {
-          error_loc(node->var_decl.var->location, "Invalid variable type");
+          error_loc(node->var_decl.var->type->location, "Invalid variable type");
         }
       }
       push_var(node->var_decl.var, node->location);
@@ -216,7 +216,7 @@ Type *TypeChecker::check_call(AST *node) {
   // This is a hack, don't check the types of parameters
   if (name == "print" || name == "println") {
     for (auto arg : *node->call.args) check_expression(arg);
-    return new Type(BaseType::Void);
+    return new Type(BaseType::Void, node->location);
   }
 
   if (functions.count(name) == 0) {
@@ -244,10 +244,10 @@ Type *TypeChecker::check_call(AST *node) {
 Type *TypeChecker::check_expression(AST *node) {
   switch (node->type) {
     case ASTType::Call: return check_call(node);
-    case ASTType::IntLiteral: return new Type(BaseType::I32);
-    case ASTType::BoolLiteral: return new Type(BaseType::Bool);
+    case ASTType::IntLiteral: return new Type(BaseType::I32, node->location);
+    case ASTType::BoolLiteral: return new Type(BaseType::Bool, node->location);
     // THIS IS AN UGLY HACK, FIX STRINGS PLS
-    case ASTType::StringLiteral: return new Type(BaseType::Void);
+    case ASTType::StringLiteral: return new Type(BaseType::Void, node->location);
     case ASTType::Var: {
       auto var = find_var(node->var.name);
       if (var == nullptr) { error_loc(node->location, "Variable not found"); }
@@ -264,7 +264,7 @@ Type *TypeChecker::check_expression(AST *node) {
       if (lhs_type->base != BaseType::I32 || rhs_type->base != BaseType::I32) {
         error_loc(node->location, "Operands must be integers");
       }
-      return new Type(BaseType::I32);
+      return new Type(BaseType::I32, node->location);
     }
 
     case ASTType::LessThan:
@@ -274,7 +274,7 @@ Type *TypeChecker::check_expression(AST *node) {
       if (lhs_type->base != BaseType::I32 || rhs_type->base != BaseType::I32) {
         error_loc(node->location, "Operands must be integers");
       }
-      return new Type(BaseType::Bool);
+      return new Type(BaseType::Bool, node->location);
     }
 
     case ASTType::And:
@@ -285,7 +285,7 @@ Type *TypeChecker::check_expression(AST *node) {
           rhs_type->base != BaseType::Bool) {
         error_loc(node->location, "Operands must be boolean");
       }
-      return new Type(BaseType::Bool);
+      return new Type(BaseType::Bool, node->location);
     }
 
     case ASTType::Not: {
@@ -293,7 +293,7 @@ Type *TypeChecker::check_expression(AST *node) {
       if (expr_type->base != BaseType::Bool) {
         error_loc(node->unary.expr->location, "Expression must be boolean");
       }
-      return new Type(BaseType::Bool);
+      return new Type(BaseType::Bool, expr_type->location);
     }
 
     case ASTType::UnaryMinus: {
@@ -301,13 +301,13 @@ Type *TypeChecker::check_expression(AST *node) {
       if (expr_type->base != BaseType::I32) {
         error_loc(node->unary.expr->location, "Expression must be a number");
       }
-      return new Type(BaseType::I32);
+      return new Type(BaseType::I32, expr_type->location);
     }
 
     case ASTType::Address: {
       // TODO: Only allow pointers to l-values, reject literals;
       auto expr_type = check_expression(node->unary.expr);
-      return new Type(BaseType::Pointer, expr_type);
+      return new Type(BaseType::Pointer, expr_type, expr_type->location);
     }
 
     case ASTType::Dereference: {
