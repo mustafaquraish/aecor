@@ -18,6 +18,7 @@ using namespace std;
   F(Defer, "Defer")                                                            \
   F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
+  F(FloatLiteral, "FloatLiteral")                                              \
   F(For, "For")                                                                \
   F(GreaterThan, "GreaterThan")                                                \
   F(If, "If")                                                                  \
@@ -113,7 +114,7 @@ struct AST {
       Type *to_type;
     } cast;
 
-    int int_literal;
+    string_view num_literal;
     string_view string_literal;
     bool bool_literal;
   };

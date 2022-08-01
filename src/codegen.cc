@@ -157,7 +157,8 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       out << ")";
       break;
     }
-    case ASTType::IntLiteral: out << node->int_literal; break;
+    case ASTType::IntLiteral: out << node->num_literal; break;
+    case ASTType::FloatLiteral: out << node->num_literal; break;
     case ASTType::BoolLiteral: out << node->bool_literal; break;
     case ASTType::Var: out << node->var.name; break;
     case ASTType::StringLiteral:

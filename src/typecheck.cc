@@ -112,6 +112,7 @@ bool TypeChecker::type_is_valid(Type *type) {
   // TODO: Keep track of defined structs and look them up later.
   switch (type->base) {
     case BaseType::I32:
+    case BaseType::F32:
     case BaseType::Bool:
     case BaseType::Void:
     case BaseType::U8: return true;
@@ -125,7 +126,7 @@ bool TypeChecker::type_is_valid(Type *type) {
     }
     default: break;
   }
-  cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << *type << std::endl;
+  cerr << HERE << " UNHANDLED TYPE IN type_is_valid: " << *type << std::endl;
   exit(1);
 }
 
@@ -320,6 +321,7 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::Call: return check_call(node);
     case ASTType::MethodCall: return check_method_call(node);
     case ASTType::IntLiteral: return new Type(BaseType::I32, node->location);
+    case ASTType::FloatLiteral: return new Type(BaseType::F32, node->location);
     case ASTType::BoolLiteral: return new Type(BaseType::Bool, node->location);
     // THIS IS AN UGLY HACK, FIX STRINGS PLS
     case ASTType::StringLiteral:
@@ -337,18 +339,24 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::Divide: {
       auto lhs_type = check_expression(node->binary.lhs);
       auto rhs_type = check_expression(node->binary.rhs);
-      if (lhs_type->base != BaseType::I32 || rhs_type->base != BaseType::I32) {
-        error_loc(node->location, "Operands must be integers");
+      if (!lhs_type->is_numeric() || !rhs_type->is_numeric()) {
+        error_loc(node->location, "Operator requires numeric types");
       }
-      return new Type(BaseType::I32, node->location);
+      if (*lhs_type != *rhs_type) {
+        error_loc(node->location, "Operands must be be of the same type");
+      }
+      return lhs_type;
     }
 
     case ASTType::LessThan:
     case ASTType::GreaterThan: {
       auto lhs_type = check_expression(node->binary.lhs);
       auto rhs_type = check_expression(node->binary.rhs);
-      if (lhs_type->base != BaseType::I32 || rhs_type->base != BaseType::I32) {
-        error_loc(node->location, "Operands must be integers");
+      if (!lhs_type->is_numeric() || !rhs_type->is_numeric()) {
+        error_loc(node->location, "Operator requires numeric types");
+      }
+      if (*lhs_type != *rhs_type) {
+        error_loc(node->location, "Operands must be be of the same type");
       }
       return new Type(BaseType::Bool, node->location);
     }
@@ -374,10 +382,10 @@ Type *TypeChecker::check_expression(AST *node) {
 
     case ASTType::UnaryMinus: {
       auto expr_type = check_expression(node->unary.expr);
-      if (expr_type->base != BaseType::I32) {
+      if (!expr_type->is_numeric()) {
         error_loc(node->unary.expr->location, "Expression must be a number");
       }
-      return new Type(BaseType::I32, expr_type->location);
+      return expr_type;
     }
 
     case ASTType::Address: {
@@ -424,6 +432,9 @@ Type *TypeChecker::check_expression(AST *node) {
 
     case ASTType::Cast: {
       auto lhs_type = check_expression(node->cast.lhs);
+      if (!type_is_valid(node->cast.to_type)) {
+        error_loc(node->cast.to_type->location, "Type does not exist");
+      }
       // TODO: Check if cast is valid
       return node->cast.to_type;
     }

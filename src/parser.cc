@@ -66,6 +66,9 @@ Type *Parser::parse_type() {
     case TokenType::U8:
       type = new Type(BaseType::U8, type, token().location);
       break;
+    case TokenType::F32:
+      type = new Type(BaseType::F32, type, token().location);
+      break;
     case TokenType::String:
       type = new Type(BaseType::U8,
                       new Type(BaseType::Pointer, type, token().location),
@@ -446,8 +449,14 @@ AST *Parser::parse_factor(bool in_parens) {
     }
     case TokenType::IntLiteral: {
       node              = new AST(ASTType::IntLiteral, token().location);
-      node->int_literal = token().int_lit;
+      node->num_literal = token().text;
       consume(TokenType::IntLiteral);
+      break;
+    }
+    case TokenType::FloatLiteral: {
+      node              = new AST(ASTType::FloatLiteral, token().location);
+      node->num_literal = token().text;
+      consume(TokenType::FloatLiteral);
       break;
     }
     case TokenType::StringLiteral: {

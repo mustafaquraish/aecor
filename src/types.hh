@@ -8,6 +8,7 @@ using namespace std;
 
 #define ENUM_BASE_TYPES(F)                                                     \
   F(I32, "int32_t")                                                            \
+  F(F32, "float")                                                              \
   F(Bool, "bool")                                                              \
   F(U8, "char")                                                                \
   F(Void, "void")
@@ -40,6 +41,10 @@ struct Type {
     if (base == BaseType::Struct) return true;
     if (base != BaseType::Pointer) return false;
     return ptr_to && ptr_to->base == BaseType::Struct;
+  }
+
+  bool is_numeric() const {
+    return base == BaseType::I32 || base == BaseType::F32;
   }
 
   bool operator==(const Type &other) const;

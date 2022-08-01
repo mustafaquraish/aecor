@@ -16,6 +16,7 @@
   F(Extern, "extern")                                                          \
   F(False, "false")                                                            \
   F(For, "for")                                                                \
+  F(F32, "f32")                                                                \
   F(I32, "i32")                                                                \
   F(If, "if")                                                                  \
   F(Let, "let")                                                                \
@@ -41,6 +42,7 @@
   F(Dot, "Dot")                                                                \
   F(Eof, "Eof")                                                                \
   F(Equals, "Equals")                                                          \
+  F(FloatLiteral, "FloatLiteral")                                              \
   F(GreaterThan, "GreaterThan")                                                \
   F(Identifier, "Identifier")                                                  \
   F(IntLiteral, "IntLiteral")                                                  \

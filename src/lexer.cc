@@ -64,13 +64,18 @@ std::vector<Token> Lexer::lex() {
         // keywords / idents / literals
         if (isdigit(source[i])) {
           int start = i;
-          int value = 0;
-          while (isdigit(source[i])) {
-            value = value * 10 + (source[i] - '0');
+          while (isdigit(source[i])) { ++i; }
+
+          if (source[i] == '.') {
             ++i;
+            while (isdigit(source[i])) { ++i; }
+            push(Token::from_type(TokenType::FloatLiteral, loc,
+                                  source.substr(start, i - start)));
+          } else {
+            push(Token::from_type(TokenType::IntLiteral, loc,
+                                  source.substr(start, i - start)));
           }
 
-          push(Token::from_int_literal(value, loc));
           column += i - start;
           --i;
 
