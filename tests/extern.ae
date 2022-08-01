@@ -1,0 +1,10 @@
+/// out: "52\nHello World!\n"
+
+def to_int(s: string): i32 extern("atoi")
+def printf(s: string): i32 extern
+
+def main() {
+    let x = to_int("42") + 10
+    println("%d", x)
+    printf("Hello World!\n")
+}

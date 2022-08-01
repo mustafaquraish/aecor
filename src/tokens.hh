@@ -12,6 +12,7 @@
   F(Def, "def")                                                                \
   F(Defer, "defer")                                                            \
   F(Else, "else")                                                              \
+  F(Extern, "extern")                                                          \
   F(False, "false")                                                            \
   F(For, "for")                                                                \
   F(I32, "i32")                                                                \

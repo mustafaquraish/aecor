@@ -152,7 +152,23 @@ FunctionDef *Parser::parse_function() {
     }
   }
 
-  func->body = parse_block();
+  if (consume_if(TokenType::Extern)) {
+    if (is_method) {
+      error_loc(name.location, "Extern methods not supported");
+    }
+    func->is_extern = true;
+    if (consume_if(TokenType::OpenParen)) {
+      auto name = consume(TokenType::StringLiteral);
+      func->extern_name = name.text;
+      consume(TokenType::CloseParen);
+    } else {
+      func->extern_name = func->name;
+    }
+    func->body = nullptr;
+  } else {
+    func->is_extern = false;
+    func->body = parse_block();
+  }
   return func;
 };
 

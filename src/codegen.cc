@@ -58,6 +58,9 @@ void CodeGenerator::gen_block(AST *node, int indent) {
 }
 
 void CodeGenerator::gen_function(FunctionDef *func, int indent) {
+  if (func->is_extern)
+    return;
+
   out << *func->return_type << " ";
   gen_function_name(func);
   out << "(";
@@ -98,6 +101,8 @@ void CodeGenerator::gen_struct(StructDef *_struct, int indent) {
 void CodeGenerator::gen_function_name(FunctionDef *func) {
   if (func->is_method) {
     out << func->struct_name << "__" << func->name;
+  } else if (func->is_extern) {
+    out << func->extern_name;
   } else {
     out << func->name;
   }
@@ -108,6 +113,8 @@ void CodeGenerator::gen_function_decls(Program *program) {
 
   out << "/* function declarations */\n";
   for (auto func : program->functions) {
+    if (func->is_extern)
+      continue;
     out << *func->return_type << " ";
     gen_function_name(func);
     out << "(";

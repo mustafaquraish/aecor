@@ -124,6 +124,9 @@ struct FunctionDef {
   string_view struct_name;
   Location location;
 
+  bool is_extern;
+  string_view extern_name;
+
   FunctionDef(Location loc) : location(loc) {}
 };
 

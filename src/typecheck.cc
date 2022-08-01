@@ -133,7 +133,7 @@ void TypeChecker::check_function(FunctionDef *func) {
   // The types of parameters and return are checked in decl-pass
   for (auto param : func->params) { push_var(param, func->location); }
 
-  check_block(func->body);
+  if (func->body) { check_block(func->body); }
 
   pop_scope();
   curr_func = prev_func;
