@@ -12,6 +12,7 @@ using namespace std;
   F(Block, "Block")                                                            \
   F(BoolLiteral, "BoolLiteral")                                                \
   F(Call, "Call")                                                              \
+  F(Cast, "Cast")                                                              \
   F(MethodCall, "MethodCall")                                                  \
   F(Defer, "Defer")                                                            \
   F(Dereference, "Dereference")                                                \
@@ -105,6 +106,11 @@ struct AST {
 
       AST *body;
     } for_loop;
+
+    struct {
+      AST *lhs;
+      Type *to_type;
+    } cast;
 
     int int_literal;
     string_view string_literal;

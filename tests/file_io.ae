@@ -1,0 +1,26 @@
+/// out: "Hello, world!"
+
+def malloc(size: i32): untyped_ptr extern
+
+struct File extern("FILE*")
+def fopen(s: string, p: string): File extern
+def fwrite(s: untyped_ptr, a: i32, b: i32, f: File): i32 extern
+def fread(s: untyped_ptr, a: i32, b: i32, f: File): i32 extern
+def fclose(f: File) extern
+
+def main() {
+    {
+        let file = fopen("test.txt", "w")
+        defer fclose(file)
+
+        fwrite("Hello, world!" as untyped_ptr, 1, 13, file)
+    }
+    {
+        let file = fopen("test.txt", "r")
+        defer fclose(file)
+
+        let mem = malloc(20)
+        fread(mem, 1, 13, file)
+        println("%s", mem as string)
+    }
+}

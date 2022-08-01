@@ -422,6 +422,12 @@ Type *TypeChecker::check_expression(AST *node) {
       return field->type;
     }
 
+    case ASTType::Cast: {
+      auto lhs_type = check_expression(node->cast.lhs);
+      // TODO: Check if cast is valid
+      return node->cast.to_type;
+    }
+
     default: break;
   }
   cerr << HERE << " UNHANDLED TYPE IN check_expression: " << node->type

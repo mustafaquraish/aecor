@@ -8,6 +8,7 @@
 
 #define ENUM_KEYWORDS(F)                                                       \
   F(And, "and")                                                                \
+  F(As, "as")                                                                  \
   F(Bool, "bool")                                                              \
   F(Def, "def")                                                                \
   F(Defer, "defer")                                                            \
@@ -25,6 +26,7 @@
   F(Struct, "struct")                                                          \
   F(True, "true")                                                              \
   F(U8, "u8")                                                                  \
+  F(UnypedPtr, "untyped_ptr")                                                  \
   F(Void, "void")                                                              \
   F(While, "while")
 

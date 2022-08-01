@@ -69,6 +69,11 @@ Type *Parser::parse_type() {
                       new Type(BaseType::Pointer, type, token().location),
                       token().location);
       break;
+    case TokenType::UnypedPtr:
+      type = new Type(BaseType::Void,
+                      new Type(BaseType::Pointer, type, token().location),
+                      token().location);
+      break;
     case TokenType::Void:
       type = new Type(BaseType::Void, type, token().location);
       break;
@@ -462,6 +467,15 @@ AST *Parser::parse_factor(bool in_parens) {
         node                = member;
         break;
       }
+      case TokenType::As: {
+        consume(TokenType::As);
+        auto cast = new AST(ASTType::Cast, token().location);
+        cast->cast.lhs = node;
+        cast->cast.to_type = parse_type();
+        node = cast;
+        break;
+      }
+
       default: done = true;
     }
   }

@@ -201,6 +201,13 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       break;
     }
 
+    case ASTType::Cast: {
+      out << "((" << *node->cast.to_type << ")";
+      gen_expression(node->cast.lhs, indent);
+      out << ")";
+      break;
+    }
+
     default: {
       cerr << "\n"
            << HERE << " UNHANDLED TYPE IN gen_expression: " << node->type
