@@ -10,13 +10,24 @@ void CodeGenerator::gen_indent(int indent) {
 void CodeGenerator::gen_op(ASTType type) {
   switch (type) {
     case ASTType::And: out << " && "; return;
+    case ASTType::Or: out << " || "; return;
     case ASTType::Plus: out << " + "; return;
     case ASTType::Minus: out << " - "; return;
     case ASTType::Multiply: out << " * "; return;
-    case ASTType::Or: out << " || "; return;
     case ASTType::Divide: out << " / "; return;
     case ASTType::LessThan: out << " < "; return;
     case ASTType::GreaterThan: out << " > "; return;
+
+    case ASTType::Assignment: out << " = "; return;
+    case ASTType::PlusEquals: out << " += "; return;
+    case ASTType::MinusEquals: out << " -= "; return;
+    case ASTType::MultiplyEquals: out << " *= "; return;
+    case ASTType::DivideEquals: out << " /= "; return;
+    case ASTType::LessThanEquals: out << " < "; return;
+    case ASTType::GreaterThanEquals: out << " > "; return;
+
+    case ASTType::Equals: out << " == "; return;
+    case ASTType::NotEquals: out << " != "; return;
 
     case ASTType::Address: out << "&"; return;
     case ASTType::Dereference: out << "*"; return;
@@ -24,7 +35,7 @@ void CodeGenerator::gen_op(ASTType type) {
     case ASTType::UnaryMinus: out << "-"; return;
     default: break;
   }
-  cerr << "\n" << HERE << "UNHANDLED TYPE IN gen_op: " << type << std::endl;
+  cerr << "\n" << HERE << " UNHANDLED TYPE IN gen_op: " << type << std::endl;
   exit(1);
 }
 
@@ -144,8 +155,12 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
     }
     case ASTType::And:
     case ASTType::Or:
+    case ASTType::Equals:
+    case ASTType::NotEquals:
     case ASTType::LessThan:
     case ASTType::GreaterThan:
+    case ASTType::LessThanEquals:
+    case ASTType::GreaterThanEquals:
     case ASTType::Plus:
     case ASTType::Minus:
     case ASTType::Multiply:
@@ -165,9 +180,13 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       out << '"' << node->string_literal << '"';
       break;
 
+    case ASTType::PlusEquals:
+    case ASTType::MinusEquals:
+    case ASTType::DivideEquals:
+    case ASTType::MultiplyEquals:
     case ASTType::Assignment: {
       gen_expression(node->binary.lhs, indent);
-      out << " = ";
+      gen_op(node->type);
       gen_expression(node->binary.rhs, indent);
       break;
     }

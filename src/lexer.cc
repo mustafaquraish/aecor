@@ -27,14 +27,67 @@ std::vector<Token> Lexer::lex() {
       case ')': push(TokenType::CloseParen, 1); break;
       case '{': push(TokenType::OpenCurly, 1); break;
       case '}': push(TokenType::CloseCurly, 1); break;
-      case '<': push(TokenType::LessThan, 1); break;
-      case '>': push(TokenType::GreaterThan, 1); break;
       case ';': push(TokenType::Semicolon, 1); break;
-      case '+': push(TokenType::Plus, 1); break;
-      case '-': push(TokenType::Minus, 1); break;
-      case '=': push(TokenType::Equals, 1); break;
       case ',': push(TokenType::Comma, 1); break;
       case '.': push(TokenType::Dot, 1); break;
+      case '&': push(TokenType::Ampersand, 1); break;
+      case '|': push(TokenType::Line, 1); break;
+
+      case '!': {
+        if (peek() == '=')
+          push(TokenType::NotEquals, 2);
+        else
+          push(TokenType::Exclamation, 1);
+        break;
+      }
+
+      case '<': {
+        if (peek() == '=')
+          push(TokenType::LessThanEquals, 2);
+        else
+          push(TokenType::LessThan, 1);
+        break;
+      }
+
+      case '>': {
+        if (peek() == '=')
+          push(TokenType::GreaterThanEquals, 2);
+        else
+          push(TokenType::GreaterThan, 1);
+        break;
+      }
+
+      case '=': {
+        if (peek() == '=')
+          push(TokenType::EqualEquals, 2);
+        else
+          push(TokenType::Equals, 1);
+        break;
+      }
+
+      case '+': {
+        if (peek() == '=')
+          push(TokenType::PlusEquals, 2);
+        else
+          push(TokenType::Plus, 1);
+        break;
+      }
+
+      case '*': {
+        if (peek() == '=')
+          push(TokenType::StarEquals, 2);
+        else
+          push(TokenType::Star, 1);
+        break;
+      }
+
+      case '-': {
+        if (peek() == '=')
+          push(TokenType::MinusEquals, 2);
+        else
+          push(TokenType::Minus, 1);
+        break;
+      }
 
       case ':': {
         if (peek() == ':')
@@ -43,6 +96,7 @@ std::vector<Token> Lexer::lex() {
           push(TokenType::Colon, 1);
         break;
       }
+
       case '/': {
         // Ignoring comments
         if (peek() == '/') {
@@ -50,14 +104,13 @@ std::vector<Token> Lexer::lex() {
           while (i < source.length() && source[i] != '\n') { ++i; }
           ++line;
           column = 1;
+        } else if (peek() == '=') {
+          push(TokenType::SlashEquals, 2);
         } else {
           push(TokenType::Slash, 1);
         }
         break;
       }
-      case '*': push(TokenType::Star, 1); break;
-      case '&': push(TokenType::Ampersand, 1); break;
-      case '|': push(TokenType::Line, 1); break;
 
       default: {
         auto loc = location();

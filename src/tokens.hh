@@ -42,19 +42,28 @@
   F(Dot, "Dot")                                                                \
   F(Eof, "Eof")                                                                \
   F(Equals, "Equals")                                                          \
+  F(EqualEquals, "EqualEquals")                                                \
+  F(Exclamation, "Exclamation")                                                \
   F(FloatLiteral, "FloatLiteral")                                              \
   F(GreaterThan, "GreaterThan")                                                \
+  F(GreaterThanEquals, "GreaterThanEquals")                                    \
   F(Identifier, "Identifier")                                                  \
   F(IntLiteral, "IntLiteral")                                                  \
   F(LessThan, "LessThan")                                                      \
+  F(LessThanEquals, "LessThanEquals")                                          \
   F(Line, "Line")                                                              \
   F(Minus, "Minus")                                                            \
+  F(MinusEquals, "MinusEquals")                                                \
+  F(NotEquals, "NotEquals")                                                    \
   F(OpenCurly, "OpenCurly")                                                    \
   F(OpenParen, "OpenParen")                                                    \
   F(Plus, "Plus")                                                              \
+  F(PlusEquals, "PlusEquals")                                                  \
   F(Semicolon, "Semicolon")                                                    \
   F(Slash, "Slash")                                                            \
+  F(SlashEquals, "SlashEquals")                                                \
   F(Star, "Star")                                                              \
+  F(StarEquals, "StarEquals")                                                  \
   F(StringLiteral, "StringLiteral")
 
 #define ENUM_ALL_TOKENS(F)                                                     \

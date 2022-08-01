@@ -18,18 +18,26 @@ using namespace std;
   F(Defer, "Defer")                                                            \
   F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
+  F(DivideEquals, "DivideEquals")                                              \
+  F(Equals, "Equals")                                                          \
   F(FloatLiteral, "FloatLiteral")                                              \
   F(For, "For")                                                                \
   F(GreaterThan, "GreaterThan")                                                \
+  F(GreaterThanEquals, "GreaterThanEquals")                                    \
   F(If, "If")                                                                  \
   F(IntLiteral, "IntLiteral")                                                  \
   F(LessThan, "LessThan")                                                      \
+  F(LessThanEquals, "LessThanEquals")                                          \
   F(Member, "Member")                                                          \
   F(Minus, "Minus")                                                            \
+  F(MinusEquals, "MinusEquals")                                                \
   F(Multiply, "Multiply")                                                      \
+  F(MultiplyEquals, "MultiplyEquals")                                          \
   F(Not, "Not")                                                                \
+  F(NotEquals, "NotEquals")                                                    \
   F(Or, "Or")                                                                  \
   F(Plus, "Plus")                                                              \
+  F(PlusEquals, "PlusEquals")                                                  \
   F(Return, "Return")                                                          \
   F(StringLiteral, "StringLiteral")                                            \
   F(UnaryMinus, "UnaryMinus")                                                  \

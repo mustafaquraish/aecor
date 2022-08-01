@@ -380,13 +380,24 @@ AST *Parser::parse_statement() {
 ASTType token_to_op(TokenType type) {
   switch (type) {
     case TokenType::And: return ASTType::And;
-    case TokenType::GreaterThan: return ASTType::GreaterThan;
-    case TokenType::LessThan: return ASTType::LessThan;
-    case TokenType::Minus: return ASTType::Minus;
     case TokenType::Or: return ASTType::Or;
+
+    case TokenType::GreaterThan: return ASTType::GreaterThan;
+    case TokenType::GreaterThanEquals: return ASTType::GreaterThanEquals;
+    case TokenType::LessThan: return ASTType::LessThan;
+    case TokenType::LessThanEquals: return ASTType::LessThanEquals;
+    case TokenType::Equals: return ASTType::Assignment;
+    case TokenType::EqualEquals: return ASTType::Equals;
+    case TokenType::NotEquals: return ASTType::NotEquals;
+
+    case TokenType::Minus: return ASTType::Minus;
     case TokenType::Plus: return ASTType::Plus;
     case TokenType::Slash: return ASTType::Divide;
     case TokenType::Star: return ASTType::Multiply;
+    case TokenType::MinusEquals: return ASTType::MinusEquals;
+    case TokenType::PlusEquals: return ASTType::PlusEquals;
+    case TokenType::SlashEquals: return ASTType::DivideEquals;
+    case TokenType::StarEquals: return ASTType::MultiplyEquals;
     default: break;
   }
   cerr << HERE << " Unhandled token in " << __FUNCTION__ << ": " << type
@@ -552,7 +563,10 @@ AST *Parser::parse_additive(bool in_parens) {
 
 AST *Parser::parse_relational(bool in_parens) {
   auto lhs = parse_additive(in_parens);
-  while (token_is(TokenType::LessThan) || token_is(TokenType::GreaterThan)) {
+  while (token_is(TokenType::LessThan) || token_is(TokenType::GreaterThan) ||
+         token_is(TokenType::LessThanEquals) ||
+         token_is(TokenType::GreaterThanEquals) ||
+         token_is(TokenType::EqualEquals) || token_is(TokenType::NotEquals)) {
     if (!in_parens && token().newline_before) break;
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
@@ -592,9 +606,12 @@ AST *Parser::parse_logical_or(bool in_parens) {
 AST *Parser::parse_expression(bool in_parens) {
   auto lhs = parse_logical_or(in_parens);
 
-  while (consume_if(TokenType::Equals)) {
+  while (token_is(TokenType::Equals) || token_is(TokenType::PlusEquals) ||
+         token_is(TokenType::MinusEquals) || token_is(TokenType::StarEquals) ||
+         token_is(TokenType::SlashEquals)) {
     if (!in_parens && token().newline_before) break;
-    auto node        = new AST(ASTType::Assignment, token().location);
+    auto node = new AST(token_to_op(token().type), token().location);
+    ++curr;
     node->binary.lhs = lhs;
     node->binary.rhs = parse_expression(in_parens);
     lhs              = node;

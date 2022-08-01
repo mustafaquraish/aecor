@@ -323,14 +323,15 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::IntLiteral: return new Type(BaseType::I32, node->location);
     case ASTType::FloatLiteral: return new Type(BaseType::F32, node->location);
     case ASTType::BoolLiteral: return new Type(BaseType::Bool, node->location);
-    // THIS IS AN UGLY HACK, FIX STRINGS PLS
     case ASTType::StringLiteral:
       return new Type(BaseType::Pointer, BaseType::U8, node->location);
+
     case ASTType::Var: {
       auto var = find_var(node->var.name);
       if (var == nullptr) { error_loc(node->location, "Variable not found"); }
       return var->type;
     }
+
     // TODO: Allow more comlex binary expressions, will eventually need support
     // for pointers
     case ASTType::Plus:
@@ -349,7 +350,9 @@ Type *TypeChecker::check_expression(AST *node) {
     }
 
     case ASTType::LessThan:
-    case ASTType::GreaterThan: {
+    case ASTType::LessThanEquals:
+    case ASTType::GreaterThan:
+    case ASTType::GreaterThanEquals: {
       auto lhs_type = check_expression(node->binary.lhs);
       auto rhs_type = check_expression(node->binary.rhs);
       if (!lhs_type->is_numeric() || !rhs_type->is_numeric()) {
@@ -357,6 +360,19 @@ Type *TypeChecker::check_expression(AST *node) {
       }
       if (*lhs_type != *rhs_type) {
         error_loc(node->location, "Operands must be be of the same type");
+      }
+      return new Type(BaseType::Bool, node->location);
+    }
+
+    case ASTType::Equals:
+    case ASTType::NotEquals: {
+      auto lhs_type = check_expression(node->binary.lhs);
+      auto rhs_type = check_expression(node->binary.rhs);
+      if (*lhs_type != *rhs_type) {
+        error_loc(node->location, "Operands must be be of the same type");
+      }
+      if (lhs_type->base == BaseType::Struct) {
+        error_loc(node->location, "Cannot compare structs directly");
       }
       return new Type(BaseType::Bool, node->location);
     }
@@ -403,7 +419,24 @@ Type *TypeChecker::check_expression(AST *node) {
       return expr_type->ptr_to;
     }
 
+    case ASTType::PlusEquals:
+    case ASTType::MinusEquals:
+    case ASTType::DivideEquals:
+    case ASTType::MultiplyEquals: {
+      // TODO: Only allow assignments to l-values, reject literals;
+      auto lhs_type = check_expression(node->binary.lhs);
+      auto rhs_type = check_expression(node->binary.rhs);
+      if (!lhs_type->is_numeric() || !rhs_type->is_numeric()) {
+        error_loc(node->location, "Operator requires numeric types");
+      }
+      if (*lhs_type != *rhs_type) {
+        error_loc(node->location, "Operands must be be of the same type");
+      }
+      return lhs_type;
+    }
+
     case ASTType::Assignment: {
+      // TODO: Only allow assignments to l-values, reject literals;
       auto lhs = check_expression(node->binary.lhs);
       auto rhs = check_expression(node->binary.rhs);
       if (*lhs != *rhs) {
