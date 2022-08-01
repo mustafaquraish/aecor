@@ -1,3 +1,4 @@
+#include <ast.hh>
 #include <types.hh>
 
 bool Type::operator==(const Type &other) const {
@@ -22,4 +23,25 @@ Type *Type::reverse_linked_list(Type *list) {
   }
 
   return rev;
+}
+
+std::ostream &operator<<(std::ostream &os, const Type &type) {
+  switch (type.base) {
+#define F(name, text)                                                          \
+  case BaseType::name: os << text; break;
+    ENUM_BASE_TYPES(F)
+#undef F
+    case BaseType::Pointer:
+      os << *type.ptr_to;
+      os << "*";
+      break;
+    case BaseType::Struct:
+      if (type.struct_def->is_extern) {
+        os << type.struct_def->extern_name;
+      } else {
+        os << type.struct_def->name;
+      }
+      break;
+  };
+  return os;
 }

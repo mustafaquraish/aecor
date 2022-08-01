@@ -153,12 +153,10 @@ FunctionDef *Parser::parse_function() {
   }
 
   if (consume_if(TokenType::Extern)) {
-    if (is_method) {
-      error_loc(name.location, "Extern methods not supported");
-    }
+    if (is_method) { error_loc(name.location, "Extern methods not supported"); }
     func->is_extern = true;
     if (consume_if(TokenType::OpenParen)) {
-      auto name = consume(TokenType::StringLiteral);
+      auto name         = consume(TokenType::StringLiteral);
       func->extern_name = name.text;
       consume(TokenType::CloseParen);
     } else {
@@ -167,7 +165,7 @@ FunctionDef *Parser::parse_function() {
     func->body = nullptr;
   } else {
     func->is_extern = false;
-    func->body = parse_block();
+    func->body      = parse_block();
   }
   return func;
 };
@@ -176,19 +174,31 @@ StructDef *Parser::parse_struct() {
   consume(TokenType::Struct);
 
   auto name = consume(TokenType::Identifier);
-  consume(TokenType::OpenCurly);
 
   auto _struct  = new StructDef(name.location);
   _struct->name = name.text;
 
-  while (!token_is(TokenType::CloseCurly)) {
-    auto name = consume(TokenType::Identifier);
-    consume(TokenType::Colon);
-    auto type = parse_type();
-    _struct->fields.push_back(new Variable{name.text, type, name.location});
-    consume_line_end();
+  if (consume_if(TokenType::Extern)) {
+    _struct->is_extern = true;
+    if (consume_if(TokenType::OpenParen)) {
+      auto name            = consume(TokenType::StringLiteral);
+      _struct->extern_name = name.text;
+      consume(TokenType::CloseParen);
+    } else {
+      _struct->extern_name = _struct->name;
+    }
+  } else {
+    _struct->is_extern = false;
+    consume(TokenType::OpenCurly);
+    while (!token_is(TokenType::CloseCurly)) {
+      auto name = consume(TokenType::Identifier);
+      consume(TokenType::Colon);
+      auto type = parse_type();
+      _struct->fields.push_back(new Variable{name.text, type, name.location});
+      consume_line_end();
+    }
+    consume(TokenType::CloseCurly);
   }
-  consume(TokenType::CloseCurly);
 
   auto type         = new Type(BaseType::Struct, name.location);
   type->struct_name = name.text;

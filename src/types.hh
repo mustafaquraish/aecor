@@ -20,11 +20,14 @@ enum class BaseType {
   Struct,  // clangfmt pls ;cc
 };
 
+struct StructDef;
+
 struct Type {
   BaseType base;
   Type *ptr_to;
   string_view struct_name;
   Location location;
+  StructDef *struct_def = nullptr;
 
   Type(BaseType base, Location loc)
       : base(base), ptr_to(nullptr), location(loc) {}
@@ -44,17 +47,4 @@ struct Type {
   static Type *reverse_linked_list(Type *);
 };
 
-inline std::ostream &operator<<(std::ostream &os, const Type &type) {
-  switch (type.base) {
-#define F(name, text)                                                          \
-  case BaseType::name: os << text; break;
-    ENUM_BASE_TYPES(F)
-#undef F
-    case BaseType::Pointer:
-      os << *type.ptr_to;
-      os << "*";
-      break;
-    case BaseType::Struct: os << type.struct_name; break;
-  };
-  return os;
-}
+std::ostream &operator<<(std::ostream &os, const Type &type);

@@ -58,8 +58,7 @@ void CodeGenerator::gen_block(AST *node, int indent) {
 }
 
 void CodeGenerator::gen_function(FunctionDef *func, int indent) {
-  if (func->is_extern)
-    return;
+  if (func->is_extern) return;
 
   out << *func->return_type << " ";
   gen_function_name(func);
@@ -81,15 +80,17 @@ void CodeGenerator::gen_struct_decls(Program *program) {
 
   out << "/* struct declarations */\n";
   for (auto _struct : program->structs) {
-    auto name = _struct->name;
+    if (_struct->is_extern) continue;
+    auto name = _struct->is_extern ? _struct->extern_name : _struct->name;
     out << "typedef struct " << name << " " << name << ";\n";
   }
   out << "\n";
 }
 
 void CodeGenerator::gen_struct(StructDef *_struct, int indent) {
-  auto name = _struct->type->struct_name;
+  if (_struct->is_extern) return;
 
+  auto name = _struct->type->struct_name;
   out << "struct " << name << " {\n";
   for (auto field : _struct->fields) {
     gen_indent(indent + 1);
@@ -113,8 +114,7 @@ void CodeGenerator::gen_function_decls(Program *program) {
 
   out << "/* function declarations */\n";
   for (auto func : program->functions) {
-    if (func->is_extern)
-      continue;
+    if (func->is_extern) continue;
     out << *func->return_type << " ";
     gen_function_name(func);
     out << "(";

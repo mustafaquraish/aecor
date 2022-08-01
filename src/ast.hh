@@ -137,6 +137,9 @@ struct StructDef {
   Location location;
   vector<FunctionDef *> methods;
 
+  bool is_extern = false;
+  string_view extern_name;
+
   StructDef(Location loc) : location(loc) {}
 };
 

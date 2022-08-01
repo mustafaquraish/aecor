@@ -114,10 +114,15 @@ bool TypeChecker::type_is_valid(Type *type) {
     case BaseType::I32:
     case BaseType::Bool:
     case BaseType::Void:
-    case BaseType::U8:
-      return true;
+    case BaseType::U8: return true;
     case BaseType::Pointer: return type_is_valid(type->ptr_to);
-    case BaseType::Struct: return structs.count(type->struct_name) > 0;
+    case BaseType::Struct: {
+      if (auto s = structs.find(type->struct_name); s != structs.end()) {
+        type->struct_def = s->second;
+        return true;
+      }
+      return false;
+    }
     default: break;
   }
   cerr << HERE << " UNHANDLED TYPE IN check_valid_type: " << *type << std::endl;

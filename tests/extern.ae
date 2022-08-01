@@ -1,10 +1,12 @@
-/// out: "52\nHello World!\n"
+/// out: "Hello, world!"
 
-def to_int(s: string): i32 extern("atoi")
-def printf(s: string): i32 extern
+struct File extern("FILE")
+
+def fopen(s: string, p: string): &File extern
+def fwrite(s: string, a: i32, b: i32, f: &File): i32 extern
 
 def main() {
-    let x = to_int("42") + 10
-    println("%d", x)
-    printf("Hello World!\n")
+    let f = fopen("/dev/stdout", "w");
+    fwrite("Hello, world!", 1, 13, f);
+    return 0
 }
