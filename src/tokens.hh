@@ -27,6 +27,7 @@
   F(True, "true")                                                              \
   F(U8, "u8")                                                                  \
   F(UnypedPtr, "untyped_ptr")                                                  \
+  F(Use, "use")                                                                \
   F(Void, "void")                                                              \
   F(While, "while")
 

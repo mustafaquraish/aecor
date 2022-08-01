@@ -2,6 +2,7 @@
 
 #include <tokens.hh>
 #include <types.hh>
+#include <unordered_set>
 
 using namespace std;
 
@@ -152,6 +153,11 @@ struct StructDef {
 struct Program {
   vector<FunctionDef *> functions;
   vector<StructDef *> structs;
+
+  void add_included_file(string_view filename);
+  bool is_file_included(string_view filename);
+
+  unordered_set<string> included_files;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const ASTType &type) {

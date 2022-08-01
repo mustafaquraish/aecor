@@ -1,8 +1,10 @@
 #include "parser.hh"
 
+#include <filesystem>
 #include <iostream>
 
 #include "ast.hh"
+#include "lexer.hh"
 #include "tokens.hh"
 #include "types.hh"
 
@@ -212,9 +214,29 @@ StructDef *Parser::parse_struct() {
   return _struct;
 }
 
-Program *Parser::parse_program() {
-  auto program = new Program();
+void Parser::include_file(Program *program, string_view filename) {
+  if (program->is_file_included(filename)) {
+    // Already included
+    return;
+  }
+  program->add_included_file(filename);
 
+  auto source = slurp_file(string(filename).c_str());
+  auto lexer  = Lexer(*source, filename);
+  auto tokens = lexer.lex();
+
+  auto parser = Parser(tokens);
+  parser.parse_into_program(program);
+}
+
+void Parser::parse_use(Program *program) {
+  consume(TokenType::Use);
+  auto name = consume(TokenType::StringLiteral);
+  consume_line_end();
+  include_file(program, name.text);
+}
+
+void Parser::parse_into_program(Program *program) {
   while (!token_is(TokenType::Eof)) {
     switch (token().type) {
       case TokenType::Def: {
@@ -222,7 +244,10 @@ Program *Parser::parse_program() {
         program->functions.push_back(func);
         break;
       }
-
+      case TokenType::Use: {
+        parse_use(program);
+        break;
+      }
       case TokenType::Struct: {
         auto structure = parse_struct();
         program->structs.push_back(structure);
@@ -231,8 +256,15 @@ Program *Parser::parse_program() {
       default: UNHANDLED_TYPE();
     }
   };
-  return program;
 };
+
+Program *Parser::parse_program() {
+  auto program = new Program();
+  include_file(program, "./lib/prelude.ae");
+  program->add_included_file(token().location.filename);
+  parse_into_program(program);
+  return program;
+}
 
 AST *Parser::parse_block() {
   auto node = new AST(ASTType::Block, token().location);
@@ -469,10 +501,10 @@ AST *Parser::parse_factor(bool in_parens) {
       }
       case TokenType::As: {
         consume(TokenType::As);
-        auto cast = new AST(ASTType::Cast, token().location);
-        cast->cast.lhs = node;
+        auto cast          = new AST(ASTType::Cast, token().location);
+        cast->cast.lhs     = node;
         cast->cast.to_type = parse_type();
-        node = cast;
+        node               = cast;
         break;
       }
 
@@ -503,7 +535,7 @@ AST *Parser::parse_additive(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_term(in_parens);
+    node->binary.rhs = parse_additive(in_parens);
     lhs              = node;
   }
   return lhs;

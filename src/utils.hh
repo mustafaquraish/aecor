@@ -14,7 +14,7 @@
     return ss.str();                                                           \
   }()
 
-std::string slurp_file(const char *filename);
+std::string *slurp_file(const char *filename);
 
 struct Location;
 [[noreturn]] void error_loc(const Location &loc, std::string_view message,

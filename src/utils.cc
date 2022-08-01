@@ -8,7 +8,7 @@
 #include <tokens.hh>
 #include <utils.hh>
 
-std::string slurp_file(const char *filename) {
+std::string *slurp_file(const char *filename) {
   std::ifstream file(filename);
   if (file.fail()) {
     std::cerr << "Could not open file " << filename << ": " << strerror(errno)
@@ -17,7 +17,7 @@ std::string slurp_file(const char *filename) {
   }
   std::stringstream buffer;
   buffer << file.rdbuf();
-  return buffer.str();
+  return new std::string(buffer.str());
 }
 
 static std::vector<std::string_view> split_lines(std::string_view text) {
@@ -37,7 +37,7 @@ void error_loc(const Location &loc, std::string_view message,
                std::string_view hint) {
   auto filename = std::string(loc.filename);
   auto file     = slurp_file(filename.c_str());
-  auto lines    = split_lines(file);
+  auto lines    = split_lines(*file);
 
   auto min_line = std::max(loc.line - 2, 1);
   auto max_line = std::min(loc.line + 2, (int)lines.size());
@@ -59,5 +59,6 @@ void error_loc(const Location &loc, std::string_view message,
   }
   std::cerr << "---------------------------------------------------------------"
                "-------\n";
+  delete file;
   exit(1);
 }

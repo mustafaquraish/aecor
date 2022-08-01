@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
   auto filename = argv[1];
   auto source   = slurp_file(filename);
 
-  auto lexer  = Lexer(source, filename);
+  auto lexer  = Lexer(*source, filename);
   auto tokens = lexer.lex();
 
   auto parser  = Parser(tokens);

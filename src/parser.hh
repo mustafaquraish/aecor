@@ -25,11 +25,16 @@ struct Parser {
   AST *parse_logical_or(bool in_parens);
   AST *parse_expression(bool in_parens = false);
 
-  Program *parse_program();
   FunctionDef *parse_function();
   StructDef *parse_struct();
   AST *parse_block();
   AST *parse_statement();
+
+  void include_file(Program *program, string_view filename);
+  void parse_use(Program *program);
+  void parse_into_program(Program *program);
+
+  Program *parse_program();
 
   Token &consume_impl(TokenType token_type, const char *sloc);
   Token &expect_impl(TokenType token_type, const char *sloc);
@@ -39,8 +44,8 @@ struct Parser {
   bool token_is(TokenType token_type) { return token().type == token_type; }
   void consume_line_end();
 
-  Parser(vector<Token> tokens) : tokens(tokens) {}
   Token &token() { return tokens[curr]; };
+  Parser(vector<Token> tokens) : tokens(tokens) {}
 };
 
 #define consume(token_type) consume_impl(token_type, HERE)
