@@ -54,37 +54,42 @@ Type *Parser::parse_type() {
     }
   }
 
-  Type *base = nullptr;
-
   switch (token().type) {
     case TokenType::I32:
-      base = new Type(BaseType::I32, token().location);
+      type = new Type(BaseType::I32, type, token().location);
       break;
     case TokenType::Bool:
-      base = new Type(BaseType::Bool, token().location);
+      type = new Type(BaseType::Bool, type, token().location);
+      break;
+    case TokenType::U8:
+      type = new Type(BaseType::U8, type, token().location);
+      break;
+    case TokenType::String:
+      type = new Type(BaseType::U8,
+                      new Type(BaseType::Pointer, type, token().location),
+                      token().location);
       break;
     case TokenType::Void:
-      base = new Type(BaseType::Void, token().location);
+      type = new Type(BaseType::Void, type, token().location);
       break;
     case TokenType::Identifier: {
-      base              = new Type(BaseType::Struct, token().location);
-      base->struct_name = token().text;
+      type              = new Type(BaseType::Struct, type, token().location);
+      type->struct_name = token().text;
       break;
     }
 
     default: UNHANDLED_TYPE();
   }
+  ++curr;
 
   // We want to have Ptr1->Ptr2->Base, but we have Base->Ptr2->Ptr1
   // So, we'll just reverse the type linked-list.
   // This will be more useful once we have something like Base->Ptr->Arr
-  base->ptr_to = type;
-  base         = Type::reverse_linked_list(base);
-  ++curr;
+  type = Type::reverse_linked_list(type);
 
   // Type Postfixes here
 
-  return base;
+  return type;
 }
 
 FunctionDef *Parser::parse_function() {
@@ -117,7 +122,8 @@ FunctionDef *Parser::parse_function() {
           struct_type->struct_name = struct_name;
           type = new Type(BaseType::Pointer, struct_type, name.location);
         } else {
-          error_loc(name.location, "Expected 'this', static methods not supported yet");
+          error_loc(name.location,
+                    "Expected 'this', static methods not supported yet");
         }
       }
     }
@@ -131,7 +137,9 @@ FunctionDef *Parser::parse_function() {
 
   consume(TokenType::CloseParen);
   if (func->is_method && func->params.size() == 0) {
-    error_loc(name.location, "Expected 'this' as first argument, static methods not supported yet");
+    error_loc(
+        name.location,
+        "Expected 'this' as first argument, static methods not supported yet");
   }
 
   if (consume_if(TokenType::Colon)) {
@@ -339,13 +347,13 @@ AST *Parser::parse_factor(bool in_parens) {
     case TokenType::Dot: {
       node = new AST(ASTType::Member, token().location);
 
-      auto lhs = new AST(ASTType::Var, token().location);
+      auto lhs      = new AST(ASTType::Var, token().location);
       lhs->var.name = "this";
       consume(TokenType::Dot);
 
       auto name = consume(TokenType::Identifier);
 
-      node->member.lhs = lhs;
+      node->member.lhs  = lhs;
       node->member.name = name.text;
       break;
     }

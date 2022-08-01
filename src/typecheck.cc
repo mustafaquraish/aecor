@@ -113,7 +113,9 @@ bool TypeChecker::type_is_valid(Type *type) {
   switch (type->base) {
     case BaseType::I32:
     case BaseType::Bool:
-    case BaseType::Void: return true;
+    case BaseType::Void:
+    case BaseType::U8:
+      return true;
     case BaseType::Pointer: return type_is_valid(type->ptr_to);
     case BaseType::Struct: return structs.count(type->struct_name) > 0;
     default: break;
@@ -316,7 +318,7 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::BoolLiteral: return new Type(BaseType::Bool, node->location);
     // THIS IS AN UGLY HACK, FIX STRINGS PLS
     case ASTType::StringLiteral:
-      return new Type(BaseType::Void, node->location);
+      return new Type(BaseType::Pointer, BaseType::U8, node->location);
     case ASTType::Var: {
       auto var = find_var(node->var.name);
       if (var == nullptr) { error_loc(node->location, "Variable not found"); }

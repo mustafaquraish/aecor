@@ -9,6 +9,7 @@ using namespace std;
 #define ENUM_BASE_TYPES(F)                                                     \
   F(I32, "int32_t")                                                            \
   F(Bool, "bool")                                                              \
+  F(U8, "char")                                                                \
   F(Void, "void")
 
 enum class BaseType {
