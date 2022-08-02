@@ -1,7 +1,5 @@
 /// out: "Hello, world!"
 
-// All file IO stuff should be auto-imported from lib/prelude.ae
-
 def main() {
     {
         let file = fopen("test.txt", "w")

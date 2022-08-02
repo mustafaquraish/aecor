@@ -7,10 +7,11 @@
 using namespace std;
 
 #define ENUM_BASE_TYPES(F)                                                     \
+  F(Char, "char")                                                              \
   F(I32, "int32_t")                                                            \
   F(F32, "float")                                                              \
   F(Bool, "bool")                                                              \
-  F(U8, "char")                                                                \
+  F(U8, "uint8_t")                                                             \
   F(Void, "void")
 
 enum class BaseType {
@@ -28,6 +29,8 @@ struct Type {
   Type *ptr_to;
   string_view struct_name;
   Location location;
+
+  // Filled in during typechecking
   StructDef *struct_def = nullptr;
 
   Type(BaseType base, Location loc)

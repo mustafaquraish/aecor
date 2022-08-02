@@ -25,6 +25,7 @@ struct Parser {
   AST *parse_logical_or(bool in_parens);
   AST *parse_expression(bool in_parens = false);
 
+  AST *parse_global_var();
   FunctionDef *parse_function();
   StructDef *parse_struct();
   AST *parse_block();
@@ -42,7 +43,7 @@ struct Parser {
   bool consume_if(TokenType token_type);
 
   bool token_is(TokenType token_type) { return token().type == token_type; }
-  void consume_line_end();
+  void consume_newline_or(TokenType type = TokenType::Semicolon);
 
   Token &token() { return tokens[curr]; };
   Parser(vector<Token> tokens) : tokens(tokens) {}

@@ -155,7 +155,6 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
     }
     case ASTType::And:
     case ASTType::Or:
-    case ASTType::Equals:
     case ASTType::NotEquals:
     case ASTType::LessThan:
     case ASTType::GreaterThan:
@@ -172,10 +171,24 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       out << ")";
       break;
     }
+    case ASTType::Equals: {
+      gen_expression(node->binary.lhs, indent);
+      gen_op(node->type);
+      gen_expression(node->binary.rhs, indent);
+      break;
+    }
     case ASTType::IntLiteral: out << node->num_literal; break;
     case ASTType::FloatLiteral: out << node->num_literal; break;
     case ASTType::BoolLiteral: out << node->bool_literal; break;
-    case ASTType::Var: out << node->var.name; break;
+    case ASTType::Var: {
+      auto var = node->var.var;
+      if (var->is_extern) {
+        out << var->extern_name;
+      } else {
+        out << var->name;
+      }
+      break;
+    }
     case ASTType::StringLiteral:
       out << '"' << node->string_literal << '"';
       break;
@@ -266,8 +279,12 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
     }
 
     case ASTType::VarDeclaration: {
+      auto var = node->var_decl.var;
+      if (var->is_extern)
+        break;
+
       gen_indent(indent);
-      out << *node->var_decl.var->type << " " << node->var_decl.var->name;
+      out << *var->type << " " << var->name;
       if (node->var_decl.init) {
         out << " = ";
         gen_expression(node->var_decl.init, indent);
@@ -312,6 +329,15 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
   }
 }
 
+void CodeGenerator::gen_global_vars(Program *program) {
+  if (program->global_vars.empty()) return;
+  out << "/* global variables */\n";
+  for (auto var_decl : program->global_vars) {
+    gen_statement(var_decl, 0);
+  }
+  out << "\n";
+}
+
 std::string CodeGenerator::gen_program(Program *program) {
   out.clear();
   out << "#include <stdio.h>\n";
@@ -322,6 +348,7 @@ std::string CodeGenerator::gen_program(Program *program) {
   gen_struct_decls(program);
   for (auto structure : program->structs) { gen_struct(structure, 0); }
   gen_function_decls(program);
+  gen_global_vars(program);
   for (auto func : program->functions) { gen_function(func, 0); }
   return out.str();
 }

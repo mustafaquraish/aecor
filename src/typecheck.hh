@@ -27,6 +27,8 @@ struct TypeChecker {
   void check_struct(StructDef *node);
   void check_function(FunctionDef *node);
 
+  Type *check_pointer_arithmetic(AST *node, Type *left, Type *right);
+
   Type *check_method_call(AST *node);
   Type *check_call(AST *node);
   Type *check_expression(AST *node);

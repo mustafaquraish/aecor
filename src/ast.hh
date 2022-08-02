@@ -55,6 +55,9 @@ struct Variable {
   string_view name;
   Type *type;
   Location location;
+
+  bool is_extern = false;
+  string_view extern_name;
 };
 
 struct FunctionDef;
@@ -79,11 +82,16 @@ struct AST {
 
     struct {
       string_view name;
+
+      // Filled in during typechecking
+      Variable *var = nullptr;
     } var;
 
     struct {
       AST *callee;
       vector<AST *> *args;
+
+      // Filled in during typechecking
       FunctionDef *function;
     } call;
 
@@ -162,6 +170,7 @@ struct StructDef {
 struct Program {
   vector<FunctionDef *> functions;
   vector<StructDef *> structs;
+  vector<AST *> global_vars;
 
   void add_included_file(string_view filename);
   bool is_file_included(string_view filename);

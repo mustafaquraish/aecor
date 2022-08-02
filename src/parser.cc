@@ -30,14 +30,14 @@ bool Parser::consume_if(TokenType token_type) {
   return false;
 }
 
-void Parser::consume_line_end() {
-  if (token().type == TokenType::Semicolon) {
+void Parser::consume_newline_or(TokenType type) {
+  if (token().type == type) {
     curr++;
     return;
   }
   if (token().newline_before) { return; }
 
-  error_loc(token().location, "Expected newline / semicolon");
+  error_loc(token().location, format("Expected newline / " << type));
 }
 
 Type *Parser::parse_type() {
@@ -51,12 +51,14 @@ Type *Parser::parse_type() {
         type = new Type(BaseType::Pointer, type, token().location);
         ++curr;
         break;
-
       default: running = false; break;
     }
   }
 
   switch (token().type) {
+    case TokenType::Char:
+      type = new Type(BaseType::Char, type, token().location);
+      break;
     case TokenType::I32:
       type = new Type(BaseType::I32, type, token().location);
       break;
@@ -70,7 +72,7 @@ Type *Parser::parse_type() {
       type = new Type(BaseType::F32, type, token().location);
       break;
     case TokenType::String:
-      type = new Type(BaseType::U8,
+      type = new Type(BaseType::Char,
                       new Type(BaseType::Pointer, type, token().location),
                       token().location);
       break;
@@ -199,13 +201,17 @@ StructDef *Parser::parse_struct() {
     }
   } else {
     _struct->is_extern = false;
+  }
+
+  // Extern structs don't need to have a body.
+  if (!_struct->is_extern || token_is(TokenType::OpenCurly)) {
     consume(TokenType::OpenCurly);
     while (!token_is(TokenType::CloseCurly)) {
       auto name = consume(TokenType::Identifier);
       consume(TokenType::Colon);
       auto type = parse_type();
       _struct->fields.push_back(new Variable{name.text, type, name.location});
-      consume_line_end();
+      consume_newline_or(TokenType::Semicolon);
     }
     consume(TokenType::CloseCurly);
   }
@@ -235,8 +241,46 @@ void Parser::include_file(Program *program, string_view filename) {
 void Parser::parse_use(Program *program) {
   consume(TokenType::Use);
   auto name = consume(TokenType::StringLiteral);
-  consume_line_end();
+  consume_newline_or(TokenType::Semicolon);
   include_file(program, name.text);
+}
+
+AST *Parser::parse_global_var() {
+  consume(TokenType::Let);
+  auto node = new AST(ASTType::VarDeclaration, token().location);
+  auto name = consume(TokenType::Identifier);
+
+  Type *type = nullptr;
+  if (consume_if(TokenType::Colon)) { type = parse_type(); }
+
+  auto var = new Variable{name.text, type, name.location};
+  node->var_decl.var = var;
+
+  if (consume_if(TokenType::Extern)) {
+    var->is_extern = true;
+    if (consume_if(TokenType::OpenParen)) {
+      auto name = consume(TokenType::StringLiteral);
+      var->extern_name = name.text;
+      consume(TokenType::CloseParen);
+    } else {
+      var->extern_name = var->name;
+    }
+
+    if (!type) {
+      error_loc(name.location, "Extern variables must have a type");
+    }
+    node->var_decl.init = nullptr;
+  } else {
+    var->is_extern = false;
+    if (token_is(TokenType::Equals)) {
+      consume(TokenType::Equals);
+      node->var_decl.init = parse_expression();
+    } else {
+      node->var_decl.init = nullptr;
+    }
+  }
+  consume_newline_or(TokenType::Semicolon);
+  return node;
 }
 
 void Parser::parse_into_program(Program *program) {
@@ -254,6 +298,11 @@ void Parser::parse_into_program(Program *program) {
       case TokenType::Struct: {
         auto structure = parse_struct();
         program->structs.push_back(structure);
+        break;
+      }
+      case TokenType::Let: {
+        auto var = parse_global_var();
+        program->global_vars.push_back(var);
         break;
       }
       default: UNHANDLED_TYPE();
@@ -333,14 +382,14 @@ AST *Parser::parse_statement() {
       node = new AST(ASTType::Defer, token().location);
       consume(TokenType::Defer);
       node->unary.expr = parse_statement();
-      consume_line_end();
+      consume_newline_or(TokenType::Semicolon);
       break;
     }
     case TokenType::Return: {
       node = new AST(ASTType::Return, token().location);
       consume(TokenType::Return);
       node->unary.expr = parse_expression();
-      consume_line_end();
+      consume_newline_or(TokenType::Semicolon);
       break;
     }
     case TokenType::Let: {
@@ -360,7 +409,7 @@ AST *Parser::parse_statement() {
       } else {
         node->var_decl.init = nullptr;
       }
-      consume_line_end();
+      consume_newline_or(TokenType::Semicolon);
       break;
     }
     case TokenType::OpenCurly: {
@@ -369,7 +418,7 @@ AST *Parser::parse_statement() {
     }
     default: {
       node = parse_expression();
-      consume_line_end();
+      consume_newline_or(TokenType::Semicolon);
       break;
     }
   }
@@ -499,7 +548,8 @@ AST *Parser::parse_factor(bool in_parens) {
         auto args      = new vector<AST *>();
         while (!token_is(TokenType::CloseParen)) {
           args->push_back(parse_expression());
-          if (!consume_if(TokenType::Comma)) break;
+          if (token_is(TokenType::CloseParen)) break;
+          consume_newline_or(TokenType::Comma);
         }
         consume(TokenType::CloseParen);
         auto call_type = ASTType::Call;

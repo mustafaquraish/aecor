@@ -24,9 +24,11 @@ std::vector<Token> Lexer::lex() {
         break;
 
       case '(': push(TokenType::OpenParen, 1); break;
-      case ')': push(TokenType::CloseParen, 1); break;
       case '{': push(TokenType::OpenCurly, 1); break;
+      case '[': push(TokenType::OpenSquare, 1); break;
+      case ')': push(TokenType::CloseParen, 1); break;
       case '}': push(TokenType::CloseCurly, 1); break;
+      case ']': push(TokenType::CloseSquare, 1); break;
       case ';': push(TokenType::Semicolon, 1); break;
       case ',': push(TokenType::Comma, 1); break;
       case '.': push(TokenType::Dot, 1); break;
@@ -103,6 +105,7 @@ std::vector<Token> Lexer::lex() {
           ++i;
           while (i < source.length() && source[i] != '\n') { ++i; }
           ++line;
+          seen_newline = true;
           column = 1;
         } else if (peek() == '=') {
           push(TokenType::SlashEquals, 2);

@@ -1,4 +1,4 @@
-/// fail: Expected newline / semicolon
+/// fail: Expected newline / Semicolon
 
 struct Foo {
     a: i32 b: i32

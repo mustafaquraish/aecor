@@ -21,6 +21,8 @@ struct CodeGenerator {
   void gen_expression(AST *node, int indent);
   void gen_statement(AST *node, int indent);
 
+  void gen_global_vars(Program *program);
+
   void gen_function_name(FunctionDef *func);
   void gen_function_decls(Program *program);
   void gen_function(FunctionDef *node, int indent);

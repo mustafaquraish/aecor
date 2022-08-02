@@ -10,6 +10,7 @@
   F(And, "and")                                                                \
   F(As, "as")                                                                  \
   F(Bool, "bool")                                                              \
+  F(Char, "char")                                                              \
   F(Def, "def")                                                                \
   F(Defer, "defer")                                                            \
   F(Else, "else")                                                              \
@@ -36,6 +37,7 @@
   F(Ampersand, "Ampersand")                                                    \
   F(CloseCurly, "CloseCurly")                                                  \
   F(CloseParen, "CloseParen")                                                  \
+  F(CloseSquare, "CloseSquare")                                                \
   F(Colon, "Colon")                                                            \
   F(ColonColon, "ColonColon")                                                  \
   F(Comma, "Comma")                                                            \
@@ -57,6 +59,7 @@
   F(NotEquals, "NotEquals")                                                    \
   F(OpenCurly, "OpenCurly")                                                    \
   F(OpenParen, "OpenParen")                                                    \
+  F(OpenSquare, "OpenSquare")                                                  \
   F(Plus, "Plus")                                                              \
   F(PlusEquals, "PlusEquals")                                                  \
   F(Semicolon, "Semicolon")                                                    \

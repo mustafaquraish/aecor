@@ -2,6 +2,7 @@ def malloc(size: i32): untyped_ptr extern
 def calloc(size: i32, num: i32): untyped_ptr extern
 
 struct File extern("FILE")
+
 def fopen(filename: string, mode: string): &File extern
 def fclose(file: &File) extern
 def fread(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern

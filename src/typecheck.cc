@@ -4,7 +4,11 @@
 
 void TypeChecker::check_program(Program *program) {
   check_all_structs(program);
+
+  push_scope();
+  for (auto &global_var : program->global_vars) check_statement(global_var);
   check_all_functions(program);
+  pop_scope();
 }
 
 void TypeChecker::dfs_structs(StructDef *_struct, vector<StructDef *> &results,
@@ -15,6 +19,9 @@ void TypeChecker::dfs_structs(StructDef *_struct, vector<StructDef *> &results,
     if (!type_is_valid(field->type)) {
       error_loc(field->type->location, "Type of field is undefined");
     }
+
+    // Don't need to ensure dependency order for externs
+    if (_struct->is_extern) continue;
 
     if (field->type->base == BaseType::Struct) {
       auto neighbor_name = field->type->struct_name;
@@ -111,6 +118,7 @@ void TypeChecker::push_var(Variable *var, Location loc) {
 bool TypeChecker::type_is_valid(Type *type) {
   // TODO: Keep track of defined structs and look them up later.
   switch (type->base) {
+    case BaseType::Char:
     case BaseType::I32:
     case BaseType::F32:
     case BaseType::Bool:
@@ -213,6 +221,7 @@ void TypeChecker::check_statement(AST *node) {
         }
       }
       if (node->for_loop.incr) check_expression(node->for_loop.incr);
+      if (node->for_loop.body) check_statement(node->for_loop.body);
       return;
     }
     case ASTType::If: {
@@ -316,6 +325,27 @@ Type *TypeChecker::check_call(AST *node) {
   return func->return_type;
 }
 
+Type *TypeChecker::check_pointer_arithmetic(AST *node, Type *left, Type *right) {
+  switch (node->type) {
+    case ASTType::Plus:
+    case ASTType::Minus: {
+      if (left->base == BaseType::Pointer && right->base == BaseType::I32) {
+        return left;
+      }
+      if (left->base == BaseType::I32 && right->base == BaseType::Pointer) {
+        return right;
+      }
+      if (left->base == BaseType::Pointer && right->base == BaseType::Pointer) {
+        if (node->type == ASTType::Minus) {
+          return new Type(BaseType::I32, node->location);
+        }
+      }
+    }
+    default: break;
+  }
+  error_loc(node->location, "Invalid pointer arithmetic");
+}
+
 Type *TypeChecker::check_expression(AST *node) {
   switch (node->type) {
     case ASTType::Call: return check_call(node);
@@ -324,15 +354,16 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::FloatLiteral: return new Type(BaseType::F32, node->location);
     case ASTType::BoolLiteral: return new Type(BaseType::Bool, node->location);
     case ASTType::StringLiteral:
-      return new Type(BaseType::Pointer, BaseType::U8, node->location);
+      return new Type(BaseType::Pointer, BaseType::Char, node->location);
 
     case ASTType::Var: {
       auto var = find_var(node->var.name);
       if (var == nullptr) { error_loc(node->location, "Variable not found"); }
+      node->var.var = var;
       return var->type;
     }
 
-    // TODO: Allow more comlex binary expressions, will eventually need support
+    // TODO: Allow more complex binary expressions, will eventually need support
     // for pointers
     case ASTType::Plus:
     case ASTType::Minus:
@@ -340,6 +371,9 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::Divide: {
       auto lhs_type = check_expression(node->binary.lhs);
       auto rhs_type = check_expression(node->binary.rhs);
+      if (lhs_type->base == BaseType::Pointer || rhs_type->base == BaseType::Pointer) {
+        return check_pointer_arithmetic(node, lhs_type, rhs_type);
+      }
       if (!lhs_type->is_numeric() || !rhs_type->is_numeric()) {
         error_loc(node->location, "Operator requires numeric types");
       }
