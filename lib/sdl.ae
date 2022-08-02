@@ -1,0 +1,29 @@
+@compiler c_include "<SDL2/SDL.h>"
+@compiler c_flag "-lSDL2"
+
+struct SDL_Window extern
+struct SDL_Renderer extern
+struct SDL_Event extern {
+    type: i32
+}
+
+let SDL_INIT_EVERYTHING: i32 extern
+let SDL_QUIT: i32 extern
+
+def SDL_Init(flags: i32) extern
+def SDL_Quit() extern
+def SDL_CreateWindowAndRenderer(
+    width: i32,
+    height: i32,
+    flags: i32, window: &&SDL_Window,
+    renderer: &&SDL_Renderer) extern
+
+def SDL_RenderClear(renderer: &SDL_Renderer) extern
+def SDL_RenderPresent(renderer: &SDL_Renderer) extern
+def SDL_SetRenderDrawColor(
+    renderer: &SDL_Renderer,
+    r: i32, g: i32, b: i32, a: i32) extern
+
+def SDL_PollEvent(event: &SDL_Event): i32 extern
+def SDL_DestroyRenderer(renderer: &SDL_Renderer) extern
+def SDL_DestroyWindow(window: &SDL_Window) extern
