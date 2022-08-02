@@ -340,10 +340,10 @@ void CodeGenerator::gen_global_vars(Program *program) {
 
 std::string CodeGenerator::gen_program(Program *program) {
   out.clear();
-  out << "#include <stdio.h>\n";
-  out << "#include <stdbool.h>\n";
-  out << "#include <stdint.h>\n";
-  out << "#include <stdlib.h>\n\n";
+
+  for (auto incl : program->c_includes)
+    out << "#include " << incl << "\n";
+  out << "\n";
 
   gen_struct_decls(program);
   for (auto structure : program->structs) { gen_struct(structure, 0); }

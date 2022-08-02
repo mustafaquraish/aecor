@@ -283,6 +283,30 @@ AST *Parser::parse_global_var() {
   return node;
 }
 
+void Parser::parse_compiler_option(Program *program) {
+  consume(TokenType::AtSign);
+  auto compiler = consume(TokenType::Identifier);
+  if (compiler.text != "compiler") {
+    error_loc(compiler.location, "Expected 'compiler'");
+  }
+
+  auto name = consume(TokenType::Identifier);
+
+  if (name.text == "c_include") {
+    auto filename = consume(TokenType::StringLiteral);
+    program->c_includes.push_back(filename.text);
+    return;
+  }
+
+  if (name.text == "c_flag") {
+    auto flag = consume(TokenType::StringLiteral);
+    program->c_flags.push_back(flag.text);
+    return;
+  }
+
+  error_loc(name.location, "Unknown compiler option");
+}
+
 void Parser::parse_into_program(Program *program) {
   while (!token_is(TokenType::Eof)) {
     switch (token().type) {
@@ -305,6 +329,9 @@ void Parser::parse_into_program(Program *program) {
         program->global_vars.push_back(var);
         break;
       }
+      case TokenType::AtSign:
+        parse_compiler_option(program);
+        break;
       default: UNHANDLED_TYPE();
     }
   };

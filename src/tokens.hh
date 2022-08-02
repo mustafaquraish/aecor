@@ -34,6 +34,7 @@
   F(While, "while")
 
 #define ENUM_TOKEN_TYPES(F)                                                    \
+  F(AtSign, "@")                                                               \
   F(Ampersand, "Ampersand")                                                    \
   F(CloseCurly, "CloseCurly")                                                  \
   F(CloseParen, "CloseParen")                                                  \

@@ -35,6 +35,8 @@ struct Parser {
   void parse_use(Program *program);
   void parse_into_program(Program *program);
 
+  void parse_compiler_option(Program *program);
+
   Program *parse_program();
 
   Token &consume_impl(TokenType token_type, const char *sloc);

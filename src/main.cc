@@ -36,7 +36,14 @@ int main(int argc, char *argv[]) {
   out << ccode;
   out.close();
 
-  auto exit_code = system("gcc out.c -o out");
+  std::stringstream ss;
+  ss << "gcc -o out out.c";
+  for (auto flag: program->c_flags) {
+    ss << " " << flag;
+  }
+  auto command = ss.str();
+  cout << "[+] " << command << endl;
+  auto exit_code = system(command.c_str());
   if (exit_code != 0) {
     std::cerr << "[-] Compilation failed" << std::endl;
     return exit_code;

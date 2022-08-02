@@ -172,6 +172,9 @@ struct Program {
   vector<StructDef *> structs;
   vector<AST *> global_vars;
 
+  vector<string_view> c_flags;
+  vector<string_view> c_includes;
+
   void add_included_file(string_view filename);
   bool is_file_included(string_view filename);
 

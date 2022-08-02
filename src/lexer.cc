@@ -23,6 +23,7 @@ std::vector<Token> Lexer::lex() {
         column       = 1;
         break;
 
+      case '@': push(TokenType::AtSign, 1); break;
       case '(': push(TokenType::OpenParen, 1); break;
       case '{': push(TokenType::OpenCurly, 1); break;
       case '[': push(TokenType::OpenSquare, 1); break;

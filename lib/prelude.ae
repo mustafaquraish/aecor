@@ -1,3 +1,8 @@
+@compiler c_include "<stdio.h>"
+@compiler c_include "<stdlib.h>"
+@compiler c_include "<stdbool.h>"
+@compiler c_include "<stdint.h>"
+
 def malloc(size: i32): untyped_ptr extern
 def calloc(size: i32, num: i32): untyped_ptr extern
 
