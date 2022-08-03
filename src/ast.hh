@@ -14,7 +14,6 @@ using namespace std;
   F(BoolLiteral, "BoolLiteral")                                                \
   F(Call, "Call")                                                              \
   F(Cast, "Cast")                                                              \
-  F(MethodCall, "MethodCall")                                                  \
   F(Defer, "Defer")                                                            \
   F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
@@ -103,6 +102,7 @@ struct AST {
       AST *lhs;
       string_view name;
       bool is_pointer;
+      bool is_method;
     } member;
 
     struct {

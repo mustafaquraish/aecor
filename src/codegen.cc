@@ -105,7 +105,8 @@ void CodeGenerator::gen_struct(StructDef *_struct, int indent) {
   out << "struct " << name << " {\n";
   for (auto field : _struct->fields) {
     gen_indent(indent + 1);
-    out << *field->type << " " << field->name << ";\n";
+    gen_type_and_name(field->type, field->name, indent);
+    out << ";\n";
   }
   out << "};\n\n";
 }
@@ -134,7 +135,7 @@ void CodeGenerator::gen_function_decls(Program *program) {
     for (auto arg : func->params) {
       if (!first) out << ", ";
       first = false;
-      out << *arg->type << " " << arg->name;
+      gen_type_and_name(arg->type, arg->name, 0);
     }
     out << ");\n";
   }
@@ -229,8 +230,7 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       break;
     }
 
-    case ASTType::Call:
-    case ASTType::MethodCall: {
+    case ASTType::Call: {
       bool newline_after_first = false;
       if (callee_is(node, "print")) {
         out << "printf";

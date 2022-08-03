@@ -9,6 +9,10 @@ static bool types_eq(const Type *a, const Type *b) {
 
 bool Type::operator==(const Type &other) const {
   if (base != other.base) return false;
+
+  // Should NOT be comparing methods with each other.
+  if (base == BaseType::Method) return false;
+
   if (base == BaseType::Function) {
     if (!types_eq(return_type, other.return_type)) return false;
     if (arg_types.size() != other.arg_types.size()) return false;
@@ -55,7 +59,8 @@ std::ostream &operator<<(std::ostream &os, const Type &type) {
       }
       break;
     case BaseType::Function:
-      cerr << "Should not be using operator << on BaseType::Function" << endl;
+    case BaseType::Method:
+      cerr << "Should not be using operator << on Function/Method" << endl;
       exit(1);
   };
   return os;

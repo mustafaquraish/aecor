@@ -60,7 +60,7 @@ void TypeChecker::check_all_functions(Program *program) {
   for (auto func : program->functions) {
     auto name        = func->name;
     auto struct_name = func->struct_name;
-    auto func_type   = new Type(BaseType::Function, func->location);
+    Type *func_type   = nullptr;
 
     if (func->is_method) {
       if (structs.count(struct_name) == 0) {
@@ -69,6 +69,14 @@ void TypeChecker::check_all_functions(Program *program) {
       if (methods[struct_name].count(name) > 0) {
         error_loc(func->location, "Method is already defined in struct");
       }
+      if (auto var = get_struct_member(struct_name, name); var != nullptr) {
+        error_loc(func->location, "Struct already has a field with this name");
+      }
+
+      func_type = new Type(BaseType::Method, func->location);
+      func_type->struct_name = struct_name;
+    } else {
+      func_type = new Type(BaseType::Function, func->location);
     }
 
     for (auto param : func->params) {
@@ -129,6 +137,12 @@ bool TypeChecker::type_is_valid(Type *type) {
     case BaseType::Void:
     case BaseType::U8: return true;
     case BaseType::Pointer: return type_is_valid(type->ptr_to);
+    case BaseType::Function: {
+      for (auto arg_type : type->arg_types) {
+        if (!type_is_valid(arg_type)) return false;
+      }
+      return type_is_valid(type->return_type);
+    }
     case BaseType::Struct: {
       if (auto s = structs.find(type->struct_name); s != structs.end()) {
         type->struct_def = s->second;
@@ -184,6 +198,10 @@ void TypeChecker::check_statement(AST *node) {
       // TODO: Infer type?
       if (node->var_decl.init) {
         auto init_type = check_expression(node->var_decl.init);
+        if (init_type->base == BaseType::Method) {
+          error_loc(node->var_decl.init->location,
+                    "Cannot assign methods to variables");
+        }
         if (!node->var_decl.var->type) {
           node->var_decl.var->type = init_type;
         } else if (*node->var_decl.var->type != *init_type) {
@@ -241,63 +259,29 @@ void TypeChecker::check_statement(AST *node) {
   }
 }
 
-Type *TypeChecker::check_method_call(AST *node) {
+void TypeChecker::check_method_call(Type *method_type, AST *node) {
+  auto callee   = node->call.callee;
   if (node->call.callee->type != ASTType::Member) {
     error_loc(node->call.callee->location,
               "Method call is not to a member, internal compiler error");
   }
-  auto callee   = node->call.callee;
-  auto lhs_type = check_expression(callee->member.lhs);
-  if (!lhs_type->is_struct_or_ptr()) {
-    error_loc(callee->location,
-              "LHS of member access must be a (pointer to) struct");
-  }
-  bool is_pointer  = (lhs_type->base == BaseType::Pointer);
-  auto struct_type = lhs_type;
-  if (lhs_type->base == BaseType::Pointer) { struct_type = lhs_type->ptr_to; }
-
-  auto struct_name = struct_type->struct_name;
-  auto name        = callee->member.name;
-  if (methods.count(struct_name) == 0) {
-    error_loc(callee->location, "Struct not defined");
-  }
-  if (methods[struct_name].count(name) == 0) {
-    error_loc(callee->location, "Method not defined");
-  }
-  auto func = methods[struct_name][name];
 
   auto first_arg = callee->member.lhs;
-  if (!is_pointer) {
+  if (!callee->member.is_pointer) {
     auto ptr        = new AST(ASTType::Address, first_arg->location);
     ptr->unary.expr = first_arg;
     first_arg       = ptr;
   }
   node->call.args->insert(node->call.args->begin(), first_arg);
 
-  if (func->params.size() != node->call.args->size()) {
-    error_loc(node->location,
-              "Number of arguments does not match function signature");
-  }
-  auto &params = func->params;
-  for (int i = 0; i < params.size(); i++) {
-    auto param    = params[i];
-    auto arg      = node->call.args->at(i);
-    auto arg_type = check_expression(arg);
-    if (*param->type != *arg_type) {
-      error_loc(arg->location,
-                "Argument type does not match function parameter type");
-    }
-  }
-
   // NOTE: This is a hack to make sure codegen is correct.
   //       Ideally we should have CodeGenerator figure this out, since
   //       it is only specific to C.
+  auto method = methods[method_type->struct_name][callee->member.name];
   auto new_callee = new AST(ASTType::Var, callee->location);
   new_callee->var.is_function = true;
-  new_callee->var.function = func;
+  new_callee->var.function = method;
   node->call.callee = new_callee;
-
-  return func->return_type;
 }
 
 Type *TypeChecker::check_call(AST *node) {
@@ -312,10 +296,13 @@ Type *TypeChecker::check_call(AST *node) {
     }
   }
 
-  // TODO: Allow expressions evaluating to functions?
   auto func_type = check_expression(callee);
-  if (func_type->base != BaseType::Function) {
+  if (func_type->base != BaseType::Function && func_type->base != BaseType::Method) {
     error_loc(node->call.callee->location, "Cannot call a non-function type");
+  }
+
+  if (func_type->base == BaseType::Method) {
+    check_method_call(func_type, node);
   }
 
   auto &params = func_type->arg_types;
@@ -361,7 +348,6 @@ Type *TypeChecker::check_pointer_arithmetic(AST *node, Type *left,
 Type *TypeChecker::check_expression(AST *node) {
   switch (node->type) {
     case ASTType::Call: return check_call(node);
-    case ASTType::MethodCall: return check_method_call(node);
     case ASTType::IntLiteral: return new Type(BaseType::I32, node->location);
     case ASTType::FloatLiteral: return new Type(BaseType::F32, node->location);
     case ASTType::BoolLiteral: return new Type(BaseType::Bool, node->location);

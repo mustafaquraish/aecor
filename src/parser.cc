@@ -58,41 +58,67 @@ Type *Parser::parse_type() {
   switch (token().type) {
     case TokenType::Char:
       type = new Type(BaseType::Char, type, token().location);
+      ++curr;
       break;
     case TokenType::I32:
       type = new Type(BaseType::I32, type, token().location);
+      ++curr;
       break;
     case TokenType::Bool:
       type = new Type(BaseType::Bool, type, token().location);
+      ++curr;
       break;
     case TokenType::U8:
       type = new Type(BaseType::U8, type, token().location);
+      ++curr;
       break;
     case TokenType::F32:
       type = new Type(BaseType::F32, type, token().location);
+      ++curr;
       break;
     case TokenType::String:
       type = new Type(BaseType::Char,
                       new Type(BaseType::Pointer, type, token().location),
                       token().location);
+      ++curr;
       break;
+    case TokenType::Fn: {
+      type = new Type(BaseType::Function, type, token().location);
+      ++curr;
+      consume(TokenType::OpenParen);
+      while (!token_is(TokenType::CloseParen)) {
+        type->arg_types.push_back(parse_type());
+        if (!consume_if(TokenType::Comma)) {
+          break;
+        }
+      }
+      consume(TokenType::CloseParen);
+      if (consume_if(TokenType::Colon)) {
+        type->return_type = parse_type();
+      } else {
+        type->return_type = new Type(BaseType::Void, token().location);
+      }
+      break;
+    }
     case TokenType::UnypedPtr:
       type = new Type(BaseType::Void,
                       new Type(BaseType::Pointer, type, token().location),
                       token().location);
+      ++curr;
       break;
     case TokenType::Void:
       type = new Type(BaseType::Void, type, token().location);
+      ++curr;
       break;
     case TokenType::Identifier: {
       type              = new Type(BaseType::Struct, type, token().location);
       type->struct_name = token().text;
+      ++curr;
       break;
     }
 
     default: UNHANDLED_TYPE();
   }
-  ++curr;
 
   // We want to have Ptr1->Ptr2->Base, but we have Base->Ptr2->Ptr1
   // So, we'll just reverse the type linked-list.
@@ -580,7 +606,6 @@ AST *Parser::parse_factor(bool in_parens) {
         }
         consume(TokenType::CloseParen);
         auto call_type = ASTType::Call;
-        if (node->type == ASTType::Member) { call_type = ASTType::MethodCall; }
         auto call         = new AST(call_type, paren_loc);
         call->call.callee = node;
         call->call.args   = args;

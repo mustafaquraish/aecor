@@ -21,6 +21,7 @@ enum class BaseType {
       Pointer,
   Struct,  // clangfmt pls ;cc
   Function,
+  Method,
 };
 
 struct StructDef;
@@ -34,7 +35,7 @@ struct Type {
   // Filled in during typechecking
   StructDef *struct_def = nullptr;
 
-  // For Functions
+  // For Functions / methods
   Type *return_type;
   vector<Type *> arg_types;
 

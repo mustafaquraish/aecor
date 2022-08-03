@@ -16,8 +16,9 @@
   F(Else, "else")                                                              \
   F(Extern, "extern")                                                          \
   F(False, "false")                                                            \
-  F(For, "for")                                                                \
   F(F32, "f32")                                                                \
+  F(For, "for")                                                                \
+  F(Fn, "fn")                                                                  \
   F(I32, "i32")                                                                \
   F(If, "if")                                                                  \
   F(Let, "let")                                                                \
