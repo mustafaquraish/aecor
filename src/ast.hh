@@ -51,6 +51,8 @@ enum class ASTType {
 #undef F
 };
 
+struct FunctionDef;
+
 struct Variable {
   string_view name;
   Type *type;
@@ -58,9 +60,11 @@ struct Variable {
 
   bool is_extern = false;
   string_view extern_name;
+
+  Variable(string_view name, Type *type, Location location)
+      : name(name), type(type), location(location) {}
 };
 
-struct FunctionDef;
 
 struct AST {
   ASTType type;
@@ -85,14 +89,14 @@ struct AST {
 
       // Filled in during typechecking
       Variable *var = nullptr;
+
+      bool is_function = false;
+      FunctionDef *function = nullptr;
     } var;
 
     struct {
       AST *callee;
       vector<AST *> *args;
-
-      // Filled in during typechecking
-      FunctionDef *function;
     } call;
 
     struct {
@@ -150,6 +154,7 @@ struct FunctionDef {
 
   bool is_extern;
   string_view extern_name;
+  Type *type;
 
   FunctionDef(Location loc) : location(loc) {}
 };

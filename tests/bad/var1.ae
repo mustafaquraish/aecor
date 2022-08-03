@@ -1,4 +1,4 @@
-/// fail: Variable not found
+/// fail: Unknown Identifier
 
 def main() : i32 {
     let x: i32 = 5

@@ -79,7 +79,7 @@ void CodeGenerator::gen_function(FunctionDef *func, int indent) {
   for (auto arg : func->params) {
     if (!first) out << ", ";
     first = false;
-    out << *arg->type << " " << arg->name;
+    gen_type_and_name(arg->type, arg->name, indent);
   }
   out << ") ";
   gen_block(func->body, indent);
@@ -141,6 +141,24 @@ void CodeGenerator::gen_function_decls(Program *program) {
   out << "\n";
 }
 
+void CodeGenerator::gen_type_and_name(Type *type, string_view name, int indent) {
+  if (type->base == BaseType::Function) {
+    if (type->return_type->base == BaseType::Function) {
+      error_loc(type->location, "Cannot handle function return type from a function");
+    }
+    out << *type->return_type << "(*" << name << ")(";
+    bool first = true;
+    for (auto arg : type->arg_types) {
+      if (!first) out << ", ";
+      first = false;
+      out << *arg;
+    }
+    out << ")";
+  } else {
+    out << *type << " " << name;
+  }
+}
+
 void CodeGenerator::gen_expression(AST *node, int indent) {
   switch (node->type) {
     case ASTType::Not:
@@ -181,11 +199,18 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
     case ASTType::FloatLiteral: out << node->num_literal; break;
     case ASTType::BoolLiteral: out << node->bool_literal; break;
     case ASTType::Var: {
-      auto var = node->var.var;
-      if (var->is_extern) {
-        out << var->extern_name;
+      if (node->var.is_function) {
+        // Function
+        auto func = node->var.function;
+        gen_function_name(func);
       } else {
-        out << var->name;
+        // Regular variable
+        auto var = node->var.var;
+        if (var->is_extern) {
+          out << var->extern_name;
+        } else {
+          out << var->name;
+        }
       }
       break;
     }
@@ -213,7 +238,7 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
         out << "printf";
         newline_after_first = true;
       } else {
-        gen_function_name(node->call.function);
+        gen_expression(node->call.callee, indent);
       }
       out << "(";
       bool first = true;
@@ -284,7 +309,7 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
         break;
 
       gen_indent(indent);
-      out << *var->type << " " << var->name;
+      gen_type_and_name(var->type, var->name, indent);
       if (node->var_decl.init) {
         out << " = ";
         gen_expression(node->var_decl.init, indent);

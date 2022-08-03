@@ -1,12 +1,24 @@
 #include <ast.hh>
 #include <types.hh>
 
+static bool types_eq(const Type *a, const Type *b) {
+  if (a == nullptr && b == nullptr) return true;
+  if (a == nullptr || b == nullptr) return false;
+  return *a == *b;
+}
+
 bool Type::operator==(const Type &other) const {
   if (base != other.base) return false;
+  if (base == BaseType::Function) {
+    if (!types_eq(return_type, other.return_type)) return false;
+    if (arg_types.size() != other.arg_types.size()) return false;
+    for (size_t i = 0; i < arg_types.size(); i++) {
+      if (!types_eq(arg_types[i], other.arg_types[i])) return false;
+    }
+    return true;
+  }
   if (base == BaseType::Pointer) {
-    if (ptr_to == nullptr && other.ptr_to == nullptr) return true;
-    if (ptr_to == nullptr || other.ptr_to == nullptr) return false;
-    return *ptr_to == *other.ptr_to;
+    return types_eq(ptr_to, other.ptr_to);
   }
   if (base == BaseType::Struct) { return struct_name == other.struct_name; }
   return true;
@@ -42,6 +54,9 @@ std::ostream &operator<<(std::ostream &os, const Type &type) {
         os << type.struct_def->name;
       }
       break;
+    case BaseType::Function:
+      cerr << "Should not be using operator << on BaseType::Function" << endl;
+      exit(1);
   };
   return os;
 }
