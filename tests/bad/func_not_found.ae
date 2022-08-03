@@ -1,4 +1,4 @@
-/// fail: Function not found
+/// fail: Unknown Identifier
 
 def main() {
   foo()

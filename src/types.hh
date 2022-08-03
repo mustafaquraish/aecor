@@ -20,6 +20,7 @@ enum class BaseType {
 #undef F
       Pointer,
   Struct,  // clangfmt pls ;cc
+  Function,
 };
 
 struct StructDef;
@@ -32,6 +33,10 @@ struct Type {
 
   // Filled in during typechecking
   StructDef *struct_def = nullptr;
+
+  // For Functions
+  Type *return_type;
+  vector<Type *> arg_types;
 
   Type(BaseType base, Location loc)
       : base(base), ptr_to(nullptr), location(loc) {}

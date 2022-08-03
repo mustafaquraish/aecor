@@ -60,6 +60,7 @@ void TypeChecker::check_all_functions(Program *program) {
   for (auto func : program->functions) {
     auto name        = func->name;
     auto struct_name = func->struct_name;
+    auto func_type   = new Type(BaseType::Function, func->location);
 
     if (func->is_method) {
       if (structs.count(struct_name) == 0) {
@@ -73,9 +74,12 @@ void TypeChecker::check_all_functions(Program *program) {
     for (auto param : func->params) {
       if (!type_is_valid(param->type))
         error_loc(param->type->location, "Invalid parameter type");
+      func_type->arg_types.push_back(param->type);
     }
     if (!type_is_valid(func->return_type))
       error_loc(func->return_type->location, "Invalid return type");
+    func_type->return_type = func->return_type;
+    func->type             = func_type;
 
     if (functions.count(name) > 0) {
       error_loc(func->location, "Function is already defined");
@@ -284,48 +288,56 @@ Type *TypeChecker::check_method_call(AST *node) {
                 "Argument type does not match function parameter type");
     }
   }
-  node->call.function = func;
+
+  // NOTE: This is a hack to make sure codegen is correct.
+  //       Ideally we should have CodeGenerator figure this out, since
+  //       it is only specific to C.
+  auto new_callee = new AST(ASTType::Var, callee->location);
+  new_callee->var.is_function = true;
+  new_callee->var.function = func;
+  node->call.callee = new_callee;
+
   return func->return_type;
 }
 
 Type *TypeChecker::check_call(AST *node) {
+  // This is a hack to avoid typechecking of `print` and `println`
+  auto callee = node->call.callee;
+  if (callee->type == ASTType::Var) {
+    callee->var.is_function = false;
+    auto &name              = node->call.callee->var.name;
+    if (name == "print" || name == "println") {
+      for (auto arg : *node->call.args) check_expression(arg);
+      return new Type(BaseType::Void, node->location);
+    }
+  }
+
   // TODO: Allow expressions evaluating to functions?
-  if (node->call.callee->type != ASTType::Var) {
-    error_loc(node->call.callee->location,
-              "Functions need to explicitly be specified by name.");
-  }
-  auto &name = node->call.callee->var.name;
-
-  // This is a hack, don't check the types of parameters
-  if (name == "print" || name == "println") {
-    for (auto arg : *node->call.args) check_expression(arg);
-    return new Type(BaseType::Void, node->location);
+  auto func_type = check_expression(callee);
+  if (func_type->base != BaseType::Function) {
+    error_loc(node->call.callee->location, "Cannot call a non-function type");
   }
 
-  if (functions.count(name) == 0) {
-    error_loc(node->location, "Function not found");
-  }
-  auto func = functions[name];
-  if (func->params.size() != node->call.args->size()) {
+  auto &params = func_type->arg_types;
+  if (params.size() != node->call.args->size()) {
     error_loc(node->location,
               "Number of arguments does not match function signature");
   }
-  auto &params = func->params;
   for (int i = 0; i < params.size(); i++) {
     auto param    = params[i];
     auto arg      = node->call.args->at(i);
     auto arg_type = check_expression(arg);
-    if (*param->type != *arg_type) {
+    if (*param != *arg_type) {
       error_loc(arg->location,
                 "Argument type does not match function parameter type");
     }
   }
 
-  node->call.function = func;
-  return func->return_type;
+  return func_type->return_type;
 }
 
-Type *TypeChecker::check_pointer_arithmetic(AST *node, Type *left, Type *right) {
+Type *TypeChecker::check_pointer_arithmetic(AST *node, Type *left,
+                                            Type *right) {
   switch (node->type) {
     case ASTType::Plus:
     case ASTType::Minus: {
@@ -358,9 +370,20 @@ Type *TypeChecker::check_expression(AST *node) {
 
     case ASTType::Var: {
       auto var = find_var(node->var.name);
-      if (var == nullptr) { error_loc(node->location, "Variable not found"); }
-      node->var.var = var;
-      return var->type;
+      if (var != nullptr) {
+        node->var.is_function = false;
+        node->var.var         = var;
+        return var->type;
+      }
+
+      if (auto func = functions.find(node->var.name); func != functions.end()) {
+        node->var.is_function = true;
+        node->var.function    = func->second;
+        auto func_type        = func->second->type;
+        return func->second->type;
+      }
+
+      error_loc(node->location, "Unknown Identifier");
     }
 
     // TODO: Allow more complex binary expressions, will eventually need support
@@ -371,7 +394,8 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::Divide: {
       auto lhs_type = check_expression(node->binary.lhs);
       auto rhs_type = check_expression(node->binary.rhs);
-      if (lhs_type->base == BaseType::Pointer || rhs_type->base == BaseType::Pointer) {
+      if (lhs_type->base == BaseType::Pointer ||
+          rhs_type->base == BaseType::Pointer) {
         return check_pointer_arithmetic(node, lhs_type, rhs_type);
       }
       if (!lhs_type->is_numeric() || !rhs_type->is_numeric()) {
@@ -491,10 +515,19 @@ Type *TypeChecker::check_expression(AST *node) {
       if (lhs_type->base == BaseType::Pointer) {
         struct_type = lhs_type->ptr_to;
       }
-      auto field =
-          get_struct_member(struct_type->struct_name, node->member.name);
-      if (!field) { error_loc(node->location, "Field not found in struct"); }
-      return field->type;
+
+      auto struct_name = struct_type->struct_name;
+      auto field_name  = node->member.name;
+
+      if (auto field = get_struct_member(struct_name, field_name))
+        return field->type;
+
+      if (auto method = methods[struct_type->struct_name].find(field_name);
+          method != methods[struct_type->struct_name].end()) {
+        return method->second->type;
+      }
+
+      error_loc(node->location, "Struct has no member with this name");
     }
 
     case ASTType::Cast: {
