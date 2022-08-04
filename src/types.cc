@@ -21,9 +21,7 @@ bool Type::operator==(const Type &other) const {
     }
     return true;
   }
-  if (base == BaseType::Pointer) {
-    return types_eq(ptr_to, other.ptr_to);
-  }
+  if (base == BaseType::Pointer) { return types_eq(ptr_to, other.ptr_to); }
   if (base == BaseType::Struct) { return struct_name == other.struct_name; }
   return true;
 }

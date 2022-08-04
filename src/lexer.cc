@@ -107,7 +107,7 @@ std::vector<Token> Lexer::lex() {
           while (i < source.length() && source[i] != '\n') { ++i; }
           ++line;
           seen_newline = true;
-          column = 1;
+          column       = 1;
         } else if (peek() == '=') {
           push(TokenType::SlashEquals, 2);
         } else {
