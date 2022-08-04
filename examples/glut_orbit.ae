@@ -2,7 +2,7 @@ use "./lib/glut.ae"
 
 
 /// Math prereqs
-@compiler c_include "<math.h>"
+@compiler c_include "math.h"
 @compiler c_flag "-lm"
 
 def cos(x: f32): f32 extern

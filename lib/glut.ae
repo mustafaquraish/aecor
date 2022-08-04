@@ -1,9 +1,9 @@
 // macOS
-@compiler c_include "<GLUT/glut.h>"
+@compiler c_include "GLUT/glut.h"
 @compiler c_flag "-framework GLUT -framework OpenGL -Wno-deprecated-declarations"
 
 // Linux
-// @compiler c_include "<GL/glut.h>"
+// @compiler c_include "GL/glut.h"
 // @compiler c_flag "-lGL -lGLU -lglut"
 
 

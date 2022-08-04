@@ -22,6 +22,7 @@ using namespace std;
   F(DivideEquals, "DivideEquals")                                              \
   F(Equals, "Equals")                                                          \
   F(FloatLiteral, "FloatLiteral")                                              \
+  F(FormatStringLiteral, "FormatStringLiteral")                                \
   F(For, "For")                                                                \
   F(GreaterThan, "GreaterThan")                                                \
   F(GreaterThanEquals, "GreaterThanEquals")                                    \
@@ -93,6 +94,12 @@ struct AST {
       bool is_function      = false;
       FunctionDef *function = nullptr;
     } var;
+
+    struct {
+      string_view format_str;  // Filled in by typechecker
+      vector<string_view> *format_parts;
+      vector<AST *> *expr_args;
+    } format_str;
 
     struct {
       AST *callee;

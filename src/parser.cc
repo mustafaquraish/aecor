@@ -505,6 +505,59 @@ ASTType token_to_op(TokenType type) {
   exit(1);
 }
 
+AST *Parser::parse_format_string_literal() {
+  auto fstr = consume(TokenType::FormatStringLiteral);
+
+  vector<string_view> expr_parts;
+  vector<string_view> *format_parts = new vector<string_view>();
+  int count                         = 0;
+  size_t cur_start                  = 0;
+  for (size_t i = 0; i < fstr.text.size(); i++) {
+    if (fstr.text[i] == '{') {
+      if (count == 0) {
+        format_parts->push_back(fstr.text.substr(cur_start, i - cur_start));
+        cur_start = i + 1;
+      }
+      count++;
+    } else if (fstr.text[i] == '}') {
+      count--;
+      if (count == 0) {
+        expr_parts.push_back(fstr.text.substr(cur_start, i - cur_start));
+        cur_start = i + 1;
+      } else if (count < 0) {
+        auto loc = Location{fstr.location.filename, fstr.location.line,
+                            int(fstr.location.column + i)};
+        error_loc(loc, "Unmatched '}'");
+      }
+    }
+  }
+  if (count != 0) {
+    auto loc = Location{fstr.location.filename, fstr.location.line,
+                        int(fstr.location.column + fstr.text.size())};
+    error_loc(loc, "Unmatched '{' in format string");
+  }
+  format_parts->push_back(
+      fstr.text.substr(cur_start, fstr.text.size() - cur_start));
+
+  auto node = new AST(ASTType::FormatStringLiteral, fstr.location);
+  node->format_str.format_parts = format_parts;
+
+  node->format_str.expr_args = new vector<AST *>;
+  for (auto part : expr_parts) {
+    auto lexer   = Lexer(part, fstr.location.filename);
+    lexer.line   = fstr.location.line;
+    lexer.column = fstr.location.column + part.data() - fstr.text.data() + 1;
+
+    auto tokens = lexer.lex();
+    auto parser = Parser(tokens);
+    auto expr   = parser.parse_expression();
+
+    node->format_str.expr_args->push_back(expr);
+  }
+
+  return node;
+}
+
 AST *Parser::parse_factor(bool in_parens) {
   AST *node = nullptr;
 
@@ -574,6 +627,10 @@ AST *Parser::parse_factor(bool in_parens) {
       node                 = new AST(ASTType::StringLiteral, token().location);
       node->string_literal = token().text;
       consume(TokenType::StringLiteral);
+      break;
+    }
+    case TokenType::FormatStringLiteral: {
+      node = parse_format_string_literal();
       break;
     }
     case TokenType::Identifier: {
