@@ -273,6 +273,16 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       break;
     }
 
+    case ASTType::FormatStringLiteral: {
+      out << "__format_string(\"" << node->string_literal << "\"";
+      for (auto arg : *node->format_str.expr_args) {
+        out << ", ";
+        gen_expression(arg, indent);
+      }
+      out << ")";
+      break;
+    }
+
     default: {
       cerr << "\n"
            << HERE << " UNHANDLED TYPE IN gen_expression: " << node->type
@@ -370,7 +380,7 @@ void CodeGenerator::gen_global_vars(Program *program) {
 std::string CodeGenerator::gen_program(Program *program) {
   out.clear();
 
-  for (auto incl : program->c_includes) out << "#include " << incl << "\n";
+  for (auto incl : program->c_includes) out << "#include \"" << incl << "\"\n";
   out << "\n";
 
   gen_struct_decls(program);

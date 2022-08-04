@@ -159,6 +159,17 @@ std::vector<Token> Lexer::lex() {
           push(Token::from_type(TokenType::StringLiteral, loc, view));
           column += i - start + 2;
 
+        } else if (source[i] == '`') {
+          int start = i + 1;
+
+          // Need to ignore backticks inside of nested {}
+          while (source[i] == '\\' || peek() != '`') { ++i; }
+          ++i;
+
+          auto view = source.substr(start, i - start);
+          push(Token::from_type(TokenType::FormatStringLiteral, loc, view));
+          column += i - start + 2;
+
         } else {
           error_loc(loc,
                     format("Unrecognized character '" << source[i] << "'"));

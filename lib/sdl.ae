@@ -1,4 +1,4 @@
-@compiler c_include "<SDL2/SDL.h>"
+@compiler c_include "SDL2/SDL.h"
 @compiler c_flag "-lSDL2"
 
 struct SDL_Window extern

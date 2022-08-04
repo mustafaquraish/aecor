@@ -17,6 +17,8 @@ struct Parser {
 
   Type *parse_type();
 
+  AST *parse_format_string_literal();
+
   AST *parse_factor(bool in_parens);
   AST *parse_term(bool in_parens);
   AST *parse_additive(bool in_parens);

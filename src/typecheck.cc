@@ -346,6 +346,42 @@ Type *TypeChecker::check_pointer_arithmetic(AST *node, Type *left,
   error_loc(node->location, "Invalid pointer arithmetic");
 }
 
+Type *TypeChecker::check_format_string(AST *node) {
+  stringstream ss;
+  auto format_parts = node->format_str.format_parts;
+  auto expr_args    = node->format_str.expr_args;
+  if (format_parts->size() != expr_args->size() + 1) {
+    error_loc(node->location,
+              "Number of format parts does not match number of "
+              "expressions");
+  }
+
+  // This is a hack, this should be in codegen
+  for (int i = 0; i < expr_args->size(); i++) {
+    auto format_part = format_parts->at(i);
+    ss << format_part;
+
+    auto expr_arg  = expr_args->at(i);
+    auto expr_type = check_expression(expr_arg);
+    if (expr_type->base == BaseType::I32 || expr_type->base == BaseType::Bool ||
+        expr_type->base == BaseType::U8) {
+      ss << "%d";
+    } else if (expr_type->base == BaseType::F32) {
+      ss << "%f";
+    } else if (expr_type->base == BaseType::Pointer &&
+               expr_type->ptr_to->base == BaseType::Char) {
+      ss << "%s";
+    } else if (expr_type->base == BaseType::Pointer) {
+      ss << "%p";
+    } else {
+      error_loc(expr_arg->location, "Format expression is of unsupported type");
+    }
+  }
+
+  node->format_str.format_str = *new string(ss.str());
+  return new Type(BaseType::Pointer, BaseType::Char, node->location);
+}
+
 Type *TypeChecker::check_expression(AST *node) {
   switch (node->type) {
     case ASTType::Call: return check_call(node);
@@ -354,6 +390,8 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::BoolLiteral: return new Type(BaseType::Bool, node->location);
     case ASTType::StringLiteral:
       return new Type(BaseType::Pointer, BaseType::Char, node->location);
+
+    case ASTType::FormatStringLiteral: return check_format_string(node);
 
     case ASTType::Var: {
       auto var = find_var(node->var.name);

@@ -32,6 +32,7 @@ struct TypeChecker {
   void check_method_call(Type *method_type, AST *node);
 
   Type *check_call(AST *node);
+  Type *check_format_string(AST *node);
   Type *check_expression(AST *node);
 
   bool type_is_valid(Type *type);

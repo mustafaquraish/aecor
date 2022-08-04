@@ -37,6 +37,7 @@
 #define ENUM_TOKEN_TYPES(F)                                                    \
   F(AtSign, "@")                                                               \
   F(Ampersand, "Ampersand")                                                    \
+  F(Backtick, "Backtick")                                                      \
   F(CloseCurly, "CloseCurly")                                                  \
   F(CloseParen, "CloseParen")                                                  \
   F(CloseSquare, "CloseSquare")                                                \
@@ -49,6 +50,7 @@
   F(EqualEquals, "EqualEquals")                                                \
   F(Exclamation, "Exclamation")                                                \
   F(FloatLiteral, "FloatLiteral")                                              \
+  F(FormatStringLiteral, "FormatStringLiteral")                                \
   F(GreaterThan, "GreaterThan")                                                \
   F(GreaterThanEquals, "GreaterThanEquals")                                    \
   F(Identifier, "Identifier")                                                  \
