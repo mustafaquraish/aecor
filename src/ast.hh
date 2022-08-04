@@ -12,6 +12,8 @@ using namespace std;
   F(And, "And")                                                                \
   F(Block, "Block")                                                            \
   F(BoolLiteral, "BoolLiteral")                                                \
+  F(BitwiseAnd, "BitwiseAnd")                                                  \
+  F(BitwiseOr, "BitwiseOr")                                                    \
   F(Call, "Call")                                                              \
   F(Cast, "Cast")                                                              \
   F(Defer, "Defer")                                                            \
@@ -64,7 +66,6 @@ struct Variable {
       : name(name), type(type), location(location) {}
 };
 
-
 struct AST {
   ASTType type;
   Location location;
@@ -89,7 +90,7 @@ struct AST {
       // Filled in during typechecking
       Variable *var = nullptr;
 
-      bool is_function = false;
+      bool is_function      = false;
       FunctionDef *function = nullptr;
     } var;
 

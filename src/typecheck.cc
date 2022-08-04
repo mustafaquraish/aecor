@@ -60,7 +60,7 @@ void TypeChecker::check_all_functions(Program *program) {
   for (auto func : program->functions) {
     auto name        = func->name;
     auto struct_name = func->struct_name;
-    Type *func_type   = nullptr;
+    Type *func_type  = nullptr;
 
     if (func->is_method) {
       if (structs.count(struct_name) == 0) {
@@ -73,7 +73,7 @@ void TypeChecker::check_all_functions(Program *program) {
         error_loc(func->location, "Struct already has a field with this name");
       }
 
-      func_type = new Type(BaseType::Method, func->location);
+      func_type              = new Type(BaseType::Method, func->location);
       func_type->struct_name = struct_name;
     } else {
       func_type = new Type(BaseType::Function, func->location);
@@ -260,7 +260,7 @@ void TypeChecker::check_statement(AST *node) {
 }
 
 void TypeChecker::check_method_call(Type *method_type, AST *node) {
-  auto callee   = node->call.callee;
+  auto callee = node->call.callee;
   if (node->call.callee->type != ASTType::Member) {
     error_loc(node->call.callee->location,
               "Method call is not to a member, internal compiler error");
@@ -277,11 +277,11 @@ void TypeChecker::check_method_call(Type *method_type, AST *node) {
   // NOTE: This is a hack to make sure codegen is correct.
   //       Ideally we should have CodeGenerator figure this out, since
   //       it is only specific to C.
-  auto method = methods[method_type->struct_name][callee->member.name];
+  auto method     = methods[method_type->struct_name][callee->member.name];
   auto new_callee = new AST(ASTType::Var, callee->location);
   new_callee->var.is_function = true;
-  new_callee->var.function = method;
-  node->call.callee = new_callee;
+  new_callee->var.function    = method;
+  node->call.callee           = new_callee;
 }
 
 Type *TypeChecker::check_call(AST *node) {
@@ -297,7 +297,8 @@ Type *TypeChecker::check_call(AST *node) {
   }
 
   auto func_type = check_expression(callee);
-  if (func_type->base != BaseType::Function && func_type->base != BaseType::Method) {
+  if (func_type->base != BaseType::Function &&
+      func_type->base != BaseType::Method) {
     error_loc(node->call.callee->location, "Cannot call a non-function type");
   }
 
@@ -430,6 +431,16 @@ Type *TypeChecker::check_expression(AST *node) {
         error_loc(node->location, "Operands must be boolean");
       }
       return new Type(BaseType::Bool, node->location);
+    }
+
+    case ASTType::BitwiseOr:
+    case ASTType::BitwiseAnd: {
+      auto lhs_type = check_expression(node->binary.lhs);
+      auto rhs_type = check_expression(node->binary.rhs);
+      if (lhs_type->base != BaseType::I32 || rhs_type->base != BaseType::I32) {
+        error_loc(node->location, "Operator requires integer types");
+      }
+      return lhs_type;
     }
 
     case ASTType::Not: {

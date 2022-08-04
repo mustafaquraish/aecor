@@ -11,6 +11,9 @@ void CodeGenerator::gen_op(ASTType type) {
   switch (type) {
     case ASTType::And: out << " && "; return;
     case ASTType::Or: out << " || "; return;
+    case ASTType::BitwiseOr: out << " | "; return;
+    case ASTType::BitwiseAnd: out << " & "; return;
+
     case ASTType::Plus: out << " + "; return;
     case ASTType::Minus: out << " - "; return;
     case ASTType::Multiply: out << " * "; return;
@@ -142,10 +145,12 @@ void CodeGenerator::gen_function_decls(Program *program) {
   out << "\n";
 }
 
-void CodeGenerator::gen_type_and_name(Type *type, string_view name, int indent) {
+void CodeGenerator::gen_type_and_name(Type *type, string_view name,
+                                      int indent) {
   if (type->base == BaseType::Function) {
     if (type->return_type->base == BaseType::Function) {
-      error_loc(type->location, "Cannot handle function return type from a function");
+      error_loc(type->location,
+                "Cannot handle function return type from a function");
     }
     out << *type->return_type << "(*" << name << ")(";
     bool first = true;
@@ -174,6 +179,8 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
     }
     case ASTType::And:
     case ASTType::Or:
+    case ASTType::BitwiseOr:
+    case ASTType::BitwiseAnd:
     case ASTType::NotEquals:
     case ASTType::LessThan:
     case ASTType::GreaterThan:
@@ -305,8 +312,7 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
 
     case ASTType::VarDeclaration: {
       auto var = node->var_decl.var;
-      if (var->is_extern)
-        break;
+      if (var->is_extern) break;
 
       gen_indent(indent);
       gen_type_and_name(var->type, var->name, indent);
@@ -357,17 +363,14 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
 void CodeGenerator::gen_global_vars(Program *program) {
   if (program->global_vars.empty()) return;
   out << "/* global variables */\n";
-  for (auto var_decl : program->global_vars) {
-    gen_statement(var_decl, 0);
-  }
+  for (auto var_decl : program->global_vars) { gen_statement(var_decl, 0); }
   out << "\n";
 }
 
 std::string CodeGenerator::gen_program(Program *program) {
   out.clear();
 
-  for (auto incl : program->c_includes)
-    out << "#include " << incl << "\n";
+  for (auto incl : program->c_includes) out << "#include " << incl << "\n";
   out << "\n";
 
   gen_struct_decls(program);

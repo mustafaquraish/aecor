@@ -38,9 +38,7 @@ int main(int argc, char *argv[]) {
 
   std::stringstream ss;
   ss << "gcc -o out out.c";
-  for (auto flag: program->c_flags) {
-    ss << " " << flag;
-  }
+  for (auto flag : program->c_flags) { ss << " " << flag; }
   auto command = ss.str();
   cout << "[+] " << command << endl;
   auto exit_code = system(command.c_str());

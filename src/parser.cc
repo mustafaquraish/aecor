@@ -88,9 +88,7 @@ Type *Parser::parse_type() {
       consume(TokenType::OpenParen);
       while (!token_is(TokenType::CloseParen)) {
         type->arg_types.push_back(parse_type());
-        if (!consume_if(TokenType::Comma)) {
-          break;
-        }
+        if (!consume_if(TokenType::Comma)) { break; }
       }
       consume(TokenType::CloseParen);
       if (consume_if(TokenType::Colon)) {
@@ -279,13 +277,13 @@ AST *Parser::parse_global_var() {
   Type *type = nullptr;
   if (consume_if(TokenType::Colon)) { type = parse_type(); }
 
-  auto var = new Variable{name.text, type, name.location};
+  auto var           = new Variable{name.text, type, name.location};
   node->var_decl.var = var;
 
   if (consume_if(TokenType::Extern)) {
     var->is_extern = true;
     if (consume_if(TokenType::OpenParen)) {
-      auto name = consume(TokenType::StringLiteral);
+      auto name        = consume(TokenType::StringLiteral);
       var->extern_name = name.text;
       consume(TokenType::CloseParen);
     } else {
@@ -355,9 +353,7 @@ void Parser::parse_into_program(Program *program) {
         program->global_vars.push_back(var);
         break;
       }
-      case TokenType::AtSign:
-        parse_compiler_option(program);
-        break;
+      case TokenType::AtSign: parse_compiler_option(program); break;
       default: UNHANDLED_TYPE();
     }
   };
@@ -483,6 +479,8 @@ ASTType token_to_op(TokenType type) {
   switch (type) {
     case TokenType::And: return ASTType::And;
     case TokenType::Or: return ASTType::Or;
+    case TokenType::Line: return ASTType::BitwiseOr;
+    case TokenType::Ampersand: return ASTType::BitwiseAnd;
 
     case TokenType::GreaterThan: return ASTType::GreaterThan;
     case TokenType::GreaterThanEquals: return ASTType::GreaterThanEquals;
@@ -605,7 +603,7 @@ AST *Parser::parse_factor(bool in_parens) {
           consume_newline_or(TokenType::Comma);
         }
         consume(TokenType::CloseParen);
-        auto call_type = ASTType::Call;
+        auto call_type    = ASTType::Call;
         auto call         = new AST(call_type, paren_loc);
         call->call.callee = node;
         call->call.args   = args;
@@ -663,8 +661,34 @@ AST *Parser::parse_additive(bool in_parens) {
   return lhs;
 }
 
-AST *Parser::parse_relational(bool in_parens) {
+AST *Parser::parse_bw_and(bool in_parens) {
   auto lhs = parse_additive(in_parens);
+  while (token_is(TokenType::Ampersand)) {
+    if (!in_parens && token().newline_before) break;
+    auto node = new AST(token_to_op(token().type), token().location);
+    ++curr;
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_bw_and(in_parens);
+    lhs              = node;
+  }
+  return lhs;
+}
+
+AST *Parser::parse_bw_or(bool in_parens) {
+  auto lhs = parse_bw_and(in_parens);
+  while (token_is(TokenType::Line)) {
+    if (!in_parens && token().newline_before) break;
+    auto node = new AST(token_to_op(token().type), token().location);
+    ++curr;
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_bw_or(in_parens);
+    lhs              = node;
+  }
+  return lhs;
+}
+
+AST *Parser::parse_relational(bool in_parens) {
+  auto lhs = parse_bw_or(in_parens);
   while (token_is(TokenType::LessThan) || token_is(TokenType::GreaterThan) ||
          token_is(TokenType::LessThanEquals) ||
          token_is(TokenType::GreaterThanEquals) ||
