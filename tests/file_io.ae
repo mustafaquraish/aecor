@@ -2,14 +2,14 @@
 
 def main() {
     {
-        let file = fopen("test.txt", "w")
-        defer fclose(file)
+        let file = File::open("test.txt", "w")
+        defer file.close()
 
         fwrite("Hello, world!" as untyped_ptr, 1, 13, file)
     }
     {
-        let file = fopen("test.txt", "r")
-        defer fclose(file)
+        let file = File::open("test.txt", "r")
+        defer file.close()
 
         let mem = malloc(20)
         fread(mem, 1, 13, file)

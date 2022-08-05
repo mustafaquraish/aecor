@@ -115,10 +115,10 @@ void CodeGenerator::gen_struct(StructDef *_struct, int indent) {
 }
 
 void CodeGenerator::gen_function_name(FunctionDef *func) {
-  if (func->is_method) {
-    out << func->struct_name << "__" << func->name;
-  } else if (func->is_extern) {
+  if (func->is_extern) {
     out << func->extern_name;
+  } else if (func->is_method) {
+    out << func->struct_name << "__" << func->name;
   } else {
     out << func->name;
   }

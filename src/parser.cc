@@ -187,9 +187,6 @@ FunctionDef *Parser::parse_function() {
   }
 
   if (consume_if(TokenType::Extern)) {
-    if (is_method && !is_static) {
-      error_loc(name.location, "Extern methods not supported");
-    }
     func->is_extern = true;
     if (consume_if(TokenType::OpenParen)) {
       auto name         = consume(TokenType::StringLiteral);
