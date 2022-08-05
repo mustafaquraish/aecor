@@ -109,6 +109,8 @@ void CodeGenerator::gen_struct_decls(Program *program) {
     auto name = _struct->is_extern ? _struct->extern_name : _struct->name;
     if (_struct->is_enum) {
       out << "typedef enum ";
+    } else if (_struct->is_union) {
+      out << "typedef union ";
     } else {
       out << "typedef struct ";
     }
@@ -138,7 +140,12 @@ void CodeGenerator::gen_struct(StructDef *_struct, int indent) {
   if (_struct->is_extern) return;
 
   auto name = _struct->type->struct_name;
-  out << "struct " << name << " {\n";
+  if (_struct->is_union) {
+    out << "union ";
+  } else {
+    out << "struct ";
+  }
+  out << name << " {\n";
   for (auto field : _struct->fields) {
     gen_indent(indent + 1);
     gen_type_and_name(field->type, field->name, indent);
@@ -324,6 +331,14 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
         gen_expression(arg, indent);
       }
       out << ")";
+      break;
+    }
+
+    case ASTType::Index: {
+      gen_expression(node->binary.lhs, indent);
+      out << "[";
+      gen_expression(node->binary.rhs, indent);
+      out << "]";
       break;
     }
 

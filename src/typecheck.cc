@@ -534,6 +534,19 @@ Type *TypeChecker::check_expression(AST *node) {
       return new Type(BaseType::Pointer, expr_type, expr_type->location);
     }
 
+    case ASTType::Index: {
+      auto expr_type = check_expression(node->binary.lhs);
+      if (expr_type->base != BaseType::Pointer) {
+        error_loc(node->unary.expr->location,
+                  "Cannot index into a non-array/pointer type");
+      }
+      auto index_type = check_expression(node->binary.rhs);
+      if (index_type->base != BaseType::I32) {
+        error_loc(node->binary.rhs->location, "Index must be an integer");
+      }
+      return expr_type->ptr_to;
+    }
+
     case ASTType::Dereference: {
       auto expr_type = check_expression(node->unary.expr);
       if (expr_type->base != BaseType::Pointer) {

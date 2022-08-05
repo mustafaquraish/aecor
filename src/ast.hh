@@ -28,6 +28,7 @@ using namespace std;
   F(GreaterThan, "GreaterThan")                                                \
   F(GreaterThanEquals, "GreaterThanEquals")                                    \
   F(If, "If")                                                                  \
+  F(Index, "Index")                                                            \
   F(IntLiteral, "IntLiteral")                                                  \
   F(LessThan, "LessThan")                                                      \
   F(LessThanEquals, "LessThanEquals")                                          \

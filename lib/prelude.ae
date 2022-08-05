@@ -13,6 +13,8 @@ def free(ptr: untyped_ptr) extern
 struct File extern("FILE")
 def File::open(path: string, mode: string): &File extern("fopen")
 def File::close(&this) extern("fclose")
+def File::tell(&this) extern("ftell")
+def File::seek(&this, offset: i32, whence: i32) extern("fseek")
 
 // TODO: Add nicer wrappers around these
 def fread(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
@@ -24,3 +26,5 @@ def strlen(str: string): i32 extern
 def strcmp(str1: string, str2: string): i32 extern
 def strcpy(dest: string, src: string): string extern
 def strdup(str: string): string extern
+
+def puts(str: string) extern

@@ -237,7 +237,12 @@ StructDef *Parser::parse_enum() {
 }
 
 StructDef *Parser::parse_struct() {
-  consume(TokenType::Struct);
+  auto is_union = false;
+  if (consume_if(TokenType::Union)) {
+    is_union = true;
+  } else {
+    consume(TokenType::Struct);
+  }
 
   auto name = consume(TokenType::Identifier);
 
@@ -274,6 +279,7 @@ StructDef *Parser::parse_struct() {
   type->struct_name = name.text;
   type->struct_def  = _struct;
   _struct->type     = type;
+  _struct->is_union = is_union;
 
   return _struct;
 }
@@ -374,14 +380,12 @@ void Parser::parse_into_program(Program *program) {
         parse_use(program);
         break;
       }
-      case TokenType::Union: {
-        UNHANDLED_TYPE();
-      }
       case TokenType::Enum: {
         auto structure = parse_enum();
         program->structs.push_back(structure);
         break;
       }
+      case TokenType::Union:
       case TokenType::Struct: {
         auto structure = parse_struct();
         program->structs.push_back(structure);
@@ -724,6 +728,15 @@ AST *Parser::parse_factor(bool in_parens) {
         call->call.args             = args;
         call->call.added_method_arg = false;
         node                        = call;
+        break;
+      }
+      case TokenType::OpenSquare: {
+        consume(TokenType::OpenSquare);
+        auto index = new AST(ASTType::Index, token().location);
+        index->binary.lhs = node;
+        index->binary.rhs = parse_expression();
+        consume(TokenType::CloseSquare);
+        node = index;
         break;
       }
       case TokenType::Dot: {
