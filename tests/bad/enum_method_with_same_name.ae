@@ -1,4 +1,4 @@
-/// fail: Cannot call a non-function type
+/// fail: Type already has a field with this name
 
 enum Variable {
     Integer

@@ -151,9 +151,18 @@ std::vector<Token> Lexer::lex() {
         } else if (source[i] == '"') {
           int start = i + 1;
 
-          // help, boolean expressions are hard
-          while (source[i] == '\\' || peek() != '"') { ++i; }
-          ++i;
+          i += 1;
+          auto running = true;
+          while (running) {
+            if (source[i] == '"') {
+              running = false;
+            } else {
+              if (source[i] == '\\') {
+                i += 1;
+              }
+              i += 1;
+            }
+          }
 
           auto view = source.substr(start, i - start);
           push(Token::from_type(TokenType::StringLiteral, loc, view));
