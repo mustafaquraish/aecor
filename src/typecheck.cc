@@ -77,6 +77,10 @@ void TypeChecker::check_all_functions(Program *program) {
       func_type->struct_name = struct_name;
     } else {
       func_type = new Type(BaseType::Function, func->location);
+
+      if (functions.count(name) > 0) {
+        error_loc(func->location, "Function is already defined");
+      }
     }
     func_type->func_def = func;
 
@@ -89,10 +93,6 @@ void TypeChecker::check_all_functions(Program *program) {
       error_loc(func->return_type->location, "Invalid return type");
     func_type->return_type = func->return_type;
     func->type             = func_type;
-
-    if (functions.count(name) > 0) {
-      error_loc(func->location, "Function is already defined");
-    }
 
     if (func->is_method) {
       methods[struct_name][name] = func;
@@ -236,7 +236,8 @@ void TypeChecker::check_statement(AST *node) {
       return;
     }
     case ASTType::For: {
-      if (node->for_loop.init) check_expression(node->for_loop.init);
+      push_scope();
+      if (node->for_loop.init) check_statement(node->for_loop.init);
       if (node->for_loop.cond) {
         auto cond_type = check_expression(node->for_loop.cond);
         if (cond_type->base != BaseType::Bool) {
@@ -245,6 +246,7 @@ void TypeChecker::check_statement(AST *node) {
       }
       if (node->for_loop.incr) check_expression(node->for_loop.incr);
       if (node->for_loop.body) check_statement(node->for_loop.body);
+      pop_scope();
       return;
     }
     case ASTType::If: {
@@ -572,7 +574,11 @@ Type *TypeChecker::check_expression(AST *node) {
       }
 
       auto struct_name = node->member.lhs->var.name;
-      auto field_name  = node->member.name;
+      if (structs.count(struct_name) == 0) {
+        error_loc(node->member.lhs->location, "Unknown struct with this name");
+      }
+
+      auto field_name = node->member.name;
 
       if (auto _method = methods[struct_name].find(field_name);
           _method != methods[struct_name].end()) {

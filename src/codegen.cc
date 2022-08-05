@@ -49,6 +49,17 @@ bool callee_is(AST *node, std::string_view name) {
   return true;
 }
 
+void CodeGenerator::gen_control_body(AST *node, int indent) {
+  if (node->type == ASTType::Block) {
+    gen_block(node, indent);
+    out << " ";
+  } else {
+    out << "\n";
+    gen_statement(node, indent + 1);
+    gen_indent(indent);
+  }
+}
+
 void CodeGenerator::gen_block(AST *node, int indent) {
   out << "{\n";
   scopes.push_back({});
@@ -299,6 +310,17 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
   }
 }
 
+void CodeGenerator::gen_var_decl(AST *node, int indent) {
+  auto var = node->var_decl.var;
+  if (var->is_extern) return;
+
+  gen_type_and_name(var->type, var->name, indent);
+  if (node->var_decl.init) {
+    out << " = ";
+    gen_expression(node->var_decl.init, indent);
+  }
+}
+
 void CodeGenerator::gen_statement(AST *node, int indent) {
   switch (node->type) {
     case ASTType::Block: {
@@ -319,11 +341,12 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
       out << "if (";
       gen_expression(node->if_stmt.cond, indent);
       out << ") ";
-      gen_statement(node->if_stmt.body, indent);
+      gen_control_body(node->if_stmt.body, indent);
       if (node->if_stmt.els) {
-        out << " else ";
-        gen_statement(node->if_stmt.els, indent);
+        out << "else ";
+        gen_control_body(node->if_stmt.els, indent);
       }
+      out << "\n";
       break;
     }
 
@@ -332,11 +355,7 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
       if (var->is_extern) break;
 
       gen_indent(indent);
-      gen_type_and_name(var->type, var->name, indent);
-      if (node->var_decl.init) {
-        out << " = ";
-        gen_expression(node->var_decl.init, indent);
-      }
+      gen_var_decl(node, indent);
       out << ";\n";
       break;
     }
@@ -346,20 +365,29 @@ void CodeGenerator::gen_statement(AST *node, int indent) {
       out << "while (";
       gen_expression(node->while_loop.cond, indent);
       out << ") ";
-      gen_statement(node->while_loop.body, indent);
+      gen_control_body(node->while_loop.body, indent);
+      out << "\n";
       break;
     }
 
     case ASTType::For: {
       gen_indent(indent);
       out << "for (";
-      if (node->for_loop.init) gen_expression(node->for_loop.init, indent);
+      if (node->for_loop.init) {
+        auto init = node->for_loop.init;
+        if (init->type == ASTType::VarDeclaration) {
+          gen_var_decl(init, indent);
+        } else {
+          gen_expression(init, indent);
+        }
+      }
       out << "; ";
       if (node->for_loop.cond) gen_expression(node->for_loop.cond, indent);
       out << "; ";
       if (node->for_loop.incr) gen_expression(node->for_loop.incr, indent);
       out << ")";
-      gen_statement(node->for_loop.body, indent);
+      gen_control_body(node->for_loop.body, indent);
+      out << "\n";
       break;
     }
 

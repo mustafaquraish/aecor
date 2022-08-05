@@ -2,12 +2,13 @@
 @compiler c_include "stdlib.h"
 @compiler c_include "stdbool.h"
 @compiler c_include "stdint.h"
+@compiler c_include "string.h"
 @compiler c_include "./lib/prelude.h"
-
 
 def malloc(size: i32): untyped_ptr extern
 def realloc(old: untyped_ptr, size: i32): untyped_ptr extern
 def calloc(size: i32, num: i32): untyped_ptr extern
+def free(ptr: untyped_ptr) extern
 
 struct File extern("FILE")
 def File::open(path: string, mode: string): &File extern("fopen")
@@ -18,3 +19,8 @@ def fread(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
 def fwrite(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
 
 def exit(code: i32) extern
+
+def strlen(str: string): i32 extern
+def strcmp(str1: string, str2: string): i32 extern
+def strcpy(dest: string, src: string): string extern
+def strdup(str: string): string extern

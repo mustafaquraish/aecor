@@ -1,0 +1,54 @@
+// A type that holds an Image, stored in 32-bit floating point format.
+// Each of the RGB values are supposed to be in the range [0,1].
+// The `Vec` type is used to represent the pixel colors as well.
+
+use "./lib/vec.ae"
+
+struct Image {
+    width: i32
+    height: i32
+    data: &Vec
+}
+
+def Image::new(width: i32, height: i32): &Image {
+    let img = malloc(sizeof(Image)) as &Image
+    img.width = width
+    img.height = height
+    img.data = malloc(width * height * sizeof(Vec)) as &Vec
+    return img
+}
+
+def Image::free(&this) {
+    free(.data as untyped_ptr)
+    free(this as untyped_ptr)
+}
+
+def Image::get(&this, x: i32, y: i32): Vec {
+    let offset = (y * .width + x)
+    return *(.data + offset)
+}
+
+def Image::set(&this, x: i32, y: i32, col: Vec) {
+    let offset = (y * .width + x)
+    *(.data + offset) = col
+}
+
+def Image::save(&this, filename: string) {
+    let f = File::open(filename, "wb")
+    defer f.close()
+
+    let u8buf = malloc(.width * .height * 3 * sizeof(u8)) as &u8
+    defer free(u8buf as untyped_ptr)
+
+    for let i = 0; i < .width * .height; i += 1 {
+        let col = *(.data + i)
+        let offset = u8buf + i * 3
+        *(offset + 0) = (clamp01(col.x) * 255.0) as u8
+        *(offset + 1) = (clamp01(col.y) * 255.0) as u8
+        *(offset + 2) = (clamp01(col.z) * 255.0) as u8
+    }
+
+    let header = `P6 {.width} {.height} 255\n`
+    fwrite(header as untyped_ptr, strlen(header), 1, f)
+    fwrite(u8buf as untyped_ptr, sizeof(u8), 3 * .width * .height, f)
+}

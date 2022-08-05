@@ -1,0 +1,37 @@
+/// out: "3 -> 4 -> 2 -> 1 -> end"
+
+struct Node {
+    val: i32
+    next: &Node
+}
+
+def Node::new(val: i32): &Node {
+    let node = malloc(sizeof(Node)) as &Node;
+    node.val = val;
+    node.next = 0 as &Node;
+    return node;
+}
+
+def Node::add_front(&this, val: i32): &Node {
+    let node = Node::new(val);
+    node.next = this;
+    return node;
+}
+
+def Node::print_list(&this) {
+    let node = this;
+    while node != (0 as &Node) {
+        print("%d -> ", node.val);
+        node = node.next;
+    }
+    print("end\n");
+}
+
+def main() {
+    let head = 0 as &Node
+    head = head.add_front(1)
+    head = head.add_front(2)
+    head = head.add_front(4)
+    head = head.add_front(3)
+    head.print_list();
+}

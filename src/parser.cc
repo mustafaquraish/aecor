@@ -394,9 +394,9 @@ AST *Parser::parse_statement() {
       node = new AST(ASTType::If, token().location);
       consume(TokenType::If);
       node->if_stmt.cond = parse_expression();
-      node->if_stmt.body = parse_block();
+      node->if_stmt.body = parse_statement();
       if (consume_if(TokenType::Else)) {
-        node->if_stmt.els = parse_block();
+        node->if_stmt.els = parse_statement();
       } else {
         node->if_stmt.els = nullptr;
       }
@@ -417,9 +417,18 @@ AST *Parser::parse_statement() {
       node->for_loop.cond = nullptr;
       node->for_loop.incr = nullptr;
 
-      // FIXME: Allow variable declarations in here
-      if (!token_is(TokenType::Semicolon))
-        node->for_loop.init = parse_expression();
+      if (!token_is(TokenType::Semicolon)) {
+        auto init = parse_statement();
+        // FIXME: This doesn't seem very robust...
+        if (init->type != ASTType::Assignment &&
+            init->type != ASTType::VarDeclaration) {
+          error_loc(init->location, "Invalid for loop initializer");
+        }
+        node->for_loop.init = init;
+
+        // This is a hack
+        if (tokens[curr - 1].type == TokenType::Semicolon) { --curr; }
+      }
       consume(TokenType::Semicolon);
       if (!token_is(TokenType::Semicolon))
         node->for_loop.cond = parse_expression();

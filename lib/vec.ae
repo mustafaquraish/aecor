@@ -1,0 +1,78 @@
+// A type that represents a vector in 3D space
+
+use "./lib/math.ae"
+
+struct Vec {
+    x: f32
+    y: f32
+    z: f32
+}
+
+def Vec::make(x: f32, y: f32, z: f32): Vec {
+    let vec: Vec
+    vec.x = x
+    vec.y = y
+    vec.z = z
+    return vec
+}
+
+def Vec::print(this) {
+    println("%f %f %f\n", .x, .y, .z)
+}
+
+def Vec::add(this, other: Vec): Vec {
+    return Vec::make(.x + other.x, .y + other.y, .z + other.z)
+}
+
+def Vec::addf(this, val: f32): Vec {
+    return Vec::make(.x + val, .y + val, .z + val)
+}
+
+def Vec::sub(this, other: Vec): Vec {
+    return Vec::make(.x - other.x, .y - other.y, .z - other.z)
+}
+
+def Vec::subf(this, val: f32): Vec {
+    return Vec::make(.x - val, .y - val, .z - val)
+}
+
+def Vec::mult(this, other: Vec): Vec {
+    return Vec::make(.x * other.x, .y * other.y, .z * other.z)
+}
+
+def Vec::multf(this, val: f32): Vec {
+    return Vec::make(.x * val, .y * val, .z * val)
+}
+
+def Vec::div(this, other: Vec): Vec {
+    return Vec::make(.x / other.x, .y / other.y, .z / other.z)
+}
+
+def Vec::divf(this, val: f32): Vec {
+    return Vec::make(.x / val, .y / val, .z / val)
+}
+
+def Vec::dot(this, other: Vec): f32 {
+    return .x * other.x + .y * other.y + .z * other.z
+}
+
+def Vec::cross(this, other: Vec): Vec {
+    return Vec::make(
+        .y * other.z - .z * other.y
+        .z * other.x - .x * other.z
+        .x * other.y - .y * other.x
+    )
+}
+
+
+def Vec::length(this): f32 {
+    return sqrt(.x * .x + .y * .y + .z * .z);
+}
+
+def Vec::length_sq(this): f32 {
+    return .x * .x + .y * .y + .z * .z;
+}
+
+def Vec::normalized(this): Vec {
+    return .divf(.length());
+}

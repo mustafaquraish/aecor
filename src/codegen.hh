@@ -17,8 +17,12 @@ struct CodeGenerator {
   void gen_op(ASTType type);
   void gen_indent(int indent);
 
+  // For for/if/while
+  void gen_control_body(AST *ast, int indent);
+
   void gen_block(AST *node, int indent);
   void gen_expression(AST *node, int indent);
+  void gen_var_decl(AST *node, int indent);
   void gen_statement(AST *node, int indent);
 
   void gen_type_and_name(Type *type, string_view name, int indent);

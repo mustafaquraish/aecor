@@ -1,0 +1,47 @@
+// Type representing a dynamic list of objects.
+//
+// Due to no generics being available, this is NOT type-safe, but rather
+// stored a list of `untyped_ptr`. When pushing / popping an object,
+// manually cast to the correct type.
+
+struct Vector {
+    size: i32
+    capacity: i32
+    data: &untyped_ptr
+}
+
+def Vector::new(): &Vector {
+    let vec = malloc(sizeof(Vector)) as &Vector
+    vec.size = 0
+    vec.capacity = 16
+    vec.data = malloc(vec.capacity * sizeof(untyped_ptr)) as &untyped_ptr
+    return vec
+}
+
+def Vector::push(&this, val: untyped_ptr) {
+    if .size == .capacity {
+        .capacity *= 2
+        .data = realloc(
+            .data as untyped_ptr,
+            .capacity * sizeof(untyped_ptr)) as &untyped_ptr
+    }
+    *(.data + .size) = val
+    .size += 1
+}
+
+def Vector::pop(&this): untyped_ptr {
+    if .size == 0 {
+        println("pop on empty vector")
+        exit(1)
+    }
+    .size -= 1
+    return *(.data + .size)
+}
+
+def Vector::at(&this, i: i32): untyped_ptr {
+    if i < 0 or i >= .size {
+        println("at out of bounds in vector")
+        exit(1)
+    }
+    return *(.data + i)
+}
