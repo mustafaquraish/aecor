@@ -261,24 +261,28 @@ void TypeChecker::check_statement(AST *node) {
 
 void TypeChecker::check_method_call(Type *method_type, AST *node) {
   auto callee = node->call.callee;
-  if (node->call.callee->type != ASTType::Member) {
-    error_loc(node->call.callee->location,
+  if (callee->type != ASTType::Member &&
+      callee->type != ASTType::StaticMember) {
+    error_loc(callee->location,
               "Method call is not to a member, internal compiler error");
   }
 
-  auto first_arg = callee->member.lhs;
-  if (!callee->member.is_pointer) {
-    auto ptr        = new AST(ASTType::Address, first_arg->location);
-    ptr->unary.expr = first_arg;
-    first_arg       = ptr;
+  auto method = methods[method_type->struct_name][callee->member.name];
+
+  if (callee->type == ASTType::Member) {
+    auto first_arg = callee->member.lhs;
+    if (!callee->member.is_pointer) {
+      auto ptr        = new AST(ASTType::Address, first_arg->location);
+      ptr->unary.expr = first_arg;
+      first_arg       = ptr;
+    }
+    node->call.args->insert(node->call.args->begin(), first_arg);
   }
-  node->call.args->insert(node->call.args->begin(), first_arg);
 
   // NOTE: This is a hack to make sure codegen is correct.
   //       Ideally we should have CodeGenerator figure this out, since
   //       it is only specific to C.
-  auto method     = methods[method_type->struct_name][callee->member.name];
-  auto new_callee = new AST(ASTType::Var, callee->location);
+  auto new_callee             = new AST(ASTType::Var, callee->location);
   new_callee->var.is_function = true;
   new_callee->var.function    = method;
   node->call.callee           = new_callee;
@@ -394,7 +398,7 @@ Type *TypeChecker::check_expression(AST *node) {
     case ASTType::FormatStringLiteral: return check_format_string(node);
     case ASTType::SizeOf: {
       if (!type_is_valid(node->sizeof_type)) {
-        error_loc(node->cast.to_type->location, "Invalid type");
+        error_loc(node->location, "Invalid type");
       }
       return new Type(BaseType::I32, node->location);
     }
@@ -545,6 +549,26 @@ Type *TypeChecker::check_expression(AST *node) {
       return lhs;
     }
 
+    case ASTType::StaticMember: {
+      if (node->member.lhs->type != ASTType::Var) {
+        error_loc(node->location,
+                  "Left hand side of `::` must be a struct name");
+      }
+
+      auto struct_name = node->member.lhs->var.name;
+      auto field_name  = node->member.name;
+
+      if (auto _method = methods[struct_name].find(field_name);
+          _method != methods[struct_name].end()) {
+        auto method = _method->second;
+        // Note: This _can_ be an instance method, the user just needs to
+        //       call the method with the `this` parameter manually.
+        return method->type;
+      }
+
+      error_loc(node->location, "Struct has no static method with this name");
+    }
+
     case ASTType::Member: {
       auto lhs_type = check_expression(node->member.lhs);
       if (!lhs_type->is_struct_or_ptr()) {
@@ -563,9 +587,14 @@ Type *TypeChecker::check_expression(AST *node) {
       if (auto field = get_struct_member(struct_name, field_name))
         return field->type;
 
-      if (auto method = methods[struct_type->struct_name].find(field_name);
-          method != methods[struct_type->struct_name].end()) {
-        return method->second->type;
+      if (auto _method = methods[struct_type->struct_name].find(field_name);
+          _method != methods[struct_type->struct_name].end()) {
+        auto method = _method->second;
+        if (method->is_static) {
+          error_loc(node->location,
+                    "Member access requires a non-static method");
+        }
+        return method->type;
       }
 
       error_loc(node->location, "Struct has no member with this name");

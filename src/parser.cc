@@ -133,6 +133,7 @@ FunctionDef *Parser::parse_function() {
 
   auto struct_name = string_view();
   auto is_method   = false;
+  auto is_static   = false;
   auto name        = consume(TokenType::Identifier);
   if (consume_if(TokenType::ColonColon)) {
     is_method   = true;
@@ -158,8 +159,7 @@ FunctionDef *Parser::parse_function() {
           struct_type->struct_name = struct_name;
           type = new Type(BaseType::Pointer, struct_type, name.location);
         } else {
-          error_loc(name.location,
-                    "Expected 'this', static methods not supported yet");
+          is_static = true;
         }
       }
     }
@@ -171,12 +171,10 @@ FunctionDef *Parser::parse_function() {
     if (!consume_if(TokenType::Comma)) break;
   }
 
+  // No parameters on a method means it's a static method.
+  if (is_method && func->params.size() == 0) { is_static = true; }
+  func->is_static = is_static;
   consume(TokenType::CloseParen);
-  if (func->is_method && func->params.size() == 0) {
-    error_loc(
-        name.location,
-        "Expected 'this' as first argument, static methods not supported yet");
-  }
 
   if (consume_if(TokenType::Colon)) {
     func->return_type = parse_type();
@@ -189,7 +187,9 @@ FunctionDef *Parser::parse_function() {
   }
 
   if (consume_if(TokenType::Extern)) {
-    if (is_method) { error_loc(name.location, "Extern methods not supported"); }
+    if (is_method && !is_static) {
+      error_loc(name.location, "Extern methods not supported");
+    }
     func->is_extern = true;
     if (consume_if(TokenType::OpenParen)) {
       auto name         = consume(TokenType::StringLiteral);
@@ -679,6 +679,15 @@ AST *Parser::parse_factor(bool in_parens) {
         consume(TokenType::Dot);
         auto name           = consume(TokenType::Identifier);
         auto member         = new AST(ASTType::Member, name.location);
+        member->member.lhs  = node;
+        member->member.name = name.text;
+        node                = member;
+        break;
+      }
+      case TokenType::ColonColon: {
+        consume(TokenType::ColonColon);
+        auto name           = consume(TokenType::Identifier);
+        auto member         = new AST(ASTType::StaticMember, name.location);
         member->member.lhs  = node;
         member->member.name = name.text;
         node                = member;

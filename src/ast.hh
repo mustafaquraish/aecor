@@ -42,6 +42,7 @@ using namespace std;
   F(PlusEquals, "PlusEquals")                                                  \
   F(Return, "Return")                                                          \
   F(SizeOf, "SizeOf")                                                          \
+  F(StaticMember, "StaticMember")                                              \
   F(StringLiteral, "StringLiteral")                                            \
   F(UnaryMinus, "UnaryMinus")                                                  \
   F(Var, "Var")                                                                \
@@ -159,6 +160,7 @@ struct FunctionDef {
   AST *body;
 
   bool is_method;
+  bool is_static;
   string_view struct_name;
   Location location;
 

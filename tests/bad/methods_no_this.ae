@@ -1,5 +1,0 @@
-/// fail: static methods not supported yet
-
-struct Foo {}
-
-def Foo::bar() {}
