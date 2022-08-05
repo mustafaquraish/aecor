@@ -644,6 +644,14 @@ AST *Parser::parse_factor(bool in_parens) {
       consume(TokenType::CloseParen);
       break;
     }
+    case TokenType::SizeOf: {
+      node = new AST(ASTType::SizeOf, token().location);
+      consume(TokenType::SizeOf);
+      consume(TokenType::OpenParen);
+      node->sizeof_type = parse_type();
+      consume(TokenType::CloseParen);
+      break;
+    }
     default: UNHANDLED_TYPE();
   }
 

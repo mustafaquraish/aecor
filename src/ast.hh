@@ -41,6 +41,7 @@ using namespace std;
   F(Plus, "Plus")                                                              \
   F(PlusEquals, "PlusEquals")                                                  \
   F(Return, "Return")                                                          \
+  F(SizeOf, "SizeOf")                                                          \
   F(StringLiteral, "StringLiteral")                                            \
   F(UnaryMinus, "UnaryMinus")                                                  \
   F(Var, "Var")                                                                \
@@ -142,6 +143,7 @@ struct AST {
       Type *to_type;
     } cast;
 
+    Type *sizeof_type;
     string_view num_literal;
     string_view string_literal;
     bool bool_literal;

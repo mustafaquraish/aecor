@@ -273,6 +273,11 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       break;
     }
 
+    case ASTType::SizeOf: {
+      out << "sizeof(" << *node->sizeof_type << ")";
+      break;
+    }
+
     case ASTType::FormatStringLiteral: {
       out << "__format_string(\"" << node->string_literal << "\"";
       for (auto arg : *node->format_str.expr_args) {

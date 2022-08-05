@@ -25,6 +25,7 @@
   F(Not, "not")                                                                \
   F(Or, "or")                                                                  \
   F(Return, "return")                                                          \
+  F(SizeOf, "sizeof")                                                          \
   F(String, "string")                                                          \
   F(Struct, "struct")                                                          \
   F(True, "true")                                                              \

@@ -392,6 +392,12 @@ Type *TypeChecker::check_expression(AST *node) {
       return new Type(BaseType::Pointer, BaseType::Char, node->location);
 
     case ASTType::FormatStringLiteral: return check_format_string(node);
+    case ASTType::SizeOf: {
+      if (!type_is_valid(node->sizeof_type)) {
+        error_loc(node->cast.to_type->location, "Invalid type");
+      }
+      return new Type(BaseType::I32, node->location);
+    }
 
     case ASTType::Var: {
       auto var = find_var(node->var.name);
