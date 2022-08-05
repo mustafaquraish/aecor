@@ -381,6 +381,7 @@ Type *TypeChecker::check_format_string(AST *node) {
       error_loc(expr_arg->location, "Format expression is of unsupported type");
     }
   }
+  ss << format_parts->back();
 
   node->format_str.format_str = *new string(ss.str());
   return new Type(BaseType::Pointer, BaseType::Char, node->location);
