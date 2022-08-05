@@ -32,6 +32,8 @@ struct CodeGenerator {
   void gen_function_decls(Program *program);
   void gen_function(FunctionDef *node, int indent);
 
+  void gen_enum_value(string_view enum_name, string_view value_name);
+  void gen_enum(StructDef *node, int indent);
   void gen_struct_decls(Program *program);
   void gen_struct(StructDef *node, int indent);
 

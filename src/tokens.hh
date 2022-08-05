@@ -14,6 +14,7 @@
   F(Def, "def")                                                                \
   F(Defer, "defer")                                                            \
   F(Else, "else")                                                              \
+  F(Enum, "enum")                                                              \
   F(Extern, "extern")                                                          \
   F(False, "false")                                                            \
   F(F32, "f32")                                                                \
@@ -31,6 +32,7 @@
   F(True, "true")                                                              \
   F(U8, "u8")                                                                  \
   F(UnypedPtr, "untyped_ptr")                                                  \
+  F(Union, "union")                                                            \
   F(Use, "use")                                                                \
   F(Void, "void")                                                              \
   F(While, "while")

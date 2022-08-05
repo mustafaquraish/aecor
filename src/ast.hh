@@ -20,6 +20,7 @@ using namespace std;
   F(Dereference, "Dereference")                                                \
   F(Divide, "Divide")                                                          \
   F(DivideEquals, "DivideEquals")                                              \
+  F(EnumValue, "EnumValue")                                                    \
   F(Equals, "Equals")                                                          \
   F(FloatLiteral, "FloatLiteral")                                              \
   F(FormatStringLiteral, "FormatStringLiteral")                                \
@@ -42,7 +43,7 @@ using namespace std;
   F(PlusEquals, "PlusEquals")                                                  \
   F(Return, "Return")                                                          \
   F(SizeOf, "SizeOf")                                                          \
-  F(StaticMember, "StaticMember")                                              \
+  F(ScopeLookup, "ScopeLookup")                                                \
   F(StringLiteral, "StringLiteral")                                            \
   F(UnaryMinus, "UnaryMinus")                                                  \
   F(Var, "Var")                                                                \
@@ -118,6 +119,11 @@ struct AST {
     } member;
 
     struct {
+      StructDef *enum_def;
+      string_view name;
+    } enum_value;
+
+    struct {
       Variable *var;
       AST *init;
     } var_decl;
@@ -178,10 +184,12 @@ struct StructDef {
   string_view name;
   vector<Variable *> fields;
   Location location;
-  vector<FunctionDef *> methods;
 
   bool is_extern = false;
   string_view extern_name;
+
+  bool is_enum  = false;
+  bool is_union = false;
 
   StructDef(Location loc) : location(loc) {}
 };

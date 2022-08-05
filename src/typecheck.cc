@@ -64,13 +64,13 @@ void TypeChecker::check_all_functions(Program *program) {
 
     if (func->is_method) {
       if (structs.count(struct_name) == 0) {
-        error_loc(func->location, "Struct for method does not exist");
+        error_loc(func->location, "Type for method does not exist");
       }
       if (methods[struct_name].count(name) > 0) {
-        error_loc(func->location, "Method is already defined in struct");
+        error_loc(func->location, "Method is already defined for this type");
       }
       if (auto var = get_struct_member(struct_name, name); var != nullptr) {
-        error_loc(func->location, "Struct already has a field with this name");
+        error_loc(func->location, "Type already has a field with this name");
       }
 
       func_type              = new Type(BaseType::Method, func->location);
@@ -146,6 +146,7 @@ bool TypeChecker::type_is_valid(Type *type) {
     }
     case BaseType::Struct: {
       if (auto s = structs.find(type->struct_name); s != structs.end()) {
+        // Fill in the struct_def for unvalidated stucts
         type->struct_def = s->second;
         return true;
       }
@@ -264,8 +265,7 @@ void TypeChecker::check_statement(AST *node) {
 
 void TypeChecker::check_method_call(Type *method_type, AST *node) {
   auto callee = node->call.callee;
-  if (callee->type != ASTType::Member &&
-      callee->type != ASTType::StaticMember) {
+  if (callee->type != ASTType::Member && callee->type != ASTType::ScopeLookup) {
     error_loc(callee->location,
               "Method call is not to a member, internal compiler error");
   }
@@ -483,7 +483,10 @@ Type *TypeChecker::check_expression(AST *node) {
         error_loc(node->location, "Operands must be be of the same type");
       }
       if (lhs_type->base == BaseType::Struct) {
-        error_loc(node->location, "Cannot compare structs directly");
+        auto struct_def = structs[lhs_type->struct_name];
+        if (!struct_def->is_enum) {
+          error_loc(node->location, "Cannot compare structs directly");
+        }
       }
       return new Type(BaseType::Bool, node->location);
     }
@@ -567,7 +570,7 @@ Type *TypeChecker::check_expression(AST *node) {
       return lhs;
     }
 
-    case ASTType::StaticMember: {
+    case ASTType::ScopeLookup: {
       if (node->member.lhs->type != ASTType::Var) {
         error_loc(node->location,
                   "Left hand side of `::` must be a struct name");
@@ -578,7 +581,19 @@ Type *TypeChecker::check_expression(AST *node) {
         error_loc(node->member.lhs->location, "Unknown struct with this name");
       }
 
+      auto struct_def = structs[struct_name];
       auto field_name = node->member.name;
+
+      if (struct_def->is_enum) {
+        if (auto var = get_struct_member(struct_name, field_name)) {
+          // FIXME: This is a hack, we're modifying the AST Node type
+          // This is an enum value
+          node->type                = ASTType::EnumValue;
+          node->enum_value.enum_def = struct_def;
+          node->enum_value.name     = field_name;
+          return struct_def->type;
+        }
+      }
 
       if (auto _method = methods[struct_name].find(field_name);
           _method != methods[struct_name].end()) {
@@ -606,8 +621,11 @@ Type *TypeChecker::check_expression(AST *node) {
       auto struct_name = struct_type->struct_name;
       auto field_name  = node->member.name;
 
-      if (auto field = get_struct_member(struct_name, field_name))
-        return field->type;
+      auto struct_ = structs[struct_name];
+      if (!struct_->is_enum) {
+        if (auto field = get_struct_member(struct_name, field_name))
+          return field->type;
+      }
 
       if (auto _method = methods[struct_type->struct_name].find(field_name);
           _method != methods[struct_type->struct_name].end()) {
@@ -619,7 +637,11 @@ Type *TypeChecker::check_expression(AST *node) {
         return method->type;
       }
 
-      error_loc(node->location, "Struct has no member with this name");
+      if (struct_->is_enum) {
+        error_loc(node->location, "Enum has no method with this name");
+      } else {
+        error_loc(node->location, "Struct has no member with this name");
+      }
     }
 
     case ASTType::Cast: {

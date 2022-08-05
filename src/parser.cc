@@ -211,6 +211,31 @@ FunctionDef *Parser::parse_function() {
   return func;
 };
 
+StructDef *Parser::parse_enum() {
+  consume(TokenType::Enum);
+  auto name = consume(TokenType::Identifier);
+
+  auto enum_def     = new StructDef(name.location);
+  enum_def->name    = name.text;
+  enum_def->is_enum = true;
+
+  auto type         = new Type(BaseType::Struct, name.location);
+  type->struct_name = name.text;
+  enum_def->type    = type;
+  type->struct_def  = enum_def;
+
+  consume(TokenType::OpenCurly);
+  while (!token_is(TokenType::CloseCurly)) {
+    auto name = consume(TokenType::Identifier);
+    auto type = new Type(BaseType::I32, name.location);
+    enum_def->fields.push_back(new Variable{name.text, type, name.location});
+    consume_newline_or(TokenType::Comma);
+  }
+  consume(TokenType::CloseCurly);
+
+  return enum_def;
+}
+
 StructDef *Parser::parse_struct() {
   consume(TokenType::Struct);
 
@@ -247,6 +272,7 @@ StructDef *Parser::parse_struct() {
 
   auto type         = new Type(BaseType::Struct, name.location);
   type->struct_name = name.text;
+  type->struct_def  = _struct;
   _struct->type     = type;
 
   return _struct;
@@ -346,6 +372,14 @@ void Parser::parse_into_program(Program *program) {
       }
       case TokenType::Use: {
         parse_use(program);
+        break;
+      }
+      case TokenType::Union: {
+        UNHANDLED_TYPE();
+      }
+      case TokenType::Enum: {
+        auto structure = parse_enum();
+        program->structs.push_back(structure);
         break;
       }
       case TokenType::Struct: {
@@ -704,7 +738,7 @@ AST *Parser::parse_factor(bool in_parens) {
       case TokenType::ColonColon: {
         consume(TokenType::ColonColon);
         auto name           = consume(TokenType::Identifier);
-        auto member         = new AST(ASTType::StaticMember, name.location);
+        auto member         = new AST(ASTType::ScopeLookup, name.location);
         member->member.lhs  = node;
         member->member.name = name.text;
         node                = member;

@@ -1,4 +1,4 @@
-/// fail: Method is already defined in struct
+/// fail: Method is already defined for this type
 
 struct Foo {}
 def Foo::bar(this) {}

@@ -31,6 +31,7 @@ struct Parser {
 
   AST *parse_global_var();
   FunctionDef *parse_function();
+  StructDef *parse_enum();
   StructDef *parse_struct();
   AST *parse_block();
   AST *parse_statement();

@@ -107,9 +107,31 @@ void CodeGenerator::gen_struct_decls(Program *program) {
   for (auto _struct : program->structs) {
     if (_struct->is_extern) continue;
     auto name = _struct->is_extern ? _struct->extern_name : _struct->name;
-    out << "typedef struct " << name << " " << name << ";\n";
+    if (_struct->is_enum) {
+      out << "typedef enum ";
+    } else {
+      out << "typedef struct ";
+    }
+    out << name << " " << name << ";\n";
   }
   out << "\n";
+}
+
+void CodeGenerator::gen_enum_value(string_view enum_name,
+                                   string_view value_name) {
+  out << enum_name << "__" << value_name;
+}
+
+void CodeGenerator::gen_enum(StructDef *node, int indent) {
+  if (node->is_extern) return;
+  out << "enum " << node->name << " {\n";
+  for (auto member : node->fields) {
+    gen_indent(indent + 1);
+    gen_enum_value(node->name, member->name);
+    out << ",\n";
+  }
+  gen_indent(indent);
+  out << "};\n\n";
 }
 
 void CodeGenerator::gen_struct(StructDef *_struct, int indent) {
@@ -217,6 +239,10 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
     case ASTType::IntLiteral: out << node->num_literal; break;
     case ASTType::FloatLiteral: out << node->num_literal; break;
     case ASTType::BoolLiteral: out << node->bool_literal; break;
+    case ASTType::EnumValue: {
+      gen_enum_value(node->enum_value.enum_def->name, node->enum_value.name);
+      break;
+    }
     case ASTType::Var: {
       if (node->var.is_function) {
         // Function
@@ -419,7 +445,13 @@ std::string CodeGenerator::gen_program(Program *program) {
   out << "\n";
 
   gen_struct_decls(program);
-  for (auto structure : program->structs) { gen_struct(structure, 0); }
+  for (auto structure : program->structs) {
+    if (structure->is_enum) {
+      gen_enum(structure, 0);
+    } else {
+      gen_struct(structure, 0);
+    }
+  }
   gen_function_decls(program);
   gen_global_vars(program);
   for (auto func : program->functions) { gen_function(func, 0); }
