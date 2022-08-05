@@ -11,7 +11,7 @@ def calloc(size: i32, num: i32): untyped_ptr extern
 
 struct File extern("FILE")
 def File::open(path: string, mode: string): &File extern("fopen")
-def File::close(this) extern("fclose")
+def File::close(&this) extern("fclose")
 
 // TODO: Add nicer wrappers around these
 def fread(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern

@@ -149,6 +149,8 @@ FunctionDef *Parser::parse_function() {
   consume(TokenType::OpenParen);
   bool first = true;
   while (!token_is(TokenType::CloseParen)) {
+    auto found_ampersand = consume_if(TokenType::Ampersand);
+
     auto name  = consume(TokenType::Identifier);
     Type *type = nullptr;
     if (first) {
@@ -157,7 +159,13 @@ FunctionDef *Parser::parse_function() {
         if (name.text == "this") {
           auto struct_type         = new Type(BaseType::Struct, name.location);
           struct_type->struct_name = struct_name;
-          type = new Type(BaseType::Pointer, struct_type, name.location);
+          if (found_ampersand) {
+            type = new Type(BaseType::Pointer, struct_type, name.location);
+          } else {
+            type = struct_type;
+          }
+        } else if (found_ampersand) {
+          error_loc(name.location, "Expected 'this' over here");
         } else {
           is_static = true;
         }
@@ -574,8 +582,9 @@ AST *Parser::parse_factor(bool in_parens) {
     case TokenType::Dot: {
       node = new AST(ASTType::Member, token().location);
 
-      auto lhs      = new AST(ASTType::Var, token().location);
-      lhs->var.name = "this";
+      auto lhs             = new AST(ASTType::Var, token().location);
+      lhs->var.name        = "this";
+      lhs->var.is_function = false;
       consume(TokenType::Dot);
 
       auto name = consume(TokenType::Identifier);
@@ -631,8 +640,9 @@ AST *Parser::parse_factor(bool in_parens) {
       break;
     }
     case TokenType::Identifier: {
-      node           = new AST(ASTType::Var, token().location);
-      node->var.name = consume(TokenType::Identifier).text;
+      node                  = new AST(ASTType::Var, token().location);
+      node->var.name        = consume(TokenType::Identifier).text;
+      node->var.is_function = false;
       break;
     }
     case TokenType::OpenParen: {
@@ -665,11 +675,12 @@ AST *Parser::parse_factor(bool in_parens) {
           consume_newline_or(TokenType::Comma);
         }
         consume(TokenType::CloseParen);
-        auto call_type    = ASTType::Call;
-        auto call         = new AST(call_type, paren_loc);
-        call->call.callee = node;
-        call->call.args   = args;
-        node              = call;
+        auto call_type              = ASTType::Call;
+        auto call                   = new AST(call_type, paren_loc);
+        call->call.callee           = node;
+        call->call.args             = args;
+        call->call.added_method_arg = false;
+        node                        = call;
         break;
       }
       case TokenType::Dot: {

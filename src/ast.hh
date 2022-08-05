@@ -106,6 +106,8 @@ struct AST {
     struct {
       AST *callee;
       vector<AST *> *args;
+      FunctionDef *func_def;
+      bool added_method_arg;
     } call;
 
     struct {

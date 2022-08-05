@@ -4,7 +4,7 @@ struct Foo {
     x: i32
 }
 
-def Foo::foo(this): i32 {
+def Foo::foo(&this): i32 {
     return .x
 }
 

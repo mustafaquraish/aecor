@@ -1,0 +1,8 @@
+/// fail: Struct has no static method with this name
+
+struct Foo {}
+
+def main() {
+    Foo::foo()
+    Bar::foo()
+}

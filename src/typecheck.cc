@@ -78,6 +78,7 @@ void TypeChecker::check_all_functions(Program *program) {
     } else {
       func_type = new Type(BaseType::Function, func->location);
     }
+    func_type->func_def = func;
 
     for (auto param : func->params) {
       if (!type_is_valid(param->type))
@@ -267,25 +268,36 @@ void TypeChecker::check_method_call(Type *method_type, AST *node) {
               "Method call is not to a member, internal compiler error");
   }
 
-  auto method = methods[method_type->struct_name][callee->member.name];
+  auto method         = methods[method_type->struct_name][callee->member.name];
+  node->call.func_def = method;
+
+  // Due to the way we handle typechecking, we might run this function twice
+  // on the same node. This is fine, but we need to make sure we don't double
+  // add the method argument twice implicitly.
+  if (node->call.added_method_arg) return;
+  node->call.added_method_arg = true;
 
   if (callee->type == ASTType::Member) {
-    auto first_arg = callee->member.lhs;
-    if (!callee->member.is_pointer) {
+    if (method->params.size() == 0) {
+      // This should ideally never happen.
+      error_loc(callee->location,
+                "Instance method should have `this` argument, internal error");
+    }
+    auto method_param = method->params[0]->type;
+    auto first_arg    = callee->member.lhs;
+    if (callee->member.is_pointer && method_param->base != BaseType::Pointer) {
+      auto ptr        = new AST(ASTType::Dereference, first_arg->location);
+      ptr->unary.expr = first_arg;
+      first_arg       = ptr;
+    } else if (!callee->member.is_pointer &&
+               method_param->base == BaseType::Pointer) {
       auto ptr        = new AST(ASTType::Address, first_arg->location);
       ptr->unary.expr = first_arg;
       first_arg       = ptr;
     }
+
     node->call.args->insert(node->call.args->begin(), first_arg);
   }
-
-  // NOTE: This is a hack to make sure codegen is correct.
-  //       Ideally we should have CodeGenerator figure this out, since
-  //       it is only specific to C.
-  auto new_callee             = new AST(ASTType::Var, callee->location);
-  new_callee->var.is_function = true;
-  new_callee->var.function    = method;
-  node->call.callee           = new_callee;
 }
 
 Type *TypeChecker::check_call(AST *node) {
@@ -300,7 +312,8 @@ Type *TypeChecker::check_call(AST *node) {
     }
   }
 
-  auto func_type = check_expression(callee);
+  auto func_type      = check_expression(callee);
+  node->call.func_def = func_type->func_def;
   if (func_type->base != BaseType::Function &&
       func_type->base != BaseType::Method) {
     error_loc(node->call.callee->location, "Cannot call a non-function type");
@@ -405,6 +418,8 @@ Type *TypeChecker::check_expression(AST *node) {
     }
 
     case ASTType::Var: {
+      if (node->var.is_function) { return node->var.function->type; }
+
       auto var = find_var(node->var.name);
       if (var != nullptr) {
         node->var.is_function = false;

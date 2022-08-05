@@ -244,8 +244,10 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
       } else if (callee_is(node, "println")) {
         out << "printf";
         newline_after_first = true;
-      } else {
+      } else if (!node->call.func_def) {
         gen_expression(node->call.callee, indent);
+      } else {
+        gen_function_name(node->call.func_def);
       }
       out << "(";
       bool first = true;

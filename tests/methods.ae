@@ -5,13 +5,13 @@ struct Rectangle {
     height: i32
 }
 
-def Rectangle::area(this): i32 {
-    return this.width * this.height
+def Rectangle::area(&this): i32 {
+    return .width * .height
 }
 
-def Rectangle::scale(this, factor: i32) {
-    this.width = this.width * factor
-    this.height = this.height * factor
+def Rectangle::scale(&this, factor: i32) {
+    .width = .width * factor
+    .height = .height * factor
 }
 
 def main() {

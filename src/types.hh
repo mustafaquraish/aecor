@@ -25,6 +25,7 @@ enum class BaseType {
 };
 
 struct StructDef;
+struct FunctionDef;
 
 struct Type {
   BaseType base;
@@ -38,6 +39,7 @@ struct Type {
   // For Functions / methods
   Type *return_type;
   vector<Type *> arg_types;
+  FunctionDef *func_def = nullptr;  // Filled in only if possible.
 
   Type(BaseType base, Location loc)
       : base(base), ptr_to(nullptr), location(loc) {}
