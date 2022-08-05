@@ -716,7 +716,7 @@ AST *Parser::parse_term(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_term(in_parens);
+    node->binary.rhs = parse_factor(in_parens);
     lhs              = node;
   }
   return lhs;
@@ -729,7 +729,7 @@ AST *Parser::parse_additive(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_additive(in_parens);
+    node->binary.rhs = parse_term(in_parens);
     lhs              = node;
   }
   return lhs;
@@ -742,7 +742,7 @@ AST *Parser::parse_bw_and(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_bw_and(in_parens);
+    node->binary.rhs = parse_additive(in_parens);
     lhs              = node;
   }
   return lhs;
@@ -755,7 +755,7 @@ AST *Parser::parse_bw_or(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_bw_or(in_parens);
+    node->binary.rhs = parse_bw_and(in_parens);
     lhs              = node;
   }
   return lhs;
@@ -771,7 +771,7 @@ AST *Parser::parse_relational(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_relational(in_parens);
+    node->binary.rhs = parse_bw_or(in_parens);
     lhs              = node;
   }
   return lhs;
@@ -784,7 +784,7 @@ AST *Parser::parse_logical_and(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_logical_and(in_parens);
+    node->binary.rhs = parse_relational(in_parens);
     lhs              = node;
   }
   return lhs;
@@ -797,7 +797,7 @@ AST *Parser::parse_logical_or(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_logical_or(in_parens);
+    node->binary.rhs = parse_logical_and(in_parens);
     lhs              = node;
   }
   return lhs;
@@ -813,7 +813,7 @@ AST *Parser::parse_expression(bool in_parens) {
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
-    node->binary.rhs = parse_expression(in_parens);
+    node->binary.rhs = parse_logical_or(in_parens);
     lhs              = node;
   }
 

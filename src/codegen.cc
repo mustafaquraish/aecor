@@ -26,8 +26,8 @@ void CodeGenerator::gen_op(ASTType type) {
     case ASTType::MinusEquals: out << " -= "; return;
     case ASTType::MultiplyEquals: out << " *= "; return;
     case ASTType::DivideEquals: out << " /= "; return;
-    case ASTType::LessThanEquals: out << " < "; return;
-    case ASTType::GreaterThanEquals: out << " > "; return;
+    case ASTType::LessThanEquals: out << " <= "; return;
+    case ASTType::GreaterThanEquals: out << " >= "; return;
 
     case ASTType::Equals: out << " == "; return;
     case ASTType::NotEquals: out << " != "; return;
