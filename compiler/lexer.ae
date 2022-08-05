@@ -1,0 +1,209 @@
+use "./lib/vector.ae"
+use "./compiler/tokens.ae"
+
+@compiler c_include "ctype.h"
+@compiler c_flag "-ggdb3"
+def is_alpha(c: char): bool extern("isalpha")
+def is_digit(c: char): bool extern("isdigit")
+def is_alnum(c: char): bool extern("isalnum")
+
+struct Lexer {
+    source: string
+    source_len: i32
+    filename: string
+    i: i32
+    line: i32
+    col: i32
+    seen_newline: bool
+    tokens: &Vector
+}
+
+def Lexer::make(source: string, filename: string): Lexer {
+    let lexer: Lexer
+    lexer.source = source
+    lexer.source_len = strlen(source)
+    lexer.filename = filename
+    lexer.i = 0
+    lexer.line = 1
+    lexer.col = 1
+    lexer.seen_newline = false
+    lexer.tokens = Vector::new()
+    return lexer
+}
+
+def Lexer::location(&this): Location {
+    return Location::make(.filename, .line, .col)
+}
+
+def Lexer::push(&this, token: &Token) {
+    token.seen_newline = .seen_newline
+    .tokens.push(token as untyped_ptr)
+    .seen_newline = false
+}
+
+def Lexer::push_type(&this, type: TokenType, len: i32) {
+    .push(Token::from_type(type, .location()))
+    .i += len
+    .col += len
+}
+
+def Lexer::peek(&this, offset: i32): char {
+    if .source[.i] == (0 as char) {
+        return .source[.i]
+    }
+    return .source[.i + 1]
+}
+
+def Lexer::lex(&this): &Vector {
+    while .i < .source_len {
+        let c = .source[.i]
+        if (c == "\t"[0] or
+            c == "\v"[0] or
+            c == "\r"[0] or
+            c ==  " "[0]) {
+            .i += 1
+            .col += 1
+        } else if (c == "\n"[0]) {
+            .line += 1
+            .col = 1
+            .i += 1
+            .seen_newline = true
+        } else if (c == "!"[0]) {
+            if (.peek(1) == "="[0]) {
+                .push_type(TokenType::NotEquals, 2)
+            } else {
+                .push_type(TokenType::Exclamation, 1)
+            }
+        } else if (c == ":"[0]) {
+            if (.peek(1) == ":"[0]) {
+                .push_type(TokenType::ColonColon, 2)
+            } else {
+                .push_type(TokenType::Colon, 1)
+            }
+        } else if (c == ";"[0]) {
+            .push_type(TokenType::Semicolon, 1)
+        } else if (c == ","[0]) {
+            .push_type(TokenType::Comma, 1)
+        } else if (c == "."[0]) {
+            .push_type(TokenType::Dot, 1)
+        } else if (c == "("[0]) {
+            .push_type(TokenType::OpenParen, 1)
+        } else if (c == ")"[0]) {
+            .push_type(TokenType::CloseParen, 1)
+        } else if (c == "["[0]) {
+            .push_type(TokenType::OpenSquare, 1)
+        } else if (c == "]"[0]) {
+            .push_type(TokenType::CloseSquare, 1)
+        } else if (c == "{"[0]) {
+            .push_type(TokenType::OpenCurly, 1)
+        } else if (c == "}"[0]) {
+            .push_type(TokenType::CloseCurly, 1)
+        } else if (c == "="[0]) {
+            if (.peek(1) == "="[0]) {
+                .push_type(TokenType::EqualEquals, 2)
+            } else {
+                .push_type(TokenType::Equals, 1)
+            }
+        } else if (c == "*"[0]) {
+            if (.peek(1) == "="[0]) {
+                .push_type(TokenType::StarEquals, 2)
+            } else {
+                .push_type(TokenType::Star, 1)
+            }
+        } else if (c == "+"[0]) {
+            if (.peek(1) == "="[0]) {
+                .push_type(TokenType::PlusEquals, 2)
+            } else {
+                .push_type(TokenType::Plus, 1)
+            }
+        } else if (c == "-"[0]) {
+            if (.peek(1) == "="[0]) {
+                .push_type(TokenType::MinusEquals, 2)
+            } else {
+                .push_type(TokenType::Minus, 1)
+            }
+        } else if (c == "/"[0]) {
+            if (.peek(1) == "/"[0]) {
+                .i += 1
+                while (.i < .source_len and .source[.i] != "\n"[0]) {
+                    .i += 1
+                }
+            } else if (.peek(1) == "="[0]) {
+                .push_type(TokenType::SlashEquals, 2)
+            } else {
+                .push_type(TokenType::Slash, 1)
+            }
+        } else if (c == "<"[0]) {
+            if (.peek(1) == "="[0]) {
+                .push_type(TokenType::LessThanEquals, 2)
+            } else {
+                .push_type(TokenType::LessThan, 1)
+            }
+        } else if (c == ">"[0]) {
+            if (.peek(1) == "="[0]) {
+                .push_type(TokenType::GreaterThanEquals, 2)
+            } else {
+                .push_type(TokenType::GreaterThan, 1)
+            }
+        } else if (c == "&"[0]) {
+            .push_type(TokenType::Ampersand, 1)
+        } else if (c == "|"[0]) {
+            .push_type(TokenType::Line, 1)
+        } else {
+            let loc = .location()
+
+            if (is_digit(c)) {
+                let start = .i
+
+                let token_type: TokenType
+                while (is_digit(.source[.i])) {
+                    .i += 1
+                }
+                if .source[.i] == "."[0] {
+                    .i += 1
+                    while (is_digit(.source[.i])) {
+                        .i += 1
+                    }
+                    token_type = TokenType::FloatLiteral
+                } else {
+                    token_type = TokenType::IntLiteral
+                }
+                let len = .i - start
+                let text = substring(.source, start, len)
+                .push(Token::new(token_type, loc, text))
+
+                .col += len
+            } else if (is_alpha(c) or c == "_"[0]) {
+                let start = .i
+                while (is_alnum(.source[.i]) or .source[.i] == "_"[0]) {
+                    .i += 1
+                }
+                let len = .i - start
+                let text = substring(.source, start, len)
+                .push(Token::from_ident(text, loc))
+
+                .col += len
+            } else if (c == "\""[0]) {
+                let start = .i + 1;
+                .i += 1
+                while (.source[.i] != "\""[0]) {
+                    if (.source[.i] == "\\"[0]) {
+                        .i += 1
+                    }
+                    .i += 1
+                }
+
+                let len = .i - start
+                let text = substring(.source, start, len)
+                .push(Token::new(TokenType::StringLiteral, loc, text))
+                .col += len + 2;
+                .i += 1
+            } else {
+                println("Unrecognized char in lexer: '%c'", c)
+                exit(1)
+            }
+        }
+    }
+    .push_type(TokenType::Eof, 0)
+    return .tokens
+}

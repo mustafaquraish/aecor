@@ -1,0 +1,21 @@
+use "./compiler/lexer.ae"
+
+
+def main(argc: i32, argv: &string) {
+    if argc < 2 {
+        let x = argv[0]
+        puts(`Usage: {argv[0]} <file>\n`)
+        exit(1)
+    }
+
+    let file = File::open(argv[1], "r")
+    let contents = file.slurp()
+
+    let lexer = Lexer::make(contents, argv[1])
+    let tokens = lexer.lex()
+
+    for let i = 0; i < tokens.size; i += 1 {
+        let token = tokens.at(i) as &Token
+        println("%s", token.str())
+    }
+}

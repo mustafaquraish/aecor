@@ -1,0 +1,130 @@
+
+struct Location {
+    filename: string
+    line: i32
+    col: i32
+}
+
+def Location::make(filename: string, line: i32, col: i32): Location {
+    let loc: Location
+    loc.filename = filename
+    loc.line = line
+    loc.col = col
+    return loc
+}
+
+def Location::str(this): string {
+    return `{.filename}:{.line}:{.col}`
+}
+
+struct Token {
+    type: TokenType
+    loc: Location
+    text: string
+    seen_newline: bool
+}
+
+def Token::new(type: TokenType, loc: Location, text: string): &Token {
+    let tok = malloc(sizeof(Token)) as &Token
+    tok.type = type
+    tok.loc = loc
+    tok.text = text
+    tok.seen_newline = false
+    return tok
+}
+
+def Token::from_type(type: TokenType, loc: Location): &Token {
+    return Token::new(type, loc, "")
+}
+
+def Token::from_ident(text: string, loc: Location): &Token {
+    return Token::new(TokenType::Identifier, loc, text)
+}
+
+def Token::str(&this): string {
+    return `{.loc.str()}: {.type.str()}`
+}
+
+enum TokenType {
+  AtSign
+  Ampersand
+  Backtick
+  CloseCurly
+  CloseParen
+  CloseSquare
+  Colon
+  ColonColon
+  Comma
+  Dot
+  Eof
+  Equals
+  EqualEquals
+  Exclamation
+  FloatLiteral
+  FormatStringLiteral
+  GreaterThan
+  GreaterThanEquals
+  Identifier
+  IntLiteral
+  LessThan
+  LessThanEquals
+  Line
+  Minus
+  MinusEquals
+  NotEquals
+  OpenCurly
+  OpenParen
+  OpenSquare
+  Plus
+  PlusEquals
+  Semicolon
+  Slash
+  SlashEquals
+  Star
+  StarEquals
+  StringLiteral
+}
+
+def TokenType::str(this): string {
+  // TODO: Match statement
+  if (this == TokenType::AtSign) return "AtSign"
+  if (this == TokenType::Ampersand) return "Ampersand"
+  if (this == TokenType::Backtick) return "Backtick"
+  if (this == TokenType::CloseCurly) return "CloseCurly"
+  if (this == TokenType::CloseParen) return "CloseParen"
+  if (this == TokenType::CloseSquare) return "CloseSquare"
+  if (this == TokenType::Colon) return "Colon"
+  if (this == TokenType::ColonColon) return "ColonColon"
+  if (this == TokenType::Comma) return "Comma"
+  if (this == TokenType::Dot) return "Dot"
+  if (this == TokenType::Eof) return "Eof"
+  if (this == TokenType::Equals) return "Equals"
+  if (this == TokenType::EqualEquals) return "EqualEquals"
+  if (this == TokenType::Exclamation) return "Exclamation"
+  if (this == TokenType::FloatLiteral) return "FloatLiteral"
+  if (this == TokenType::FormatStringLiteral) return "FormatStringLiteral"
+  if (this == TokenType::GreaterThan) return "GreaterThan"
+  if (this == TokenType::GreaterThanEquals) return "GreaterThanEquals"
+  if (this == TokenType::Identifier) return "Identifier"
+  if (this == TokenType::IntLiteral) return "IntLiteral"
+  if (this == TokenType::LessThan) return "LessThan"
+  if (this == TokenType::LessThanEquals) return "LessThanEquals"
+  if (this == TokenType::Line) return "Line"
+  if (this == TokenType::Minus) return "Minus"
+  if (this == TokenType::MinusEquals) return "MinusEquals"
+  if (this == TokenType::NotEquals) return "NotEquals"
+  if (this == TokenType::OpenCurly) return "OpenCurly"
+  if (this == TokenType::OpenParen) return "OpenParen"
+  if (this == TokenType::OpenSquare) return "OpenSquare"
+  if (this == TokenType::Plus) return "Plus"
+  if (this == TokenType::PlusEquals) return "PlusEquals"
+  if (this == TokenType::Semicolon) return "Semicolon"
+  if (this == TokenType::Slash) return "Slash"
+  if (this == TokenType::SlashEquals) return "SlashEquals"
+  if (this == TokenType::Star) return "Star"
+  if (this == TokenType::StarEquals) return "StarEquals"
+  if (this == TokenType::StringLiteral) return "StringLiteral"
+
+  puts(`Unknown token type: {this as i32}`)
+  exit(1)
+}
