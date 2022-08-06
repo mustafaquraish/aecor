@@ -137,6 +137,33 @@ def Parser::parse_factor(&this): &AST {
     } else {
         .unhandled_type("parse_expression")
     }
+
+    let done = false
+    while not done {
+        if .token().seen_newline {
+            done = true
+        } else if .token_is(TokenType::OpenParen) {
+            let paren_span = .consume(TokenType::OpenParen).span
+            let args = Vector::new()
+            while not .token_is(TokenType::CloseParen) {
+                let expr = .parse_expression()
+                args.push(expr as untyped_ptr)
+                if not .token_is(TokenType::CloseParen) {
+                    .consume(TokenType::Comma)
+                }
+            }
+            .consume(TokenType::CloseParen)
+            let call_type = ASTType::Call
+            let call = AST::new(call_type, paren_span)
+            call.u.call.callee = node
+            call.u.call.args = args
+            call.u.call.added_method_arg = false
+            node = call
+        } else {
+            done = true
+        }
+    }
+
     return node
 }
 
@@ -169,7 +196,8 @@ def Parser::parse_statement(&this): &AST {
         .consume_newline_or(TokenType::Semicolon);
     }
     else {
-        .unhandled_type("parse_statement")
+        node = .parse_expression()
+        .consume_newline_or(TokenType::Semicolon)
     }
 
     return node
