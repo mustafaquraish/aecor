@@ -2,6 +2,7 @@
 
 use "./compiler/lexer.ae"
 use "./compiler/parser.ae"
+use "./compiler/codegen.ae"
 
 def main(argc: i32, argv: &string) {
     if argc < 2 {
@@ -23,4 +24,7 @@ def main(argc: i32, argv: &string) {
 
     let parser = Parser::make(tokens)
     let program = parser.parse_program()
+
+    let generator = CodeGenerator::make("/dev/stdout")
+    generator.gen_program(program)
 }

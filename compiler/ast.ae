@@ -22,6 +22,7 @@ enum ASTType {
   GreaterThan
   GreaterThanEquals
   If
+  Identifier
   Index
   IntLiteral
   LessThan
@@ -41,7 +42,6 @@ enum ASTType {
   ScopeLookup
   StringLiteral
   UnaryMinus
-  Var
   VarDeclaration
   While
 }
@@ -68,6 +68,7 @@ def ASTType::str(this): string {
     if this == ASTType::GreaterThan return "GreaterThan"
     if this == ASTType::GreaterThanEquals return "GreaterThanEquals"
     if this == ASTType::If return "If"
+    if this == ASTType::Identifier return "Identifier"
     if this == ASTType::Index return "Index"
     if this == ASTType::IntLiteral return "IntLiteral"
     if this == ASTType::LessThan return "LessThan"
@@ -87,7 +88,6 @@ def ASTType::str(this): string {
     if this == ASTType::ScopeLookup return "ScopeLookup"
     if this == ASTType::StringLiteral return "StringLiteral"
     if this == ASTType::UnaryMinus return "UnaryMinus"
-    if this == ASTType::Var return "Var"
     if this == ASTType::VarDeclaration return "VarDeclaration"
     if this == ASTType::While    return "While"
 
@@ -176,8 +176,8 @@ struct Block {
 }
 
 struct Binary {
-    left: &AST
-    right: &AST
+    lhs: &AST
+    rhs: &AST
 }
 
 struct Identifier {
@@ -251,6 +251,7 @@ union ASTUnion {
     num_literal: string
     bool_literal: bool
     string_literal: string
+    size_of_type: &Type
 }
 
 struct AST {
@@ -263,5 +264,18 @@ def AST::new(type: ASTType, span: Span): &AST {
     let ast = calloc(1, sizeof(AST)) as &AST
     ast.type = type
     ast.span = span
+    return ast
+}
+
+def AST::new_unop(type: ASTType, span: Span, expr: &AST): &AST {
+    let ast = AST::new(type, span)
+    ast.u.unary = expr
+    return ast
+}
+
+def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
+    let ast = AST::new(type, lhs.span.join(rhs.span))
+    ast.u.binary.lhs = lhs
+    ast.u.binary.rhs = rhs
     return ast
 }

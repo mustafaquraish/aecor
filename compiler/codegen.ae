@@ -1,0 +1,73 @@
+use "./compiler/ast.ae"
+
+struct CodeGenerator {
+    out: &File
+}
+
+def CodeGenerator::make(filename: string): CodeGenerator {
+    let gen: CodeGenerator
+    gen.out = File::open(filename, "w")
+    return gen
+}
+
+def CodeGenerator::gen_type(&this, type: &Type) {
+    if (type.base == BaseType::Void) this.out.puts("void");
+    else if (type.base == BaseType::Char) this.out.puts("char")
+    else if (type.base == BaseType::I32) this.out.puts("int")
+    else if (type.base == BaseType::F32) this.out.puts("float")
+    else if (type.base == BaseType::Bool) this.out.puts("bool")
+    else if (type.base == BaseType::U8) this.out.puts("unsigned char")
+    else if (type.base == BaseType::Pointer) {
+        .gen_type(type.ptr)
+        .out.puts("*")
+    }
+    else if (type.base == BaseType::Structure) this.out.puts(type.name)
+    else {
+        println("unknown type in gen_type: %s", type.str())
+        exit(1)
+    }
+}
+
+def CodeGenerator::gen_expression(&this, node: &AST) {
+    if node.type == ASTType::IntLiteral {
+        .out.puts(node.u.num_literal)
+    } else {
+        println("unknown type in gen_expression: %s", node.type.str())
+        exit(1)
+    }
+}
+
+def CodeGenerator::gen_statement(&this, node: &AST) {
+    if node.type == ASTType::Return {
+        .out.puts("return ")
+        .gen_expression(node.u.unary)
+        .out.puts(";\n")
+    } else {
+        println("unknown type in gen_statement: %s", node.type.str())
+        exit(1)
+    }
+}
+
+def CodeGenerator::gen_block(&this, node: &AST) {
+    let statements = node.u.block.statements;
+    .out.puts("{\n")
+    for let i = 0; i < statements.size; i += 1 {
+        let statement = statements.at(i) as &AST;
+        .gen_statement(statement)
+    }
+    .out.puts("}")
+}
+
+def CodeGenerator::gen_function(&this, func: &Function) {
+    .gen_type(func.return_type)
+    .out.puts(` {func.name} () `)
+    .gen_block(func.body)
+    .out.puts("\n\n")
+}
+
+def CodeGenerator::gen_program(&this, program: &Program) {
+    for let i = 0; i < program.functions.size; i += 1 {
+        let func = program.functions.at(i) as &Function
+        .gen_function(func)
+    }
+}

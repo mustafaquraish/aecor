@@ -31,6 +31,10 @@ def File::slurp(&this): string {
     return buf as string
 }
 
+def File::puts(&this, str: string) {
+    fwrite(str as untyped_ptr, 1, strlen(str), this)
+}
+
 // TODO: Add nicer wrappers around these
 def fread(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
 def fwrite(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern

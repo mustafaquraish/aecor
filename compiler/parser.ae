@@ -59,18 +59,71 @@ def Parser::parse_type(&this): &Type {
     return 0 as &Type
 }
 
-def Parser::parse_expression(&this): &AST {
+def Parser::parse_factor(&this): &AST {
     let node = 0 as &AST
     if .token_is(TokenType::IntLiteral) {
         node = AST::new(ASTType::IntLiteral, .token().span)
         let tok = .consume(TokenType::IntLiteral)
         node.u.num_literal = tok.text
+
+    } else if .token_is(TokenType::FloatLiteral) {
+        node = AST::new(ASTType::FloatLiteral, .token().span)
+        let tok = .consume(TokenType::FloatLiteral)
+        node.u.num_literal = tok.text
+
+    } else if .token_is(TokenType::StringLiteral) {
+        node = AST::new(ASTType::StringLiteral, .token().span)
+        let tok = .consume(TokenType::StringLiteral)
+        node.u.string_literal = tok.text
+
+    } else if .token_is(TokenType::Minus) {
+        let op = .consume(TokenType::Minus)
+        let expr = .parse_factor()
+        node = AST::new_unop(ASTType::UnaryMinus, op.span.join(expr.span), expr)
+
+    } else if .token_is(TokenType::Not) {
+        let op = .consume(TokenType::Not)
+        let expr = .parse_factor()
+        node = AST::new_unop(ASTType::Not, op.span.join(expr.span), expr)
+
+    } else if .token_is(TokenType::Ampersand) {
+        let op = .consume(TokenType::Ampersand)
+        let expr = .parse_factor()
+        node = AST::new_unop(ASTType::Address, op.span.join(expr.span), expr)
+
+    } else if .token_is(TokenType::Star) {
+        let op = .consume(TokenType::Star)
+        let expr = .parse_factor()
+        node = AST::new_unop(ASTType::Dereference, op.span.join(expr.span), expr)
+
+    } else if .token_is(TokenType::Identifier) {
+        let op = .consume(TokenType::Identifier)
+        node = AST::new(ASTType::Identifier, op.span)
+        node.u.ident.name = op.text
+
+    } else if .token_is(TokenType::OpenParen) {
+        let open = .consume(TokenType::Identifier)
+        node = .parse_expression()
+        let close = .consume(TokenType::CloseParen)
+        node.span = open.span.join(close.span)
+
+    } else if .token_is(TokenType::SizeOf) {
+        let start = .consume(TokenType::SizeOf)
+        .consume(TokenType::OpenParen)
+        let type = .parse_type()
+        let close = .consume(TokenType::CloseParen)
+        node = AST::new(ASTType::SizeOf, start.span.join(close.span))
+        node.u.size_of_type = type
+
     } else {
         .unhandled_type("parse_expression")
     }
     return node
 }
 
+def Parser::parse_expression(&this): &AST {
+    return .parse_factor()
+}
 
 def Parser::parse_statement(&this): &AST {
     let node = 0 as &AST
