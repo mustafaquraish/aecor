@@ -43,9 +43,13 @@ def strcpy(dest: string, src: string): string extern
 def strncpy(dest: string, src: string, n: i32): string extern
 def strdup(str: string): string extern
 
+def streq(str1: string, str2: string): bool {
+    return strcmp(str1, str2) == 0
+}
+
 def substring(str: string, start: i32, len: i32): string {
     let new_str = calloc(len + 1, sizeof(char)) as string
-    strncpy(new_str, str, len)
+    strncpy(new_str, str + start, len)
     return new_str
 }
 

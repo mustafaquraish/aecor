@@ -38,7 +38,8 @@ def Token::from_type(type: TokenType, loc: Location): &Token {
 }
 
 def Token::from_ident(text: string, loc: Location): &Token {
-    return Token::new(TokenType::Identifier, loc, text)
+    let type = TokenType::from_text(text)
+    return Token::new(type, loc, text)
 }
 
 def Token::str(&this): string {
@@ -46,6 +47,38 @@ def Token::str(&this): string {
 }
 
 enum TokenType {
+  // Keywords
+  And
+  As
+  Bool
+  Char
+  Def
+  Defer
+  Else
+  Enum
+  Extern
+  False
+  F32
+  For
+  Fn
+  I32
+  If
+  Let
+  Not
+  Or
+  Return
+  SizeOf
+  String
+  Struct
+  True
+  U8
+  UnypedPtr
+  Union
+  Use
+  Void
+  While
+
+  // Other tokens
   AtSign
   Ampersand
   Backtick
@@ -56,7 +89,7 @@ enum TokenType {
   ColonColon
   Comma
   Dot
-  Eof
+  EOF
   Equals
   EqualEquals
   Exclamation
@@ -85,8 +118,76 @@ enum TokenType {
   StringLiteral
 }
 
+def TokenType::from_text(text: string): TokenType {
+    if streq(text, "and") return TokenType::And
+    if streq(text, "as") return TokenType::As
+    if streq(text, "bool") return TokenType::Bool
+    if streq(text, "char") return TokenType::Char
+    if streq(text, "def") return TokenType::Def
+    if streq(text, "defer") return TokenType::Defer
+    if streq(text, "else") return TokenType::Else
+    if streq(text, "enum") return TokenType::Enum
+    if streq(text, "extern") return TokenType::Extern
+    if streq(text, "false") return TokenType::False
+    if streq(text, "f32") return TokenType::F32
+    if streq(text, "for") return TokenType::For
+    if streq(text, "fn") return TokenType::Fn
+    if streq(text, "i32") return TokenType::I32
+    if streq(text, "if") return TokenType::If
+    if streq(text, "let") return TokenType::Let
+    if streq(text, "not") return TokenType::Not
+    if streq(text, "or") return TokenType::Or
+    if streq(text, "return") return TokenType::Return
+    if streq(text, "sizeof") return TokenType::SizeOf
+    if streq(text, "string") return TokenType::String
+    if streq(text, "struct") return TokenType::Struct
+    if streq(text, "true") return TokenType::True
+    if streq(text, "u8") return TokenType::U8
+    if streq(text, "unyped_ptr") return TokenType::UnypedPtr
+    if streq(text, "union") return TokenType::Union
+    if streq(text, "use") return TokenType::Use
+    if streq(text, "void") return TokenType::Void
+    if streq(text, "while") return TokenType::While
+
+    // Otherwise, we have an identifier
+    return TokenType::Identifier
+}
+
 def TokenType::str(this): string {
   // TODO: Match statement
+
+  // Keywords
+  if this == TokenType::And return "and"
+  if this == TokenType::As return "as"
+  if this == TokenType::Bool return "bool"
+  if this == TokenType::Char return "char"
+  if this == TokenType::Def return "def"
+  if this == TokenType::Defer return "defer"
+  if this == TokenType::Else return "else"
+  if this == TokenType::Enum return "enum"
+  if this == TokenType::Extern return "extern"
+  if this == TokenType::False return "false"
+  if this == TokenType::F32 return "f32"
+  if this == TokenType::For return "for"
+  if this == TokenType::Fn return "fn"
+  if this == TokenType::I32 return "i32"
+  if this == TokenType::If return "if"
+  if this == TokenType::Let return "let"
+  if this == TokenType::Not return "not"
+  if this == TokenType::Or return "or"
+  if this == TokenType::Return return "return"
+  if this == TokenType::SizeOf return "sizeof"
+  if this == TokenType::String return "string"
+  if this == TokenType::Struct return "struct"
+  if this == TokenType::True return "true"
+  if this == TokenType::U8 return "u8"
+  if this == TokenType::UnypedPtr return "unyped_ptr"
+  if this == TokenType::Union return "union"
+  if this == TokenType::Use return "use"
+  if this == TokenType::Void return "void"
+  if this == TokenType::While return "while"
+
+  // Others
   if (this == TokenType::AtSign) return "AtSign"
   if (this == TokenType::Ampersand) return "Ampersand"
   if (this == TokenType::Backtick) return "Backtick"
@@ -97,7 +198,7 @@ def TokenType::str(this): string {
   if (this == TokenType::ColonColon) return "ColonColon"
   if (this == TokenType::Comma) return "Comma"
   if (this == TokenType::Dot) return "Dot"
-  if (this == TokenType::Eof) return "Eof"
+  if (this == TokenType::EOF) return "<EOF>"
   if (this == TokenType::Equals) return "Equals"
   if (this == TokenType::EqualEquals) return "EqualEquals"
   if (this == TokenType::Exclamation) return "Exclamation"

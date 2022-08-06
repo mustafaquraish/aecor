@@ -1,0 +1,104 @@
+
+enum BaseType {
+    Char
+    I32
+    F32
+    Bool
+    U8
+    Void
+
+    Pointer
+    Structure
+    Function
+    Method
+}
+
+struct Type {
+    base: BaseType
+    ptr: &Type
+    name: string
+    loc: Location
+
+    struct_def: &Structure
+
+    func_def: &Function
+    return_type: &Type
+    params: &Vector      // Vector<&Type>
+}
+
+def Type::new(base: BaseType, loc: Location): &Type {
+    let type = calloc(1, sizeof(Type)) as &Type
+    type.base = base
+    type.loc = loc
+    return type
+}
+
+def Type::new_link(base: BaseType, next: &Type, loc: Location): &Type {
+    let type = Type::new(base, loc)
+    type.ptr = next
+    return type
+}
+
+def Type::ptr_to(base: BaseType, loc: Location): &Type {
+    let next = Type::new(base, loc)
+    return Type::new_link(BaseType::Pointer, next, loc)
+}
+
+def Type::is_struct_or_ptr(&this): bool {
+    if .base == BaseType::Structure return true
+    if .base != BaseType::Pointer return false
+    return .ptr.base == BaseType::Structure
+}
+
+def Type::is_numeric(&this): bool {
+    return .base == BaseType::I32 or .base == BaseType::F32
+}
+
+def Type::eq(&this, other: &Type): bool {
+    if (this == 0 as &Type and other == 0 as &Type) return true
+    if (this == 0 as &Type or other == 0 as &Type) return false
+
+    if .base != other.base return false
+    if .base == BaseType::Method return false
+
+    if .base == BaseType::Function {
+        if not .return_type.eq(other.return_type) return false
+        if .params.size != other.params.size return false
+        for let i = 0; i < .params.size; i += 1 {
+            let a = .params.at(i) as &Type
+            let b = other.params.at(i) as &Type
+            if not a.eq(b) return false
+        }
+        return true
+    }
+
+    if .base == BaseType::Structure return streq(.name, other.name)
+    if .base == BaseType::Pointer return .ptr.eq(other.ptr)
+    return true
+}
+
+def Type::str(&this): string {
+    if .base == BaseType::Void return "void"
+    if .base == BaseType::Char return "char"
+    if .base == BaseType::I32 return "i32"
+    if .base == BaseType::F32 return "f32"
+    if .base == BaseType::Bool return "bool"
+    if .base == BaseType::U8 return "u8"
+    if .base == BaseType::Pointer return `&{.ptr.str()}`
+    if .base == BaseType::Structure return .name
+    if .base == BaseType::Function return "<function>"
+    if .base == BaseType::Method return "<method>"
+    return "<unknown>"
+}
+
+def Type::reverse(&this): &Type {
+    let rev = 0 as &Type
+    let cur = this
+    while cur != 0 as &Type {
+        let tmp = cur.ptr
+        cur.ptr = rev
+        rev = cur
+        cur = tmp
+    }
+    return rev
+}

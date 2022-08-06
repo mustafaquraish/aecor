@@ -97,7 +97,7 @@ def handle_test(path: Path, expected: Expected) -> Tuple[bool, str]:
 def main():
     test_paths = argv[1:]
     if len(test_paths) == 0:
-        test_paths = ["tests"]
+        test_paths = ["tests", "compiler/main.ae"]
 
     test_paths = [Path(pth) for pth in test_paths]
 

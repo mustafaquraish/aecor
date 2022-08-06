@@ -57,10 +57,7 @@ def Lexer::peek(&this, offset: i32): char {
 def Lexer::lex(&this): &Vector {
     while .i < .source_len {
         let c = .source[.i]
-        if (c == "\t"[0] or
-            c == "\v"[0] or
-            c == "\r"[0] or
-            c ==  " "[0]) {
+        if (c == "\t"[0] or c == "\v"[0] or c == "\r"[0] or c ==  " "[0]) {
             .i += 1
             .col += 1
         } else if (c == "\n"[0]) {
@@ -204,6 +201,6 @@ def Lexer::lex(&this): &Vector {
             }
         }
     }
-    .push_type(TokenType::Eof, 0)
+    .push_type(TokenType::EOF, 0)
     return .tokens
 }

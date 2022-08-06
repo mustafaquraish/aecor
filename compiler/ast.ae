@@ -1,0 +1,267 @@
+use "./compiler/types.ae"
+
+enum ASTType {
+  Assignment
+  Address
+  And
+  Block
+  BoolLiteral
+  BitwiseAnd
+  BitwiseOr
+  Call
+  Cast
+  Defer
+  Dereference
+  Divide
+  DivideEquals
+  EnumValue
+  Equals
+  FloatLiteral
+  FormatStringLiteral
+  For
+  GreaterThan
+  GreaterThanEquals
+  If
+  Index
+  IntLiteral
+  LessThan
+  LessThanEquals
+  Member
+  Minus
+  MinusEquals
+  Multiply
+  MultiplyEquals
+  Not
+  NotEquals
+  Or
+  Plus
+  PlusEquals
+  Return
+  SizeOf
+  ScopeLookup
+  StringLiteral
+  UnaryMinus
+  Var
+  VarDeclaration
+  While
+}
+
+def ASTType::str(this): string {
+    if this == ASTType::Assignment return "Assignment"
+    if this == ASTType::Address return "Address"
+    if this == ASTType::And return "And"
+    if this == ASTType::Block return "Block"
+    if this == ASTType::BoolLiteral return "BoolLiteral"
+    if this == ASTType::BitwiseAnd return "BitwiseAnd"
+    if this == ASTType::BitwiseOr return "BitwiseOr"
+    if this == ASTType::Call return "Call"
+    if this == ASTType::Cast return "Cast"
+    if this == ASTType::Defer return "Defer"
+    if this == ASTType::Dereference return "Dereference"
+    if this == ASTType::Divide return "Divide"
+    if this == ASTType::DivideEquals return "DivideEquals"
+    if this == ASTType::EnumValue return "EnumValue"
+    if this == ASTType::Equals return "Equals"
+    if this == ASTType::FloatLiteral return "FloatLiteral"
+    if this == ASTType::FormatStringLiteral return "FormatStringLiteral"
+    if this == ASTType::For return "For"
+    if this == ASTType::GreaterThan return "GreaterThan"
+    if this == ASTType::GreaterThanEquals return "GreaterThanEquals"
+    if this == ASTType::If return "If"
+    if this == ASTType::Index return "Index"
+    if this == ASTType::IntLiteral return "IntLiteral"
+    if this == ASTType::LessThan return "LessThan"
+    if this == ASTType::LessThanEquals return "LessThanEquals"
+    if this == ASTType::Member return "Member"
+    if this == ASTType::Minus return "Minus"
+    if this == ASTType::MinusEquals return "MinusEquals"
+    if this == ASTType::Multiply return "Multiply"
+    if this == ASTType::MultiplyEquals return "MultiplyEquals"
+    if this == ASTType::Not return "Not"
+    if this == ASTType::NotEquals return "NotEquals"
+    if this == ASTType::Or return "Or"
+    if this == ASTType::Plus return "Plus"
+    if this == ASTType::PlusEquals return "PlusEquals"
+    if this == ASTType::Return return "Return"
+    if this == ASTType::SizeOf return "SizeOf"
+    if this == ASTType::ScopeLookup return "ScopeLookup"
+    if this == ASTType::StringLiteral return "StringLiteral"
+    if this == ASTType::UnaryMinus return "UnaryMinus"
+    if this == ASTType::Var return "Var"
+    if this == ASTType::VarDeclaration return "VarDeclaration"
+    if this == ASTType::While    return "While"
+
+    println("Unknown ASTType in ASTType::str: %d", this)
+    exit(1)
+}
+
+struct Variable {
+    name: string
+    type: &Type
+    loc: Location
+
+    is_extern: bool
+    extern_name: string
+}
+
+def Variable::new(name: string, type: &Type, loc: Location): &Variable {
+    let var = calloc(1, sizeof(Variable)) as &Variable
+    var.name = name
+    var.type = type
+    var.loc = loc
+    return var
+}
+
+struct Function {
+    name: string
+    params: &Vector     // Vector<&Variable>
+    return_type: &Type
+    body: &AST
+
+    type: &Type
+    loc: Location
+
+    is_extern: bool
+    extern_name: string
+
+    is_static: bool
+    is_method: bool
+    method_struct_name: string
+}
+
+def Function::new(loc: Location): &Function {
+    let func = calloc(1, sizeof(Function)) as &Function
+    func.params = Vector::new()
+    func.loc = loc
+    return func
+}
+
+struct Structure {
+  type: &Type
+  name: string
+  fields: &Vector     // Vector<&Variable>
+  loc: Location
+
+  is_extern: bool
+  extern_name: string
+
+  is_enum: bool
+  is_union: bool
+}
+
+def Structure::new(loc: Location): &Structure {
+    let struct_ = calloc(1, sizeof(Structure)) as &Structure
+    struct_.fields = Vector::new()
+    struct_.loc = loc
+    return struct_
+}
+
+struct Program {
+    functions: &Vector     // Vector<&Function>
+    structures: &Vector     // Vector<&Structure>
+    global_vars: &Vector     // Vector<&AST>
+    loc: Location
+}
+
+def Program::new(): &Program {
+    let prog = calloc(1, sizeof(Program)) as &Program
+    prog.functions = Vector::new()
+    prog.structures = Vector::new()
+    prog.global_vars = Vector::new()
+    return prog
+}
+
+struct Block {
+    statements: &Vector     // Vector<&AST>
+}
+
+struct Binary {
+    left: &AST
+    right: &AST
+}
+
+struct Identifier {
+    name: string
+    var: &Variable
+    is_function: bool
+    func: &Function
+}
+
+struct FormatString {
+    str: string
+    parts: &Vector    // Vector<string>
+    exprs: &Vector    // Vector<&AST>
+}
+
+struct FuncCall {
+    callee: &AST
+    args: &Vector    // Vector<&AST>
+    func: &Function
+    added_method_arg: bool
+}
+
+struct Member {
+    lhs: &AST
+    name: string
+    is_method: bool
+    is_pointer: bool
+}
+
+struct EnumValue {
+    struct_def: &Structure
+    name: string
+}
+
+struct VarDeclaration {
+    var: &Variable
+    expr: &AST
+}
+
+struct IfStatement {
+    cond: &AST
+    then: &AST
+    els: &AST
+}
+
+struct Loop {
+    init: &AST
+    cond: &AST
+    incr: &AST
+    body: &AST
+}
+
+struct Cast {
+    lhs: &AST
+    to: &Type
+}
+
+union ASTUnion {
+    block: Block
+    binary: Binary
+    ident: Identifier
+    fmt_str: FormatString
+    call: FuncCall
+    member: Member
+    enum_val: EnumValue
+    var_decl: VarDeclaration
+    if_stmt: IfStatement
+    loop: Loop
+    cast: Cast
+    unary: &AST
+    num_literal: string
+    bool_literal: bool
+    string_literal: string
+}
+
+struct AST {
+    type: ASTType
+    loc: Location
+    u: ASTUnion
+}
+
+def AST::new(type: ASTType, loc: Location): &AST {
+    let ast = calloc(1, sizeof(AST)) as &AST
+    ast.type = type
+    ast.loc = loc
+    return ast
+}
