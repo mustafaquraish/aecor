@@ -54,9 +54,28 @@ def Parser::consume(&this, type: TokenType): &Token {
 
 
 def Parser::parse_type(&this): &Type {
-    .unhandled_type("parse_type")
-    exit(1)
-    return 0 as &Type
+    let type = 0 as &Type
+
+    let running: bool = true
+    while running {
+        if .token_is(TokenType::Ampersand) {
+            type = Type::new_link(BaseType::Pointer, type, .token().span)
+            .curr += 1
+        } else {
+            running = false
+        }
+    }
+
+    if .token_is(TokenType::I32) {
+        type = Type::new_link(BaseType::I32, type, type.span.join(.token().span))
+        .curr += 1
+    } else {
+        .unhandled_type("parse_type")
+    }
+
+    type = type.reverse()
+
+    return type
 }
 
 def Parser::parse_factor(&this): &AST {
