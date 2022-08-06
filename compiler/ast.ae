@@ -214,7 +214,7 @@ struct EnumValue {
 
 struct VarDeclaration {
     var: &Variable
-    expr: &AST
+    init: &AST
 }
 
 struct IfStatement {

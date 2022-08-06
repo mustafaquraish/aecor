@@ -67,7 +67,7 @@ def Parser::parse_type(&this): &Type {
     }
 
     if .token_is(TokenType::I32) {
-        type = Type::new_link(BaseType::I32, type, type.span.join(.token().span))
+        type = Type::new_link(BaseType::I32, type, .token().span)
         .curr += 1
     } else {
         .unhandled_type("parse_type")
@@ -151,7 +151,24 @@ def Parser::parse_statement(&this): &AST {
         node = AST::new(ASTType::Return, .token().span)
         .consume(TokenType::Return)
         node.u.unary = .parse_expression()
-    } else {
+    } else if .token_is(TokenType::Let) {
+        node = AST::new(ASTType::VarDeclaration, .token().span)
+        .curr += 1
+        let name = .consume(TokenType::Identifier)
+        let type = 0 as &Type
+        if .consume_if(TokenType::Colon) {
+            type = .parse_type()
+        }
+
+        node.u.var_decl.var = Variable::new(name.text, type, name.span)
+
+        if .consume_if(TokenType::Equals) {
+            node.u.var_decl.init = .parse_expression()
+        }
+
+        .consume_newline_or(TokenType::Semicolon);
+    }
+    else {
         .unhandled_type("parse_statement")
     }
 
