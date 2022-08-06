@@ -10,10 +10,8 @@ def is_alnum(c: char): bool extern("isalnum")
 struct Lexer {
     source: string
     source_len: i32
-    filename: string
     i: i32
-    line: i32
-    col: i32
+    loc: Location
     seen_newline: bool
     tokens: &Vector
 }
@@ -22,17 +20,11 @@ def Lexer::make(source: string, filename: string): Lexer {
     let lexer: Lexer
     lexer.source = source
     lexer.source_len = strlen(source)
-    lexer.filename = filename
     lexer.i = 0
-    lexer.line = 1
-    lexer.col = 1
+    lexer.loc = Location::make(filename, 1, 1)
     lexer.seen_newline = false
     lexer.tokens = Vector::new()
     return lexer
-}
-
-def Lexer::location(&this): Location {
-    return Location::make(.filename, .line, .col)
 }
 
 def Lexer::push(&this, token: &Token) {
@@ -42,9 +34,10 @@ def Lexer::push(&this, token: &Token) {
 }
 
 def Lexer::push_type(&this, type: TokenType, len: i32) {
-    .push(Token::from_type(type, .location()))
+    let start_loc = .loc
+    .loc.col += len
     .i += len
-    .col += len
+    .push(Token::from_type(type, Span::make(start_loc, .loc)))
 }
 
 def Lexer::peek(&this, offset: i32): char {
@@ -59,10 +52,10 @@ def Lexer::lex(&this): &Vector {
         let c = .source[.i]
         if (c == "\t"[0] or c == "\v"[0] or c == "\r"[0] or c ==  " "[0]) {
             .i += 1
-            .col += 1
+            .loc.col += 1
         } else if (c == "\n"[0]) {
-            .line += 1
-            .col = 1
+            .loc.line += 1
+            .loc.col = 1
             .i += 1
             .seen_newline = true
         } else if (c == "!"[0]) {
@@ -147,7 +140,7 @@ def Lexer::lex(&this): &Vector {
         } else if (c == "|"[0]) {
             .push_type(TokenType::Line, 1)
         } else {
-            let loc = .location()
+            let start_loc = .loc
 
             if (is_digit(c)) {
                 let start = .i
@@ -167,9 +160,10 @@ def Lexer::lex(&this): &Vector {
                 }
                 let len = .i - start
                 let text = substring(.source, start, len)
-                .push(Token::new(token_type, loc, text))
 
-                .col += len
+                .loc.col += len
+                .push(Token::new(token_type, Span::make(start_loc, .loc), text))
+
             } else if (is_alpha(c) or c == "_"[0]) {
                 let start = .i
                 while (is_alnum(.source[.i]) or .source[.i] == "_"[0]) {
@@ -177,9 +171,10 @@ def Lexer::lex(&this): &Vector {
                 }
                 let len = .i - start
                 let text = substring(.source, start, len)
-                .push(Token::from_ident(text, loc))
 
-                .col += len
+                .loc.col += len
+                .push(Token::from_ident(text, Span::make(start_loc, .loc)))
+
             } else if (c == "\""[0]) {
                 let start = .i + 1;
                 .i += 1
@@ -192,9 +187,9 @@ def Lexer::lex(&this): &Vector {
 
                 let len = .i - start
                 let text = substring(.source, start, len)
-                .push(Token::new(TokenType::StringLiteral, loc, text))
-                .col += len + 2;
+                .loc.col += len + 2;
                 .i += 1
+                .push(Token::new(TokenType::StringLiteral, Span::make(start_loc, .loc), text))
             } else {
                 println("Unrecognized char in lexer: '%c'", c)
                 exit(1)

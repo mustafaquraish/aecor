@@ -17,7 +17,7 @@ struct Type {
     base: BaseType
     ptr: &Type
     name: string
-    loc: Location
+    span: Span
 
     struct_def: &Structure
 
@@ -26,22 +26,22 @@ struct Type {
     params: &Vector      // Vector<&Type>
 }
 
-def Type::new(base: BaseType, loc: Location): &Type {
+def Type::new(base: BaseType, span: Span): &Type {
     let type = calloc(1, sizeof(Type)) as &Type
     type.base = base
-    type.loc = loc
+    type.span = span
     return type
 }
 
-def Type::new_link(base: BaseType, next: &Type, loc: Location): &Type {
-    let type = Type::new(base, loc)
+def Type::new_link(base: BaseType, next: &Type, span: Span): &Type {
+    let type = Type::new(base, span)
     type.ptr = next
     return type
 }
 
-def Type::ptr_to(base: BaseType, loc: Location): &Type {
-    let next = Type::new(base, loc)
-    return Type::new_link(BaseType::Pointer, next, loc)
+def Type::ptr_to(base: BaseType, span: Span): &Type {
+    let next = Type::new(base, span)
+    return Type::new_link(BaseType::Pointer, next, span)
 }
 
 def Type::is_struct_or_ptr(&this): bool {

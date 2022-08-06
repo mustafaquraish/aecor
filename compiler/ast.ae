@@ -98,17 +98,17 @@ def ASTType::str(this): string {
 struct Variable {
     name: string
     type: &Type
-    loc: Location
+    span: Span
 
     is_extern: bool
     extern_name: string
 }
 
-def Variable::new(name: string, type: &Type, loc: Location): &Variable {
+def Variable::new(name: string, type: &Type, span: Span): &Variable {
     let var = calloc(1, sizeof(Variable)) as &Variable
     var.name = name
     var.type = type
-    var.loc = loc
+    var.span = span
     return var
 }
 
@@ -119,7 +119,7 @@ struct Function {
     body: &AST
 
     type: &Type
-    loc: Location
+    span: Span
 
     is_extern: bool
     extern_name: string
@@ -129,10 +129,10 @@ struct Function {
     method_struct_name: string
 }
 
-def Function::new(loc: Location): &Function {
+def Function::new(span: Span): &Function {
     let func = calloc(1, sizeof(Function)) as &Function
     func.params = Vector::new()
-    func.loc = loc
+    func.span = span
     return func
 }
 
@@ -140,7 +140,7 @@ struct Structure {
   type: &Type
   name: string
   fields: &Vector     // Vector<&Variable>
-  loc: Location
+  span: Span
 
   is_extern: bool
   extern_name: string
@@ -149,10 +149,10 @@ struct Structure {
   is_union: bool
 }
 
-def Structure::new(loc: Location): &Structure {
+def Structure::new(span: Span): &Structure {
     let struct_ = calloc(1, sizeof(Structure)) as &Structure
     struct_.fields = Vector::new()
-    struct_.loc = loc
+    struct_.span = span
     return struct_
 }
 
@@ -160,7 +160,7 @@ struct Program {
     functions: &Vector     // Vector<&Function>
     structures: &Vector     // Vector<&Structure>
     global_vars: &Vector     // Vector<&AST>
-    loc: Location
+    span: Span
 }
 
 def Program::new(): &Program {
@@ -255,13 +255,13 @@ union ASTUnion {
 
 struct AST {
     type: ASTType
-    loc: Location
+    span: Span
     u: ASTUnion
 }
 
-def AST::new(type: ASTType, loc: Location): &AST {
+def AST::new(type: ASTType, span: Span): &AST {
     let ast = calloc(1, sizeof(AST)) as &AST
     ast.type = type
-    ast.loc = loc
+    ast.span = span
     return ast
 }

@@ -1,4 +1,5 @@
 use "./compiler/ast.ae"
+use "./compiler/utils.ae"
 
 struct Parser {
     tokens: &Vector
@@ -13,8 +14,7 @@ def Parser::make(tokens: &Vector): &Parser {
 }
 
 def Parser::error(&this, msg: string) {
-    println("%s: %s", .token().loc.str(), msg)
-    exit(1)
+    error_span(.token().span, msg)
 }
 
 def Parser::unhandled_type(&this, func: string) {
@@ -62,7 +62,7 @@ def Parser::parse_type(&this): &Type {
 def Parser::parse_expression(&this): &AST {
     let node = 0 as &AST
     if .token_is(TokenType::IntLiteral) {
-        node = AST::new(ASTType::IntLiteral, .token().loc)
+        node = AST::new(ASTType::IntLiteral, .token().span)
         let tok = .consume(TokenType::IntLiteral)
         node.u.num_literal = tok.text
     } else {
@@ -76,7 +76,7 @@ def Parser::parse_statement(&this): &AST {
     let node = 0 as &AST
 
     if .token_is(TokenType::Return) {
-        node = AST::new(ASTType::Return, .token().loc)
+        node = AST::new(ASTType::Return, .token().span)
         .consume(TokenType::Return)
         node.u.unary = .parse_expression()
     } else {
@@ -87,7 +87,7 @@ def Parser::parse_statement(&this): &AST {
 }
 
 def Parser::parse_block(&this): &AST {
-    let node = AST::new(ASTType::Block, .token().loc)
+    let node = AST::new(ASTType::Block, .token().span)
     .consume(TokenType::OpenCurly)
 
     let statements = Vector::new()
@@ -114,7 +114,7 @@ def Parser::parse_function(&this): &Function {
         name = .consume(TokenType::Identifier)
     }
 
-    let func = Function::new(name.loc)
+    let func = Function::new(name.span)
     func.name = name.text
     func.is_method = is_method
     func.method_struct_name = struct_name
@@ -124,7 +124,7 @@ def Parser::parse_function(&this): &Function {
         let var_name = .consume(TokenType::Identifier)
         .consume(TokenType::Colon)
         let var_type = .parse_type()
-        let var = Variable::new(var_name.text, var_type, var_name.loc)
+        let var = Variable::new(var_name.text, var_type, var_name.span)
         func.params.push(var as untyped_ptr)
     }
     .consume(TokenType::CloseParen)
@@ -132,7 +132,7 @@ def Parser::parse_function(&this): &Function {
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
     } else {
-        func.return_type = Type::new(BaseType::Void, name.loc)
+        func.return_type = Type::new(BaseType::Void, name.span)
     }
 
     func.is_extern = false

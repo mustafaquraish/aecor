@@ -1,0 +1,48 @@
+use "./lib/math.ae"
+use "./compiler/tokens.ae"
+
+def strsep(s: &string, delim: string): string extern
+
+def error_span(span: Span, msg: string) {
+    let filename = span.start.filename;
+    let file = File::open(filename, "r")
+    defer file.close()
+
+    let contents = file.slurp()
+    defer free(contents as untyped_ptr)
+
+    let min_line = max(span.start.line - 2, 1)
+    let max_line = span.end.line + 2
+
+    println("---------------------------------------------------------------")
+    println("%s: %s", span.start.str(), msg)
+    println("---------------------------------------------------------------")
+    let lines = contents
+    let cur = strsep(&lines, "\n")
+    let line_no = 1
+    while cur != 0 as string and line_no <= max_line {
+        if line_no >= min_line and line_no <= max_line {
+            print("%4d | ", line_no)
+            if line_no == span.start.line {
+                let start_col = span.start.col - 1
+                let end_col = span.end.col - 1
+                for let i = 0; i < start_col; i += 1 {
+                    print("%c", cur[i])
+                }
+                print("\x1b[31m")
+                for let i = start_col; i < end_col; i += 1 {
+                    print("%c", cur[i])
+                }
+                println("\x1b[0m%s", cur + end_col)
+                println("%*s\x1b[31m^ %s\x1b[0m", start_col + 7, "", msg)
+            } else {
+                println("%s", cur)
+            }
+        }
+        line_no += 1
+        cur = strsep(&lines, "\n")
+    }
+    println("---------------------------------------------------------------")
+
+    exit(1)
+}

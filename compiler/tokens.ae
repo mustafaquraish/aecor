@@ -17,33 +17,57 @@ def Location::str(this): string {
     return `{.filename}:{.line}:{.col}`
 }
 
+struct Span {
+    start: Location
+    end: Location
+}
+
+def Span::make(start: Location, end: Location): Span {
+    let span: Span
+    span.start = start
+    span.end = end
+    return span
+}
+
+def Span::str(this): string {
+    return `{.start.str()} => {.end.str()}`
+}
+
+// Needs to be called in the correct order!
+def Span::join(this, other: Span): Span {
+    let span: Span
+    span.start = this.start
+    span.end = other.end
+    return span
+}
+
 struct Token {
     type: TokenType
-    loc: Location
+    span: Span
     text: string
     seen_newline: bool
 }
 
-def Token::new(type: TokenType, loc: Location, text: string): &Token {
+def Token::new(type: TokenType, span: Span, text: string): &Token {
     let tok = malloc(sizeof(Token)) as &Token
     tok.type = type
-    tok.loc = loc
+    tok.span = span
     tok.text = text
     tok.seen_newline = false
     return tok
 }
 
-def Token::from_type(type: TokenType, loc: Location): &Token {
-    return Token::new(type, loc, "")
+def Token::from_type(type: TokenType, span: Span): &Token {
+    return Token::new(type, span, "")
 }
 
-def Token::from_ident(text: string, loc: Location): &Token {
+def Token::from_ident(text: string, span: Span): &Token {
     let type = TokenType::from_text(text)
-    return Token::new(type, loc, text)
+    return Token::new(type, span, text)
 }
 
 def Token::str(&this): string {
-    return `{.loc.str()}: {.type.str()}`
+    return `{.span.str()}: {.type.str()}`
 }
 
 enum TokenType {
