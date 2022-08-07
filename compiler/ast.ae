@@ -45,6 +45,7 @@ enum ASTType {
   SizeOf
   ScopeLookup
   StringLiteral
+  CharLiteral
   UnaryMinus
   VarDeclaration
   While
@@ -93,6 +94,7 @@ def ASTType::str(this): string {
     if this == ASTType::SizeOf return "SizeOf"
     if this == ASTType::ScopeLookup return "ScopeLookup"
     if this == ASTType::StringLiteral return "StringLiteral"
+    if this == ASTType::CharLiteral return "CharLiteral"
     if this == ASTType::UnaryMinus return "UnaryMinus"
     if this == ASTType::VarDeclaration return "VarDeclaration"
     if this == ASTType::While    return "While"
@@ -310,6 +312,7 @@ union ASTUnion {
     num_literal: string
     bool_literal: bool
     string_literal: string
+    char_literal: string
     size_of_type: &Type
 }
 

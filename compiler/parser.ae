@@ -209,6 +209,11 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
     } else if .token_is(TokenType::FormatStringLiteral) {
         node = .parse_format_string()
 
+    } else if .token_is(TokenType::CharLiteral) {
+        node = AST::new(ASTType::CharLiteral, .token().span)
+        let tok = .consume(TokenType::CharLiteral)
+        node.u.char_literal = tok.text
+
     } else if .token_is(TokenType::True) or .token_is(TokenType::False) {
         let tok = .consume(.token().type)
         node = AST::new(ASTType::BoolLiteral, tok.span)

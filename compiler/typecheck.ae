@@ -234,6 +234,8 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         etype = Type::new(BaseType::Bool, node.span)
     } else if node.type == ASTType::StringLiteral {
         etype = Type::ptr_to(BaseType::Char, node.span)
+    } else if node.type == ASTType::CharLiteral {
+        etype = Type::new(BaseType::Char, node.span)
     } else if node.type == ASTType::FormatStringLiteral {
         etype = .check_format_string(node)
     } else if node.type == ASTType::SizeOf {
