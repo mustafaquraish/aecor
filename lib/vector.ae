@@ -25,7 +25,7 @@ def Vector::push(&this, val: untyped_ptr) {
             .data as untyped_ptr,
             .capacity * sizeof(untyped_ptr)) as &untyped_ptr
     }
-    *(.data + .size) = val
+    .data[.size] = val
     .size += 1
 }
 
@@ -35,7 +35,15 @@ def Vector::pop(&this): untyped_ptr {
         exit(1)
     }
     .size -= 1
-    return *(.data + .size)
+    return .data[.size]
+}
+
+def Vector::back(&this): untyped_ptr {
+    if .size == 0 {
+        println("back on empty vector")
+        exit(1)
+    }
+    return .data[.size - 1]
 }
 
 def Vector::at(&this, i: i32): untyped_ptr {
@@ -43,5 +51,5 @@ def Vector::at(&this, i: i32): untyped_ptr {
         println("at out of bounds in vector")
         exit(1)
     }
-    return *(.data + i)
+    return .data[i]
 }

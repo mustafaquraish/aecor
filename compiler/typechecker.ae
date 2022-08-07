@@ -1,0 +1,136 @@
+use "./compiler/ast.ae"
+use "./lib/map.ae"
+
+struct TypeChecker {
+    scopes: &Vector   // &Vector<&Map<string, &Variable>>
+    functions: &Map   // &Map<string, &Function>
+    structures: &Map  // &Map<string, &Structure>
+    methods: &Map     // &Map<string, &Map<string, &Function>>
+    cur_func: &Function
+}
+
+def TypeChecker::new(): &TypeChecker {
+    let checker = calloc(1, sizeof(TypeChecker)) as &TypeChecker
+    checker.scopes = Vector::new()
+    return checker
+}
+
+def TypeChecker::push_scope(&this) {
+    let scope = Map::new()
+    .scopes.push(scope as untyped_ptr)
+}
+
+def TypeChecker::scope(&this): &Map {
+    return .scopes.back() as &Map
+}
+
+def TypeChecker::pop_scope(&this) {
+    let scope = .scopes.pop() as &Map
+    scope.free()
+}
+
+def TypeChecker::push_var(&this, var: &Variable) {
+    let scope = .scope()
+    if scope.exists(var.name) {
+        error_span(var.span, "Variable is already defined in scope")
+    }
+    .scope().insert(var.name, var as untyped_ptr)
+}
+
+def TypeChecker::find_var(&this, name: string): &Variable {
+    for let i = .scopes.size - 1; i >= 0; i -= 1 {
+        let scope = .scopes.at(i) as &Map
+        let var = scope.get(name) as &Variable
+        if var != 0 as &Variable {
+            return var
+        }
+    }
+    return 0 as &Variable
+}
+
+def TypeChecker::get_struct_member(&this, lhs: string, rhs: string): &Variable {
+    let struc = .structures.get(lhs) as &Structure
+    for let i = 0; i < struc.fields.size; i += 1 {
+        let field = struc.fields.at(i) as &Variable
+        if streq(field.name, rhs) {
+            return field
+        }
+    }
+    return 0 as &Variable
+}
+
+def TypeChecker::type_is_valid(&this, type: &Type): bool {
+    if type.base == BaseType::Pointer {
+        return .type_is_valid(type.ptr)
+    } else if type.base == BaseType::Function {
+        for let i = 0; i < type.params.size; i += 1 {
+            if not .type_is_valid(type.params.at(i) as &Type) {
+                return false
+            }
+        }
+        return .type_is_valid(type.return_type)
+    } else if type.base == BaseType::Structure {
+        let struc = .structures.get(type.name) as &Structure
+        if struc != 0 as &Structure {
+            // Fill in the struct_def for unvalidated stucts
+            type.struct_def = struc
+            return true
+        }
+        return false
+    } else {
+        return true
+    }
+}
+
+def TypeChecker::check_function(&this, func: &Function) {
+    let prev_func = .cur_func
+    .cur_func = func
+    .push_scope();
+
+    // The types of parameters and return are checked in decl-pass
+    for let i = 0; i < func.params.size; i += 1 {
+        .push_var(func.params.at(i) as &Variable)
+    }
+
+    if func.body != 0 as &AST { .check_block(func.body); }
+
+    .pop_scope()
+    .cur_func = prev_func
+}
+
+def TypeChecker::check_statement(&this, node: &AST) {
+    println("todo: check_statement")
+    exit(1)
+}
+
+def TypeChecker::check_block(&this, node: &AST) {
+    .push_scope();
+    let statements = node.u.block.statements;
+    for let i = 0; i < statements.size; i += 1 {
+        .check_statement(statements.at(i) as &AST);
+    }
+    .pop_scope();
+}
+
+def TypeChecker::check_all_structs(&this, program: &Program) {
+    println("todo: check_all_structs")
+    exit(1)
+}
+
+def TypeChecker::check_all_functions(&this, program: &Program) {
+    println("todo: check_all_functions")
+    exit(1)
+}
+
+def TypeChecker::check_program(&this, program: &Program) {
+    .check_all_structs(program);
+
+    .push_scope();
+    for let i = 0; i < program.global_vars.size; i += 1 {
+        let var = program.global_vars.at(i) as &AST
+        .check_statement(var)
+    }
+
+    .check_all_functions(program);
+    .pop_scope();
+}

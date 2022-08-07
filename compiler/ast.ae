@@ -285,6 +285,7 @@ struct AST {
     type: ASTType
     span: Span
     u: ASTUnion
+    etype: &Type
 }
 
 def AST::new(type: ASTType, span: Span): &AST {
