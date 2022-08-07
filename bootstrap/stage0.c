@@ -84,6 +84,7 @@ enum TokenType {
   TokenType__As,
   TokenType__Bool,
   TokenType__Char,
+  TokenType__Continue,
   TokenType__Def,
   TokenType__Defer,
   TokenType__Else,
@@ -109,6 +110,7 @@ enum TokenType {
   TokenType__Use,
   TokenType__Void,
   TokenType__While,
+  TokenType__Break,
   TokenType__AtSign,
   TokenType__Ampersand,
   TokenType__Backtick,
@@ -213,8 +215,11 @@ enum ASTType {
   ASTType__BitwiseAnd,
   ASTType__BitwiseOr,
   ASTType__BitwiseXor,
+  ASTType__Break,
   ASTType__Call,
   ASTType__Cast,
+  ASTType__CharLiteral,
+  ASTType__Continue,
   ASTType__Defer,
   ASTType__Dereference,
   ASTType__Divide,
@@ -247,7 +252,6 @@ enum ASTType {
   ASTType__SizeOf,
   ASTType__ScopeLookup,
   ASTType__StringLiteral,
-  ASTType__CharLiteral,
   ASTType__UnaryMinus,
   ASTType__VarDeclaration,
   ASTType__While,
@@ -399,6 +403,7 @@ struct TypeChecker {
   Map* structures;
   Map* methods;
   Function* cur_func;
+  bool in_loop;
 };
 
 struct CodeGenerator {
@@ -720,6 +725,9 @@ TokenType TokenType__from_text(char* text) {
   if (streq(text, "char"))
   return TokenType__Char;
   
+  if (streq(text, "continue"))
+  return TokenType__Continue;
+  
   if (streq(text, "def"))
   return TokenType__Def;
   
@@ -765,6 +773,9 @@ TokenType TokenType__from_text(char* text) {
   if (streq(text, "return"))
   return TokenType__Return;
   
+  if (streq(text, "break"))
+  return TokenType__Break;
+  
   if (streq(text, "sizeof"))
   return TokenType__SizeOf;
   
@@ -808,8 +819,14 @@ char* TokenType__str(TokenType this) {
   if (this == TokenType__Bool)
   return "bool";
   
+  if (this == TokenType__Break)
+  return "break";
+  
   if (this == TokenType__Char)
   return "char";
+  
+  if (this == TokenType__Continue)
+  return "continue";
   
   if (this == TokenType__Def)
   return "def";
@@ -1502,11 +1519,20 @@ char* ASTType__str(ASTType this) {
   if (this == ASTType__BitwiseXor)
   return "BitwiseXor";
   
+  if (this == ASTType__Break)
+  return "Break";
+  
   if (this == ASTType__Call)
   return "Call";
   
   if (this == ASTType__Cast)
   return "Cast";
+  
+  if (this == ASTType__CharLiteral)
+  return "CharLiteral";
+  
+  if (this == ASTType__Continue)
+  return "Continue";
   
   if (this == ASTType__Defer)
   return "Defer";
@@ -1603,9 +1629,6 @@ char* ASTType__str(ASTType this) {
   
   if (this == ASTType__StringLiteral)
   return "StringLiteral";
-  
-  if (this == ASTType__CharLiteral)
-  return "CharLiteral";
   
   if (this == ASTType__UnaryMinus)
   return "UnaryMinus";
@@ -2330,6 +2353,14 @@ AST* Parser__parse_statement(Parser* this) {
     AST* expr = Parser__parse_expression(this, false);
     node = AST__new_unop(ASTType__Return, Span__join(start_span, expr->span), expr);
     Parser__consume_newline_or(this, TokenType__Semicolon);
+  }  else   if (Parser__token_is(this, TokenType__Break)){
+    Parser__consume(this, TokenType__Break);
+    node = AST__new(ASTType__Break, start_span);
+    Parser__consume_newline_or(this, TokenType__Semicolon);
+  }  else   if (Parser__token_is(this, TokenType__Continue)){
+    Parser__consume(this, TokenType__Continue);
+    node = AST__new(ASTType__Continue, start_span);
+    Parser__consume_newline_or(this, TokenType__Semicolon);
   }  else   if (Parser__token_is(this, TokenType__Defer)){
     Parser__consume(this, TokenType__Defer);
     AST* expr = Parser__parse_statement(this);
@@ -2403,6 +2434,8 @@ AST* Parser__parse_statement(Parser* this) {
     node = Parser__parse_expression(this, false);
     Parser__consume_newline_or(this, TokenType__Semicolon);
   } 
+  
+  
   
   
   
@@ -3119,6 +3152,14 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
     if ((!Type__eq(ret_type, this->cur_func->return_type))){
       error_span(node->span, "Return type does not match function return type");
     } 
+  }  else   if (node->type == ASTType__Break){
+    if ((!this->in_loop)){
+      error_span(node->span, "Break statement outside of loop");
+    } 
+  }  else   if (node->type == ASTType__Continue){
+    if ((!this->in_loop)){
+      error_span(node->span, "Continue statement outside of loop");
+    } 
   }  else   if (node->type == ASTType__Defer){
     TypeChecker__check_expression(this, node->u.unary);
   }  else   if (node->type == ASTType__VarDeclaration){
@@ -3144,12 +3185,17 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
     } 
     TypeChecker__push_var(this, var_decl->var);
   }  else   if (node->type == ASTType__While){
+    bool was_in_loop = this->in_loop;
+    this->in_loop = true;
     Type* cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
     if ((cond_type->base != BaseType__Bool)){
       error_span(node->u.loop.cond->span, "Condition must be boolean");
     } 
     TypeChecker__check_statement(this, node->u.loop.body);
+    this->in_loop = was_in_loop;
   }  else   if (node->type == ASTType__For){
+    bool was_in_loop = this->in_loop;
+    this->in_loop = true;
     TypeChecker__push_scope(this);
     if ((node->u.loop.init != ((AST*)0))){
       TypeChecker__check_statement(this, node->u.loop.init);
@@ -3165,6 +3211,7 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
     } 
     TypeChecker__check_statement(this, node->u.loop.body);
     TypeChecker__pop_scope(this);
+    this->in_loop = was_in_loop;
   }  else   if (node->type == ASTType__If){
     Type* cond_type = TypeChecker__check_expression(this, node->u.if_stmt.cond);
     if ((cond_type->base != BaseType__Bool)){
@@ -3177,6 +3224,8 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
   }  else {
     TypeChecker__check_expression(this, node);
   } 
+  
+  
   
   
   
@@ -3653,6 +3702,12 @@ void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent) {
     File__puts(this->out, "return ");
     CodeGenerator__gen_expression(this, node->u.unary);
     File__puts(this->out, ";\n");
+  }  else   if (node->type == ASTType__Break){
+    CodeGenerator__indent(this, indent);
+    File__puts(this->out, "break;\n");
+  }  else   if (node->type == ASTType__Continue){
+    CodeGenerator__indent(this, indent);
+    File__puts(this->out, "continue;\n");
   }  else   if (node->type == ASTType__VarDeclaration){
     CodeGenerator__indent(this, indent);
     CodeGenerator__gen_var_decl(this, node);
@@ -3705,6 +3760,8 @@ void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent) {
     CodeGenerator__gen_expression(this, node);
     File__puts(this->out, ";\n");
   } 
+  
+  
   
   
   
