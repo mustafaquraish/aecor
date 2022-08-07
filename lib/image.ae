@@ -11,10 +11,10 @@ struct Image {
 }
 
 def Image::new(width: i32, height: i32): &Image {
-    let img = malloc(sizeof(Image)) as &Image
+    let img = calloc(1, sizeof(Image)) as &Image
     img.width = width
     img.height = height
-    img.data = malloc(width * height * sizeof(Vec)) as &Vec
+    img.data = calloc(1, width * height * sizeof(Vec)) as &Vec
     return img
 }
 
@@ -37,7 +37,7 @@ def Image::save(&this, filename: string) {
     let f = File::open(filename, "wb")
     defer f.close()
 
-    let u8buf = malloc(.width * .height * 3 * sizeof(u8)) as &u8
+    let u8buf = calloc(1, .width * .height * 3 * sizeof(u8)) as &u8
     defer free(u8buf as untyped_ptr)
 
     for let i = 0; i < .width * .height; i += 1 {

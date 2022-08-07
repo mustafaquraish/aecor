@@ -1,14 +1,15 @@
-/// out: "Usage - ./out <file>"
+/// out: "Usage - ./aecor <file>"
 
 use "./compiler/lexer.ae"
 use "./compiler/parser.ae"
-use "./compiler/typechecker.ae"
+use "./compiler/typecheck.ae"
 use "./compiler/codegen.ae"
+
+@compiler c_flag "-O3"
 
 def main(argc: i32, argv: &string) {
     if argc < 2 {
-        let x = argv[0]
-        puts(`Usage - {argv[0]} <file>\n`)
+        puts("Usage - ./aecor <file>\n")
         exit(1)
     }
 
@@ -18,17 +19,26 @@ def main(argc: i32, argv: &string) {
     let lexer = Lexer::make(contents, argv[1])
     let tokens = lexer.lex()
 
-    // for let i = 0; i < tokens.size; i += 1 {
-    //     let token = tokens.at(i) as &Token
-    //     println("%s", token.str())
-    // }
-
     let parser = Parser::make(tokens)
     let program = parser.parse_program()
 
     let checker = TypeChecker::new()
     checker.check_program(program)
 
-    let generator = CodeGenerator::make("/dev/stdout")
+    let generator = CodeGenerator::make("./out2.c")
     generator.gen_program(program)
+
+    let cmdbuf = calloc(1, 1024) as string
+    strcat(cmdbuf, "gcc -o out2 out2.c")
+    for let i = 0; i < program.c_flags.size; i += 1 {
+        let flag = program.c_flags.at(i) as string
+        strcat(cmdbuf, " ")
+        strcat(cmdbuf, flag)
+    }
+    println("[+] %s", cmdbuf)
+    let code = system(cmdbuf)
+    if code != 0 {
+        println("[-] Compilation failed")
+        exit(1)
+    }
 }

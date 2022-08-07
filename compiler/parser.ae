@@ -126,6 +126,69 @@ def Parser::parse_type(&this): &Type {
     return type.reverse()
 }
 
+def Parser::parse_format_string(&this): &AST {
+    let fstr = .consume(TokenType::FormatStringLiteral)
+    let fstr_len = strlen(fstr.text)
+
+    let expr_parts = Vector::new()    // Vector<string>
+    let expr_start = Vector::new()    // Vector<i32>
+
+    let format_parts = Vector::new()  // Vector<string>
+    let count = 0
+    let cur_start = 0
+    for let i = 0; i < fstr_len; i += 1 {
+        if fstr.text[i] == "{"[0] {
+            if count == 0 {
+                let part = substring(fstr.text, cur_start, i - cur_start)
+                format_parts.push(part as untyped_ptr)
+                cur_start = i + 1
+            }
+            count += 1
+        } else if fstr.text[i] == "}"[0] {
+            count -= 1
+            if count == 0 {
+                let part = substring(fstr.text, cur_start, i - cur_start)
+                expr_parts.push(part as untyped_ptr)
+                expr_start.push((fstr.text + cur_start) as untyped_ptr)
+                cur_start = i + 1
+
+            } else if count < 0 {
+                error_span(fstr.span, "Unmatched '}' in format string")
+            }
+        }
+    }
+    if count != 0 {
+        error_span(fstr.span, "Unmatched '{' in format string")
+    }
+    let part = substring(fstr.text, cur_start, fstr_len - cur_start)
+    format_parts.push(part as untyped_ptr)
+
+    let node = AST::new(ASTType::FormatStringLiteral, fstr.span)
+    node.u.fmt_str.parts = format_parts
+
+    let fstr_start = fstr.span.start
+    let expr_nodes = Vector::new()
+    for let i = 0; i < expr_parts.size; i += 1 {
+        let part = expr_parts.at(i) as string
+        let start = (expr_start.at(i) as string) - fstr.text
+
+        let lexer = Lexer::make(part, fstr_start.filename)
+        lexer.loc = fstr_start
+        lexer.loc.col += start
+
+        let tokens = lexer.lex()
+        let parser = Parser::make(tokens)
+        let expr = parser.parse_expression(false)
+
+        expr_nodes.push(expr as untyped_ptr)
+    }
+    node.u.fmt_str.exprs = expr_nodes
+
+    expr_parts.free()
+    expr_start.free()
+    return node
+}
+
 def Parser::parse_factor(&this, in_parens: bool): &AST {
     let node = 0 as &AST
     if .token_is(TokenType::IntLiteral) {
@@ -142,6 +205,9 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
         node = AST::new(ASTType::StringLiteral, .token().span)
         let tok = .consume(TokenType::StringLiteral)
         node.u.string_literal = tok.text
+
+    } else if .token_is(TokenType::FormatStringLiteral) {
+        node = .parse_format_string()
 
     } else if .token_is(TokenType::True) or .token_is(TokenType::False) {
         let tok = .consume(.token().type)
@@ -265,12 +331,15 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
 def Parser::parse_term(&this, in_parens: bool): &AST {
     let lhs = .parse_factor(in_parens)
     let running = true
-    while running and .token_is(TokenType::Star) or .token_is(TokenType::Slash) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_factor(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+    while running and .token_is(TokenType::Star) or .token_is(TokenType::Slash) or .token_is(TokenType::Percent) {
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_factor(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
     return lhs;
 }
@@ -279,11 +348,14 @@ def Parser::parse_additive(&this, in_parens: bool): &AST {
     let lhs = .parse_term(in_parens)
     let running = true
     while running and .token_is(TokenType::Plus) or .token_is(TokenType::Minus) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_term(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_term(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
     return lhs;
 }
@@ -292,11 +364,14 @@ def Parser::parse_bw_and(&this, in_parens: bool): &AST {
     let lhs = .parse_additive(in_parens)
     let running = true
     while running and .token_is(TokenType::Ampersand) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_additive(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_additive(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
     return lhs;
 }
@@ -305,11 +380,14 @@ def Parser::parse_bw_xor(&this, in_parens: bool): &AST {
     let lhs = .parse_bw_and(in_parens)
     let running = true
     while running and .token_is(TokenType::Caret) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_bw_and(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_bw_and(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
     return lhs;
 }
@@ -318,11 +396,14 @@ def Parser::parse_bw_or(&this, in_parens: bool): &AST {
     let lhs = .parse_bw_xor(in_parens)
     let running = true
     while running and .token_is(TokenType::Line) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_bw_xor(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_bw_xor(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
     return lhs;
 }
@@ -334,11 +415,14 @@ def Parser::parse_relational(&this, in_parens: bool): &AST {
             .token_is(TokenType::LessThanEquals) or
             .token_is(TokenType::GreaterThanEquals) or
             .token_is(TokenType::EqualEquals) or .token_is(TokenType::NotEquals) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_bw_or(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_bw_or(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
     return lhs;
 }
@@ -347,11 +431,14 @@ def Parser::parse_logical_and(&this, in_parens: bool): &AST {
     let lhs = .parse_relational(in_parens)
     let running = true
     while running and .token_is(TokenType::And) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_relational(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_relational(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
     return lhs;
 }
@@ -360,11 +447,14 @@ def Parser::parse_logical_or(&this, in_parens: bool): &AST {
     let lhs = .parse_logical_and(in_parens)
     let running = true
     while running and .token_is(TokenType::Or) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_logical_and(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_logical_and(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
     return lhs;
 }
@@ -376,11 +466,14 @@ def Parser::parse_expression(&this, in_parens: bool): &AST {
     while running and .token_is(TokenType::Equals) or .token_is(TokenType::PlusEquals) or
             .token_is(TokenType::MinusEquals) or .token_is(TokenType::StarEquals) or
             .token_is(TokenType::SlashEquals) {
-        if (not in_parens and .token().seen_newline) { running = false; }
-        let op = ASTType::from_token(.token().type)
-        .curr += 1
-        let rhs = .parse_logical_or(in_parens)
-        lhs = AST::new_binop(op, lhs, rhs)
+        if (not in_parens and .token().seen_newline) { 
+            running = false; 
+        } else {
+            let op = ASTType::from_token(.token().type)
+            .curr += 1
+            let rhs = .parse_expression(in_parens)
+            lhs = AST::new_binop(op, lhs, rhs)
+        }
     }
 
     return lhs;
@@ -395,21 +488,23 @@ def Parser::parse_statement(&this): &AST {
         .consume(TokenType::Return)
         let expr = .parse_expression(false)
         node = AST::new_unop(ASTType::Return, start_span.join(expr.span), expr)
+        .consume_newline_or(TokenType::Semicolon)
 
     } else if .token_is(TokenType::Defer) {
         .consume(TokenType::Defer)
-        let expr = .parse_expression(false)
+        let expr = .parse_statement()
         node = AST::new_unop(ASTType::Defer, start_span.join(expr.span), expr)
+
 
     } else if .token_is(TokenType::If) {
         .consume(TokenType::If)
         let cond = .parse_expression(false)
-        let then = .parse_block()
+        let then = .parse_statement()
 
         let end_span = then.span
         let els = 0 as &AST
         if .consume_if(TokenType::Else) {
-            els = .parse_block()
+            els = .parse_statement()
             end_span = els.span
         }
         node = AST::new(ASTType::If, start_span.join(end_span))

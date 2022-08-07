@@ -21,11 +21,11 @@ def File::tell(&this): i32 extern("ftell")
 def File::seek(&this, offset: i32, whence: i32): i32 extern("fseek")
 
 def File::slurp(&this): string {
-    let pos = this.tell()
+    let pos = .tell()
     .seek(0, SEEK_END)
-    let size = this.tell()
+    let size = .tell()
     .seek(pos, SEEK_SET)
-    let buf = malloc((size+1) * sizeof(char))
+    let buf = calloc((size+1), sizeof(char))
     fread(buf, 1, size, this)
     .seek(pos, SEEK_SET)
     return buf as string
@@ -46,6 +46,7 @@ def strcmp(str1: string, str2: string): i32 extern
 def strcpy(dest: string, src: string): string extern
 def strncpy(dest: string, src: string, n: i32): string extern
 def strdup(str: string): string extern
+def strcat(dest: string, src: string): string extern
 
 def streq(str1: string, str2: string): bool {
     return strcmp(str1, str2) == 0
@@ -58,3 +59,4 @@ def substring(str: string, start: i32, len: i32): string {
 }
 
 def puts(str: string) extern
+def system(str: string): i32 extern

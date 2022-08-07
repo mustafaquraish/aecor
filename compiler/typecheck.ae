@@ -163,7 +163,45 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
 }
 
 def TypeChecker::check_format_string(&this, node: &AST): &Type {
-    return 0 as &Type
+    // FIXME: Refactor this with string builder, this is inefficient
+    let parts = node.u.fmt_str.parts;
+    let exprs = node.u.fmt_str.exprs;
+
+    if parts.size != exprs.size + 1 {
+        error_span(node.span, "Number of format string parts does not match number of expressions")
+    }
+
+    let size = 0
+    for let i = 0; i < node.u.fmt_str.parts.size; i += 1 {
+        size += strlen(node.u.fmt_str.parts.at(i) as string) + 3
+    }
+
+    let buf = calloc(size + 1, 1) as string
+    for let i = 0; i < exprs.size; i += 1 {
+        let part = parts.at(i) as string
+        let expr = exprs.at(i) as &AST
+
+        strcat(buf, part)
+        let expr_type = .check_expression(expr)
+        if expr_type.base == BaseType::I32 or expr_type.base == BaseType::U8 {
+            strcat(buf, "%d")
+        } else if expr_type.base == BaseType::Bool {
+            strcat(buf, "%s")
+        } else if expr_type.base == BaseType::F32 {
+            strcat(buf, "%f")
+        } else if expr_type.base == BaseType::Char {
+            strcat(buf, "%c")
+        } else if expr_type.base == BaseType::Pointer and expr_type.ptr.base == BaseType::Char {
+            strcat(buf, "%s")
+        } else if expr_type.base == BaseType::Pointer {
+            strcat(buf, "%p")
+        } else {
+            strcat(buf, "%s")
+        }
+    }
+    strcat(buf, parts.back() as string)
+    node.u.fmt_str.str = buf
+    return Type::ptr_to(BaseType::Char, node.span)
 }
 
 def TypeChecker::check_pointer_arith(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
@@ -191,7 +229,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
     } else if node.type == ASTType::IntLiteral {
         etype = Type::new(BaseType::I32, node.span)
     } else if node.type == ASTType::FloatLiteral {
-        etype = Type::new(BaseType::I32, node.span)
+        etype = Type::new(BaseType::F32, node.span)
     } else if node.type == ASTType::BoolLiteral {
         etype = Type::new(BaseType::Bool, node.span)
     } else if node.type == ASTType::StringLiteral {
@@ -205,13 +243,14 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         etype = Type::new(BaseType::I32, node.span)
 
     } else if node.type == ASTType::Identifier {
-        let ident = node.u.ident;
+        let ident = &node.u.ident;
         let var = .find_var(ident.name)
         let func = .functions.get(ident.name) as &Function
 
         if ident.is_function {
             etype = ident.func.type
         } else if var != 0 as &Variable {
+            ident.is_function = false
             ident.var = var
             etype = var.type
         } else if func != 0 as &Function {
@@ -226,22 +265,23 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             node.type == ASTType::Minus or
             node.type == ASTType::Multiply or
             node.type == ASTType::Divide {
+
         let lhs = .check_expression(node.u.binary.lhs)
         let rhs = .check_expression(node.u.binary.rhs)
         if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
             etype = .check_pointer_arith(node, lhs, rhs)
-        }
-        if not lhs.is_numeric() or not rhs.is_numeric() {
+        } else if not lhs.is_numeric() or not rhs.is_numeric() {
             error_span(node.span, "Operator requires numeric types")
-        }
-        if not lhs.eq(rhs) {
+        } else if not lhs.eq(rhs) {
             error_span(node.span, "Operands must be be of the same type")
+        } else {
+            etype = lhs
         }
-        etype = lhs
     }  else if node.type == ASTType::LessThan or
             node.type == ASTType::LessThanEquals or
             node.type == ASTType::GreaterThan or
             node.type == ASTType::GreaterThanEquals {
+
         let lhs = .check_expression(node.u.binary.lhs)
         let rhs = .check_expression(node.u.binary.rhs)
         if not lhs.is_numeric() or not rhs.is_numeric() {
@@ -252,8 +292,25 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         }
         etype = Type::new(BaseType::Bool, node.span)
 
+    } else if node.type == ASTType::Equals or
+            node.type == ASTType::NotEquals {
+
+        let lhs = .check_expression(node.u.binary.lhs)
+        let rhs = .check_expression(node.u.binary.rhs)
+        if not lhs.eq(rhs) {
+            error_span(node.span, "Operands must be be of the same type")
+        }
+        if lhs.base == BaseType::Structure {
+            let struc = .structures.get(lhs.name) as &Structure
+            if not struc.is_enum {
+                error_span(node.span, "Cannot compare structs directly")
+            }
+        }
+        etype = Type::new(BaseType::Bool, node.span)
+
     } else if node.type == ASTType::And or
             node.type == ASTType::Or {
+
         let lhs = .check_expression(node.u.binary.lhs)
         let rhs = .check_expression(node.u.binary.rhs)
         if not lhs.eq(rhs) or lhs.base != BaseType::Bool {
@@ -281,12 +338,14 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         etype = lhs
 
     } else if node.type == ASTType::UnaryMinus {
+
         etype = .check_expression(node.u.unary)
         if not etype.is_numeric() {
             error_span(node.u.unary.span, "Expression must be a number")
         }
 
     } else if node.type == ASTType::Address {
+
         etype = .check_expression(node.u.unary)
         etype = Type::new_link(BaseType::Pointer, etype, node.span)
 
@@ -298,6 +357,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         etype = expr_type.ptr
 
     } else if node.type == ASTType::Index {
+
         let expr_type = .check_expression(node.u.binary.lhs)
         if expr_type.base != BaseType::Pointer {
             error_span(node.u.binary.lhs.span, "Expression must be a pointer-type")
@@ -433,7 +493,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
         .check_expression(node.u.unary)
 
     } else if node.type == ASTType::VarDeclaration {
-        let var_decl = node.u.var_decl
+        let var_decl = &node.u.var_decl
         if var_decl.init  != 0 as &AST {
             let init_type = .check_expression(var_decl.init)
             if init_type.base == BaseType::Method {
@@ -441,7 +501,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
             }
             if var_decl.var.type == 0 as &Type {
                 var_decl.var.type = init_type
-            } else if (var_decl.var.type.eq(init_type)) {
+            } else if not var_decl.var.type.eq(init_type) {
                 error_span(var_decl.init.span, "Variable type does not match initializer type")
             }
         } else {
@@ -604,7 +664,7 @@ def TypeChecker::check_all_structs(&this, program: &Program) {
         let name = struc.name
 
         if .structures.exists(name) {
-            error_span(struc.span, "Structure is already defined")
+            error_span(struc.span, "Struct has already been defined")
         }
 
         .structures.insert(name, struc as untyped_ptr)

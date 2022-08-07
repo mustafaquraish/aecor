@@ -50,7 +50,7 @@ def Lexer::peek(&this, offset: i32): char {
 def Lexer::lex(&this): &Vector {
     while .i < .source_len {
         let c = .source[.i]
-        if (c == "\t"[0] or c == "\v"[0] or c == "\r"[0] or c ==  " "[0]) {
+        if (c == "\t"[0] or c == "\v"[0] or c == "\r"[0] or c ==  " "[0] or c ==  "\b"[0]) {
             .i += 1
             .loc.col += 1
         } else if (c == "\n"[0]) {
@@ -181,10 +181,11 @@ def Lexer::lex(&this): &Vector {
                 .loc.col += len
                 .push(Token::from_ident(text, Span::make(start_loc, .loc)))
 
-            } else if (c == "\""[0]) {
+            } else if c == "\""[0] or c == "`"[0] {
+                let end_char = c
                 let start = .i + 1;
                 .i += 1
-                while (.source[.i] != "\""[0]) {
+                while (.source[.i] != c) {
                     if (.source[.i] == "\\"[0]) {
                         .i += 1
                     }
@@ -195,9 +196,13 @@ def Lexer::lex(&this): &Vector {
                 let text = substring(.source, start, len)
                 .loc.col += len + 2;
                 .i += 1
-                .push(Token::new(TokenType::StringLiteral, Span::make(start_loc, .loc), text))
+                if end_char == "`"[0] {
+                    .push(Token::new(TokenType::FormatStringLiteral, Span::make(start_loc, .loc), text))
+                } else {
+                    .push(Token::new(TokenType::StringLiteral, Span::make(start_loc, .loc), text))
+                }
             } else {
-                println("Unrecognized char in lexer: '%c'", c)
+                println("%s: Unrecognized char in lexer: '%d'", .loc.str(), c)
                 exit(1)
             }
         }

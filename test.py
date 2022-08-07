@@ -1,4 +1,5 @@
 import subprocess
+import argparse
 from ast import literal_eval
 from dataclasses import dataclass
 from enum import Enum
@@ -64,12 +65,18 @@ def get_expected(filename) -> Optional[Expected]:
     return expected
 
 
-def handle_test(path: Path, expected: Expected) -> Tuple[bool, str]:
-    process = subprocess.run(['./aecor', str(path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def handle_test(self_host: bool, path: Path, expected: Expected) -> Tuple[bool, str]:
+
+    compiler = "./aecor_sh" if self_host else "./aecor"
+    process = subprocess.run([compiler, str(path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if expected.type == ExpectedOutputType.FAIL:
         if process.returncode == 0:
             return False, "Expected compilation failure, but succeeded"
-        error = process.stderr.decode("utf-8").strip()
+
+        if self_host:
+            error = process.stdout.decode("utf-8").strip()
+        else:
+            error = process.stderr.decode("utf-8").strip()
         expected_error = expected.value
 
         if expected_error in error:
@@ -79,7 +86,8 @@ def handle_test(path: Path, expected: Expected) -> Tuple[bool, str]:
     elif process.returncode != 0:
         return False, "Compilation failed"
 
-    process = subprocess.run(['./out'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    executable = "./out2" if self_host else "./out"
+    process = subprocess.run([executable], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if expected.type == ExpectedOutputType.EXIT_WITH_CODE:
         if process.returncode != expected.value:
@@ -95,11 +103,22 @@ def handle_test(path: Path, expected: Expected) -> Tuple[bool, str]:
 
 
 def main():
-    test_paths = argv[1:]
-    if len(test_paths) == 0:
-        test_paths = ["tests", "compiler/main.ae"]
+    parser = argparse.ArgumentParser(description="Runs aecor test suite")
+    parser.add_argument(
+        "-s",
+        "--self-host",
+        action="store_true",
+        help="Runs the self-hosted version"
+    )
+    parser.add_argument(
+        "files",
+        nargs="?",
+        default=["tests", "compiler/main.ae"],
+        help="Files / folders to run"
+    )
+    args = parser.parse_args()
 
-    test_paths = [Path(pth) for pth in test_paths]
+    test_paths = [Path(pth) for pth in args.files]
 
     if system("make") != 0:
         return 1
@@ -129,7 +148,7 @@ def main():
         print(f" \33[2K[\033[92m{num_passed:3d}\033[0m", end="")
         print(f"/\033[91m{num_failed:3d}\033[0m]", end="")
         print(f" Running test {i+1}/{num_total}: {path}\r", end="", flush=True)
-        passed, msg = handle_test(path, expected)
+        passed, msg = handle_test(args.self_host, path, expected)
         if passed:
             num_passed += 1
         else:

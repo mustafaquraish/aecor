@@ -14,7 +14,7 @@ def MapNode::new(key: string, value: untyped_ptr, next: &MapNode): &MapNode {
 	return node
 }
 
-def MapNode::free_list(node: &MapNode): void {
+def MapNode::free_list(node: &MapNode) {
 	let cur = node
 	while cur != 0 as &MapNode {
 		let next = cur.next

@@ -2,11 +2,13 @@ use "./compiler/ast.ae"
 
 struct CodeGenerator {
     out: &File
+    scopes: &Vector  // Vector<Vector<AST>>
 }
 
 def CodeGenerator::make(filename: string): CodeGenerator {
     let gen: CodeGenerator
     gen.out = File::open(filename, "w")
+    gen.scopes = Vector::new()
     return gen
 }
 
@@ -14,6 +16,19 @@ def CodeGenerator::indent(&this, num: i32) {
     for let i = 0; i < num; i += 1 {
         .out.puts("  ")
     }
+}
+
+def CodeGenerator::push_scope(&this) {
+    .scopes.push(Vector::new() as untyped_ptr)
+}
+
+def CodeGenerator::scope(&this): &Vector {
+    return .scopes.back() as &Vector
+}
+
+def CodeGenerator::pop_scope(&this) {
+    let scope = .scopes.pop() as &Vector
+    scope.free()
 }
 
 def CodeGenerator::gen_control_body(&this, node: &AST, indent: i32) {
@@ -70,6 +85,8 @@ def CodeGenerator::get_op(type: ASTType): string {
     if type == ASTType::Or return " || "
     if type == ASTType::BitwiseOr return " | "
     if type == ASTType::BitwiseAnd return " & "
+    if type == ASTType::BitwiseXor return " ^ "
+    if type == ASTType::Modulus return " % "
 
     if type == ASTType::Plus return " + "
     if type == ASTType::Minus return " - "
@@ -109,7 +126,13 @@ def CodeGenerator::gen_type(&this, type: &Type) {
         .gen_type(type.ptr)
         .out.puts("*")
     }
-    else if (type.base == BaseType::Structure) this.out.puts(type.name)
+    else if (type.base == BaseType::Structure) {
+        if type.struct_def.is_extern {
+            .out.puts(type.struct_def.extern_name)
+        } else {
+            .out.puts(type.struct_def.name)
+        }
+    }
     else {
         println("unknown type in gen_type: %s", type.str())
         exit(1)
@@ -119,29 +142,33 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 def CodeGenerator::gen_expression(&this, node: &AST) {
     if node.type == ASTType::IntLiteral {
         .out.puts(node.u.num_literal)
+
     } else if node.type == ASTType::FloatLiteral {
         .out.puts(node.u.num_literal)
+
     } else if node.type == ASTType::StringLiteral {
         .out.puts(`\"{node.u.string_literal}\"`)
+
     } else if node.type == ASTType::BoolLiteral {
         if node.u.bool_literal {
             .out.puts("true")
         } else {
             .out.puts("false")
         }
+
     } else if node.type == ASTType::Identifier {
         let ident = node.u.ident
-        .out.puts(ident.name)
-        // if ident.is_function {
-        //     .gen_function_name(ident.func)
-        // } else {
-        //     let var = ident.var
-        //     if var.is_extern {
-        //         .out.puts(var.extern_name)
-        //     } else {
-        //         .out.puts(var.name)
-        //     }
-        // }
+        if ident.is_function {
+            .gen_function_name(ident.func)
+        } else {
+            let var = ident.var
+            if var.is_extern {
+                .out.puts(var.extern_name)
+            } else {
+                .out.puts(var.name)
+            }
+        }
+
     } else if node.type == ASTType::Call {
         let newline_after_first = false;
         if node.callee_is("print") {
@@ -164,11 +191,14 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             first = false
         }
         .out.puts(")")
+
     } else if node.type == ASTType::And or
             node.type == ASTType::And or
             node.type == ASTType::Or or
             node.type == ASTType::BitwiseOr or
             node.type == ASTType::BitwiseAnd or
+            node.type == ASTType::BitwiseXor or
+            node.type == ASTType::Modulus or
             node.type == ASTType::NotEquals or
             node.type == ASTType::LessThan or
             node.type == ASTType::GreaterThan or
@@ -193,7 +223,59 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         .gen_expression(node.u.unary)
         .out.puts(")")
 
-    } else if node.type == ASTType::Equals {
+    } else if node.type == ASTType::Index {
+        .gen_expression(node.u.binary.lhs)
+        .out.puts("[")
+        .gen_expression(node.u.binary.rhs)
+        .out.puts("]")
+
+    } else if node.type == ASTType::Member {
+        .gen_expression(node.u.member.lhs)
+        if node.u.member.is_pointer {
+            .out.puts("->")
+        } else {
+            .out.puts(".")
+        }
+        .out.puts(node.u.member.name)
+
+    } else if node.type == ASTType::EnumValue {
+        let enum_value = node.u.enum_val
+        .gen_enum_value(enum_value.struct_def.name, enum_value.name)
+
+    } else if node.type == ASTType::Cast {
+        .out.puts("((")
+        .gen_type(node.u.cast.to)
+        .out.puts(")")
+        .gen_expression(node.u.cast.lhs)
+        .out.puts(")")
+
+    } else if node.type == ASTType::FormatStringLiteral {
+        .out.puts("__format_string(\"")
+        .out.puts(node.u.fmt_str.str)
+        .out.puts("\"")
+
+        let exprs = node.u.fmt_str.exprs
+        for let i = 0; i < exprs.size; i += 1 {
+            let expr = exprs.at(i) as &AST
+            .out.puts(", ")
+            .gen_expression(expr)
+        }
+        .out.puts(")")
+
+    } else if node.type == ASTType::Defer {
+        .scope().push(node.u.unary as untyped_ptr)
+
+    } else if node.type == ASTType::SizeOf {
+        .out.puts("sizeof(")
+        .gen_type(node.u.size_of_type)
+        .out.puts(")")
+
+    } else if node.type == ASTType::Equals or
+            node.type == ASTType::Assignment or
+            node.type == ASTType::PlusEquals or
+            node.type == ASTType::MinusEquals or
+            node.type == ASTType::DivideEquals or
+            node.type == ASTType::MultiplyEquals {
         .gen_expression(node.u.binary.lhs)
         .out.puts(CodeGenerator::get_op(node.type))
         .gen_expression(node.u.binary.rhs)
@@ -204,20 +286,27 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
     }
 }
 
+def CodeGenerator::gen_var_decl(&this, node: &AST) {
+    let var = node.u.var_decl.var
+    if not var.is_extern {
+        .gen_type_and_name(var.type, var.name)
+        if node.u.var_decl.init != 0 as &AST {
+            .out.puts(" = ")
+            .gen_expression(node.u.var_decl.init)
+        }
+    }
+}
+
 def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
     if node.type == ASTType::Return {
+        .indent(indent)
         .out.puts("return ")
         .gen_expression(node.u.unary)
         .out.puts(";\n")
 
     } else if node.type == ASTType::VarDeclaration {
         .indent(indent)
-        let var_decl = node.u.var_decl
-        .gen_type_and_name(var_decl.var.type, var_decl.var.name)
-        if var_decl.init != 0 as &AST {
-            .out.puts(" = ")
-            .gen_expression(var_decl.init)
-        }
+        .gen_var_decl(node)
         .out.puts(";\n")
 
     } else if node.type == ASTType::If {
@@ -225,11 +314,43 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
         .out.puts("if (")
         .gen_expression(node.u.if_stmt.cond)
         .out.puts(")")
-        .gen_statement(node.u.if_stmt.then, indent)
+        .gen_control_body(node.u.if_stmt.then, indent)
         if node.u.if_stmt.els != 0 as &AST {
             .out.puts(" else ")
-            .gen_statement(node.u.if_stmt.els, indent)
+            .gen_control_body(node.u.if_stmt.els, indent)
         }
+        .out.puts("\n")
+
+    } else if node.type == ASTType::While {
+        .indent(indent)
+        .out.puts("while (")
+        .gen_expression(node.u.loop.cond)
+        .out.puts(") ")
+        .gen_control_body(node.u.loop.body, indent)
+        .out.puts("\n")
+
+    } else if node.type == ASTType::For {
+        .indent(indent)
+        .out.puts("for (")
+        if node.u.loop.init != 0 as &AST {
+            if node.u.loop.init.type == ASTType::VarDeclaration {
+                .gen_var_decl(node.u.loop.init)
+            } else {
+                .gen_expression(node.u.loop.init)
+            }
+        }
+        .out.puts("; ")
+        if node.u.loop.cond != 0 as &AST {
+            .gen_expression(node.u.loop.cond)
+        }
+        .out.puts("; ")
+        if node.u.loop.incr != 0 as &AST {
+            .gen_expression(node.u.loop.incr)
+        }
+        .out.puts(") ")
+        .gen_control_body(node.u.loop.body, indent)
+        .out.puts("\n")
+
 
     } else if node.type == ASTType::Block {
         .indent(indent)
@@ -244,23 +365,48 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
 }
 
 def CodeGenerator::gen_block(&this, node: &AST, indent: i32) {
-    let statements = node.u.block.statements;
+    .push_scope()
     .out.puts("{\n")
+
+    let statements = node.u.block.statements;
     for let i = 0; i < statements.size; i += 1 {
         let statement = statements.at(i) as &AST;
         .gen_statement(statement, indent + 1)
     }
+
+    let defers = .scope()
+    if defers.size > 0 {
+        .out.puts("\n")
+        .indent(indent)
+        .out.puts("/* defers */\n")
+        for let i = defers.size - 1; i >= 0; i -= 1 {
+            let node = defers.at(i) as &AST
+            .gen_statement(node, indent + 1)
+        }
+    }
+
+    .indent(indent)
     .out.puts("}")
+    .pop_scope()
 }
 
-def CodeGenerator::gen_function_name(&this, func: &Function) {
-    if func.is_extern {
-        .out.puts(func.extern_name)
-    } else if func.is_method {
-        .out.puts(`{func.method_struct_name}__{func.name}`)
-    } else {
-        .out.puts(func.name)
+def CodeGenerator::gen_struct_decls(&this, program: &Program) {
+    .out.puts("/* struct declarations */\n")
+    for let i = 0; i < program.structures.size; i += 1 {
+        let struc = program.structures.at(i) as &Structure;
+        if not struc.is_extern {
+            let name = struc.name;
+            if (struc.is_enum) {
+                .out.puts("typedef enum ")
+            } else if (struc.is_union) {
+                .out.puts("typedef union ")
+            } else {
+                .out.puts("typedef struct ")
+            }
+            .out.puts(`{name} {name};\n`)
+        }
     }
+    .out.puts("\n")
 }
 
 def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
@@ -278,6 +424,39 @@ def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
         .gen_type(type)
         .out.puts(` {name}`)
     }
+}
+
+def CodeGenerator::gen_function_name(&this, func: &Function) {
+    if func.is_extern {
+        .out.puts(func.extern_name)
+    } else if func.is_method {
+        .out.puts(`{func.method_struct_name}__{func.name}`)
+    } else {
+        .out.puts(func.name)
+    }
+}
+
+def CodeGenerator::gen_function_decls(&this, program: &Program) {
+    .out.puts("/* function declarations */\n")
+    for let i = 0; i < program.functions.size; i += 1 {
+        let func = program.functions.at(i) as &Function
+        if not func.is_extern {
+            .gen_type(func.return_type)
+            .out.puts(" ")
+            .gen_function_name(func)
+            .out.puts("(")
+
+            let first = true
+            for let i = 0; i < func.params.size; i += 1 {
+                let param = func.params.at(i) as &Variable
+                if not first { .out.puts(", "); }
+                first = false
+                .gen_type_and_name(param.type, param.name)
+            }
+            .out.puts(");\n")
+        }
+    }
+    .out.puts("\n")
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {
@@ -299,9 +478,39 @@ def CodeGenerator::gen_function(&this, func: &Function) {
     }
 }
 
+def CodeGenerator::gen_global_vars(&this, program: &Program) {
+    .out.puts("/* global variables */\n")
+    for let i = 0; i < program.global_vars.size; i += 1 {
+        let node = program.global_vars.at(i) as &AST
+        if not node.u.var_decl.var.is_extern {
+            .gen_statement(node, 0)
+        }
+    }
+    .out.puts("\n")
+}
+
 def CodeGenerator::gen_program(&this, program: &Program) {
+    for let i = 0; i < program.c_includes.size; i += 1 {
+        let include = program.c_includes.at(i) as string
+        .out.puts(`#include \"{include}\"\n`)
+    }
+    .out.puts("\n")
+
+    .gen_struct_decls(program)
+    for let i = 0; i < program.structures.size; i += 1 {
+        let struc = program.structures.at(i) as &Structure
+        if struc.is_enum {
+            .gen_enum(struc)
+        } else {
+            .gen_struct(struc)
+        }
+    }
+
+    .gen_function_decls(program)
+    .gen_global_vars(program)
     for let i = 0; i < program.functions.size; i += 1 {
         let func = program.functions.at(i) as &Function
         .gen_function(func)
     }
+    .out.close()
 }

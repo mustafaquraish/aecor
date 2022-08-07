@@ -12,7 +12,7 @@ CFLAGS    = -ggdb3 -I src/ -std=c++20
 
 .PHONY: all run clean
 
-all: aecor
+all: aecor aecor_sh
 
 $(DEPFILES):
 	@mkdir -p "$(@D)"
@@ -20,6 +20,11 @@ $(DEPFILES):
 aecor: $(OBJS) | $(BIN)
 	@echo "- Building final executable $@"
 	@clang++ $(CFLAGS) $^ -o $@ -lm
+
+.PHONY: aecor_sh
+aecor_sh:
+	@echo "- Building self-host compiler"
+	@./aecor compiler/main.ae && mv ./out ./aecor_sh
 
 build/%.o : src/%.cc build/deps/%.d | build/deps
 	@echo "- Compiling $@"

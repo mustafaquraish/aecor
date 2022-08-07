@@ -11,10 +11,10 @@ struct Vector {
 }
 
 def Vector::new(): &Vector {
-    let vec = malloc(sizeof(Vector)) as &Vector
+    let vec = calloc(1, sizeof(Vector)) as &Vector
     vec.size = 0
     vec.capacity = 16
-    vec.data = malloc(vec.capacity * sizeof(untyped_ptr)) as &untyped_ptr
+    vec.data = calloc(vec.capacity, sizeof(untyped_ptr)) as &untyped_ptr
     return vec
 }
 

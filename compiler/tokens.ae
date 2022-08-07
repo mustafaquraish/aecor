@@ -49,7 +49,7 @@ struct Token {
 }
 
 def Token::new(type: TokenType, span: Span, text: string): &Token {
-    let tok = malloc(sizeof(Token)) as &Token
+    let tok = calloc(1, sizeof(Token)) as &Token
     tok.type = type
     tok.span = span
     tok.text = text

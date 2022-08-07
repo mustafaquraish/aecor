@@ -12,7 +12,7 @@ char* __format_string(const char* format, ...) {
   va_end(args);
   va_start(args, format);
 
-  char* s = malloc(size + 1);
+  char* s = calloc(1, size + 1);
 
   vsprintf(s, format, args);
   va_end(args);

@@ -37,7 +37,7 @@ void Parser::consume_newline_or(TokenType type) {
   }
   if (token().newline_before) { return; }
 
-  error_loc(token().location, format("Expected newline / " << type));
+  error_loc(token().location, format("Expected " << type << " or newline"));
 }
 
 Type *Parser::parse_type() {
@@ -270,7 +270,7 @@ StructDef *Parser::parse_struct() {
       consume(TokenType::Colon);
       auto type = parse_type();
       _struct->fields.push_back(new Variable{name.text, type, name.location});
-      consume_newline_or(TokenType::Semicolon);
+      consume_newline_or(TokenType::Comma);
     }
     consume(TokenType::CloseCurly);
   }
