@@ -309,6 +309,10 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
         .gen_expression(node.u.unary)
         .out.puts(";\n")
 
+    } else if node.type == ASTType::Break {
+        .indent(indent)
+        .out.puts("break;\n")
+
     } else if node.type == ASTType::VarDeclaration {
         .indent(indent)
         .gen_var_decl(node)

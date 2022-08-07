@@ -7,6 +7,7 @@ struct TypeChecker {
     structures: &Map  // &Map<string, &Structure>
     methods: &Map     // &Map<string, &Map<string, &Function>>
     cur_func: &Function
+    in_loop: bool
 }
 
 def TypeChecker::new(): &TypeChecker {
@@ -491,6 +492,11 @@ def TypeChecker::check_statement(&this, node: &AST) {
             error_span(node.span, "Return type does not match function return type")
         }
 
+    } else if node.type == ASTType::Break {
+        if not .in_loop {
+            error_span(node.span, "Break statement outside of loop")
+        }
+
     } else if node.type == ASTType::Defer {
         .check_expression(node.u.unary)
 
@@ -517,13 +523,21 @@ def TypeChecker::check_statement(&this, node: &AST) {
         .push_var(var_decl.var)
 
     } else if node.type == ASTType::While {
+        let was_in_loop = .in_loop
+        .in_loop = true
+
         let cond_type = .check_expression(node.u.loop.cond)
         if cond_type.base != BaseType::Bool {
             error_span(node.u.loop.cond.span, "Condition must be boolean")
         }
         .check_statement(node.u.loop.body)
 
+        .in_loop = was_in_loop
+
     } else if node.type == ASTType::For {
+        let was_in_loop = .in_loop
+        .in_loop = true
+
         .push_scope()
         if node.u.loop.init != 0 as &AST {
             .check_statement(node.u.loop.init)
@@ -539,6 +553,8 @@ def TypeChecker::check_statement(&this, node: &AST) {
         }
         .check_statement(node.u.loop.body)
         .pop_scope()
+
+        .in_loop = was_in_loop
 
     } else if node.type == ASTType::If {
         let cond_type = .check_expression(node.u.if_stmt.cond)

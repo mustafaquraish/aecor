@@ -101,6 +101,7 @@ enum TokenType {
   Use
   Void
   While
+  Break
 
   // Other tokens
   AtSign
@@ -165,6 +166,7 @@ def TokenType::from_text(text: string): TokenType {
     if streq(text, "not") return TokenType::Not
     if streq(text, "or") return TokenType::Or
     if streq(text, "return") return TokenType::Return
+    if streq(text, "break") return TokenType::Break
     if streq(text, "sizeof") return TokenType::SizeOf
     if streq(text, "string") return TokenType::String
     if streq(text, "struct") return TokenType::Struct
@@ -213,6 +215,7 @@ def TokenType::str(this): string {
   if this == TokenType::Use return "use"
   if this == TokenType::Void return "void"
   if this == TokenType::While return "while"
+  if this == TokenType::Break return "break"
 
   // Others
   if (this == TokenType::AtSign) return "AtSign"

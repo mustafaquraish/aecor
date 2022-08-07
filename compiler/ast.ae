@@ -11,6 +11,7 @@ enum ASTType {
   BitwiseAnd
   BitwiseOr
   BitwiseXor
+  Break
   Call
   Cast
   Defer
@@ -60,6 +61,7 @@ def ASTType::str(this): string {
     if this == ASTType::BitwiseAnd return "BitwiseAnd"
     if this == ASTType::BitwiseOr return "BitwiseOr"
     if this == ASTType::BitwiseXor return "BitwiseXor"
+    if this == ASTType::Break return "Break"
     if this == ASTType::Call return "Call"
     if this == ASTType::Cast return "Cast"
     if this == ASTType::Defer return "Defer"

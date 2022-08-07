@@ -495,6 +495,10 @@ def Parser::parse_statement(&this): &AST {
         node = AST::new_unop(ASTType::Return, start_span.join(expr.span), expr)
         .consume_newline_or(TokenType::Semicolon)
 
+    } else if .token_is(TokenType::Break) {
+        .consume(TokenType::Break)
+        node = AST::new(ASTType::Break, start_span)
+
     } else if .token_is(TokenType::Defer) {
         .consume(TokenType::Defer)
         let expr = .parse_statement()
