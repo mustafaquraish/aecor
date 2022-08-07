@@ -3,14 +3,12 @@ import argparse
 from ast import literal_eval
 from dataclasses import dataclass
 from enum import Enum
-from os import system
+from os import system, makedirs
 from pathlib import Path
 from sys import argv
 from typing import Union, Optional, Tuple
 
 class ExpectedOutputType(Enum):
-    """Possible test results"""
-
     FAIL = 1
     EXIT_WITH_CODE = 2
     EXIT_WITH_OUTPUT = 3
@@ -18,8 +16,6 @@ class ExpectedOutputType(Enum):
 
 @dataclass(frozen=True)
 class Expected:
-    """A container for the expected output of a test"""
-
     type: ExpectedOutputType
     value: Union[int, str, None]
 
@@ -65,18 +61,13 @@ def get_expected(filename) -> Optional[Expected]:
     return expected
 
 
-def handle_test(self_host: bool, path: Path, expected: Expected) -> Tuple[bool, str]:
-
-    compiler = "./aecor_sh" if self_host else "./aecor"
-    process = subprocess.run([compiler, str(path)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def handle_test(compiler: str, path: Path, expected: Expected) -> Tuple[bool, str]:
+    process = subprocess.run([compiler, str(path), '-o', 'build/test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if expected.type == ExpectedOutputType.FAIL:
         if process.returncode == 0:
             return False, "Expected compilation failure, but succeeded"
 
-        if self_host:
-            error = process.stdout.decode("utf-8").strip()
-        else:
-            error = process.stderr.decode("utf-8").strip()
+        error = process.stdout.decode("utf-8").strip()
         expected_error = expected.value
 
         if expected_error in error:
@@ -86,8 +77,7 @@ def handle_test(self_host: bool, path: Path, expected: Expected) -> Tuple[bool, 
     elif process.returncode != 0:
         return False, "Compilation failed"
 
-    executable = "./out2" if self_host else "./out"
-    process = subprocess.run([executable], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.run(['./build/test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if expected.type == ExpectedOutputType.EXIT_WITH_CODE:
         if process.returncode != expected.value:
@@ -105,23 +95,19 @@ def handle_test(self_host: bool, path: Path, expected: Expected) -> Tuple[bool, 
 def main():
     parser = argparse.ArgumentParser(description="Runs aecor test suite")
     parser.add_argument(
-        "-s",
-        "--self-host",
-        action="store_true",
+        "-c",
+        "--compiler",
+        required=True,
         help="Runs the self-hosted version"
     )
     parser.add_argument(
         "files",
         nargs="?",
-        default=["tests", "compiler/main.ae"],
+        default=["tests"],
         help="Files / folders to run"
     )
     args = parser.parse_args()
-
     test_paths = [Path(pth) for pth in args.files]
-
-    if system("make") != 0:
-        return 1
 
     tests_to_run = []
     for path in test_paths:
@@ -148,7 +134,7 @@ def main():
         print(f" \33[2K[\033[92m{num_passed:3d}\033[0m", end="")
         print(f"/\033[91m{num_failed:3d}\033[0m]", end="")
         print(f" Running test {i+1}/{num_total}: {path}\r", end="", flush=True)
-        passed, msg = handle_test(args.self_host, path, expected)
+        passed, msg = handle_test(args.compiler, path, expected)
         if passed:
             num_passed += 1
         else:
@@ -158,6 +144,8 @@ def main():
     print("\33[2K")
     print(f"Tests passed: \033[92m{num_passed}\033[0m")
     print(f"Tests failed: \033[91m{num_failed}\033[0m")
+    if num_failed > 0:
+        exit(1)
 
 
 if __name__ == "__main__":

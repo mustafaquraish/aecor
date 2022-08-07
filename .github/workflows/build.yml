@@ -7,12 +7,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Running tests with CPP compiler
+      - name: 3-stage bootstrap
         run: |
           cd ${{ github.workspace }}
-          python3 test.py
+          ./meta/bootstrap.sh
 
       - name: Running tests with self-hosted compiler
         run: |
           cd ${{ github.workspace }}
-          python3 test.py -s
+          python3 meta/test.py -c bootstrap/aecor

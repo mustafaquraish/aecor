@@ -4,6 +4,9 @@ build
 *.dSYM
 .DS_Store
 
+# We will ignore this by default, add files manually
+bootstrap/
+
 test.ae
 out.c
 

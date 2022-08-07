@@ -3,22 +3,38 @@
 @compiler c_include "stdbool.h"
 @compiler c_include "stdint.h"
 @compiler c_include "string.h"
-@compiler c_include "./lib/prelude.h"
+@compiler c_include "errno.h"
+@compiler c_embed_header "./lib/prelude.h"
 
 def malloc(size: i32): untyped_ptr extern
 def realloc(old: untyped_ptr, size: i32): untyped_ptr extern
 def calloc(size: i32, num: i32): untyped_ptr extern
 def free(ptr: untyped_ptr) extern
 
+let errno: i32 extern
+
 let SEEK_END: i32 extern
 let SEEK_SET: i32 extern
 let SEEK_CUR: i32 extern
 
+// TODO: Add nicer wrappers around these
+def fopen(path: string, mode: string): &File extern
+def fread(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
+def fwrite(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
+
 struct File extern("FILE")
-def File::open(path: string, mode: string): &File extern("fopen")
 def File::close(&this) extern("fclose")
 def File::tell(&this): i32 extern("ftell")
 def File::seek(&this, offset: i32, whence: i32): i32 extern("fseek")
+
+def File::open(path: string, mode: string): &File {
+    let file = fopen(path, mode)
+    if file == 0 as &File {
+        println("Error opening file '%s': %s", path, strerror(errno))
+        exit(1)
+    }
+    return file
+}
 
 def File::slurp(&this): string {
     let pos = .tell()
@@ -35,10 +51,6 @@ def File::puts(&this, str: string) {
     fwrite(str as untyped_ptr, 1, strlen(str), this)
 }
 
-// TODO: Add nicer wrappers around these
-def fread(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
-def fwrite(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
-
 def exit(code: i32) extern
 
 def strlen(str: string): i32 extern
@@ -47,6 +59,7 @@ def strcpy(dest: string, src: string): string extern
 def strncpy(dest: string, src: string, n: i32): string extern
 def strdup(str: string): string extern
 def strcat(dest: string, src: string): string extern
+def strerror(errno: i32): string extern
 
 def streq(str1: string, str2: string): bool {
     return strcmp(str1, str2) == 0
