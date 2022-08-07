@@ -149,6 +149,9 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
     } else if node.type == ASTType::StringLiteral {
         .out.puts(`\"{node.u.string_literal}\"`)
 
+    } else if node.type == ASTType::CharLiteral {
+        .out.puts(`'{node.u.char_literal}'`)
+
     } else if node.type == ASTType::BoolLiteral {
         if node.u.bool_literal {
             .out.puts("true")

@@ -181,6 +181,27 @@ def Lexer::lex(&this): &Vector {
                 .loc.col += len
                 .push(Token::from_ident(text, Span::make(start_loc, .loc)))
 
+            } else if c == "'"[0] {
+                let start = .i + 1
+                .i += 1
+                let len = 0
+
+                if .source[.i] == "\\"[0] and .source[.i + 2] == "'"[0] {
+                    len = 2
+                } else if .source[.i + 1] == "'"[0] {
+                    len = 1
+                } else if .source[.i] == "'"[0] {
+                    len = 0
+                } else {
+                    println("%s: Unrecognized char in lexer: '%d'", .loc.str(), c)
+                    exit(1)
+                }
+
+                let text = substring(.source, start, len)
+                .loc.col += 2 + len
+                .i += len + 1
+
+                .push(Token::new(TokenType::CharLiteral, Span::make(start_loc, .loc), text))
             } else if c == "\""[0] or c == "`"[0] {
                 let end_char = c
                 let start = .i + 1;

@@ -142,6 +142,7 @@ enum TokenType {
   Star
   StarEquals
   StringLiteral
+  CharLiteral
 }
 
 def TokenType::from_text(text: string): TokenType {
