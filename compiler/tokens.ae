@@ -106,6 +106,7 @@ enum TokenType {
   AtSign
   Ampersand
   Backtick
+  Caret
   CloseCurly
   CloseParen
   CloseSquare
@@ -132,6 +133,7 @@ enum TokenType {
   OpenCurly
   OpenParen
   OpenSquare
+  Percent
   Plus
   PlusEquals
   Semicolon
@@ -215,6 +217,7 @@ def TokenType::str(this): string {
   if (this == TokenType::AtSign) return "AtSign"
   if (this == TokenType::Ampersand) return "Ampersand"
   if (this == TokenType::Backtick) return "Backtick"
+  if (this == TokenType::Caret) return "Caret"
   if (this == TokenType::CloseCurly) return "CloseCurly"
   if (this == TokenType::CloseParen) return "CloseParen"
   if (this == TokenType::CloseSquare) return "CloseSquare"
@@ -241,6 +244,7 @@ def TokenType::str(this): string {
   if (this == TokenType::OpenCurly) return "OpenCurly"
   if (this == TokenType::OpenParen) return "OpenParen"
   if (this == TokenType::OpenSquare) return "OpenSquare"
+  if (this == TokenType::Percent) return "Percent"
   if (this == TokenType::Plus) return "Plus"
   if (this == TokenType::PlusEquals) return "PlusEquals"
   if (this == TokenType::Semicolon) return "Semicolon"

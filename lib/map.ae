@@ -43,7 +43,11 @@ def Map::hash(&this, s: string): i32 {
 	for let i = 0; i < len; i += 1 {
 		hash = hash * 33 ^ s[i] as i32
 	}
-	return hash % .num_buckets
+	hash = hash % .num_buckets
+	if hash < 0 {
+		hash += .num_buckets
+	}
+	return hash
 }
 
 def Map::get_node(&this, key: string): &MapNode {
@@ -111,6 +115,16 @@ def Map::resize(&this) {
 		MapNode::free_list(old_buckets[i])
 	}
 	free(old_buckets as untyped_ptr)
+}
+
+def Map::print_keys(&this) {
+	for let i = 0; i < .num_buckets; i += 1 {
+		let node = .buckets[i]
+		while node != 0 as &MapNode {
+			println("- '%s'\n", node.key)
+			node = node.next
+		}
+	}
 }
 
 def Map::free(&this) {

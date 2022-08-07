@@ -97,6 +97,28 @@ def Parser::parse_type(&this): &Type {
     } else if .token_is(TokenType::Identifier) {
         type = Type::new_link(BaseType::Structure, type, start_span.join(.token().span))
         type.name = .consume(TokenType::Identifier).text
+
+    } else if .token_is(TokenType::Fn) {
+        .consume(TokenType::Fn)
+        .consume(TokenType::OpenParen)
+        let params = Vector::new()
+        while not .token_is(TokenType::CloseParen) {
+            params.push(.parse_type() as untyped_ptr)
+            if not .token_is(TokenType::CloseParen) {
+                .consume(TokenType::Comma)
+            }
+        }
+        .consume(TokenType::CloseParen)
+        let return_type: &Type
+        if .consume_if(TokenType::Colon) {
+            return_type = .parse_type()
+        } else {
+            return_type = Type::new(BaseType::Void, .token().span)
+        }
+        type = Type::new_link(BaseType::Function, type, start_span.join(.token().span))
+        type.params = params
+        type.return_type = return_type
+
     } else {
         .unhandled_type("parse_type")
     }
@@ -125,6 +147,18 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
         let tok = .consume(.token().type)
         node = AST::new(ASTType::BoolLiteral, tok.span)
         node.u.bool_literal = (tok.type == TokenType::True)
+
+    } else if .token_is(TokenType::Dot) {
+        let op = .consume(TokenType::Dot)
+        let rhs = .consume(TokenType::Identifier)
+
+        let lhs = AST::new(ASTType::Identifier, op.span)
+        lhs.u.ident.name = "this"
+        lhs.u.ident.is_function = false
+
+        node = AST::new(ASTType::Member, lhs.span.join(rhs.span))
+        node.u.member.lhs = lhs
+        node.u.member.name = rhs.text
 
     } else if .token_is(TokenType::Minus) {
         let op = .consume(TokenType::Minus)
@@ -190,6 +224,36 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
             call.u.call.args = args
             call.u.call.added_method_arg = false
             node = call
+        } else if .token_is(TokenType::OpenSquare) {
+            .consume(TokenType::OpenSquare)
+            let index = .parse_expression(true)
+            .consume(TokenType::CloseSquare)
+            node = AST::new_binop(ASTType::Index, node, index)
+
+        } else if .token_is(TokenType::Dot) {
+            .consume(TokenType::Dot)
+            let name = .consume(TokenType::Identifier)
+            let member = AST::new(ASTType::Member, node.span.join(name.span))
+            member.u.member.lhs = node
+            member.u.member.name = name.text
+            node = member
+
+        } else if .token_is(TokenType::ColonColon) {
+            .consume(TokenType::ColonColon)
+            let name = .consume(TokenType::Identifier)
+            let member = AST::new(ASTType::ScopeLookup, node.span.join(name.span))
+            member.u.member.lhs = node
+            member.u.member.name = name.text
+            node = member
+
+        } else if .token_is(TokenType::As) {
+            .consume(TokenType::As)
+            let type = .parse_type()
+            let cast = AST::new(ASTType::Cast, node.span.join(type.span))
+            cast.u.cast.lhs = node
+            cast.u.cast.to = type
+            node = cast
+
         } else {
             running = false
         }
@@ -199,59 +263,72 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
 }
 
 def Parser::parse_term(&this, in_parens: bool): &AST {
-    let lhs = .parse_factor(in_parens);
+    let lhs = .parse_factor(in_parens)
     let running = true
     while running and .token_is(TokenType::Star) or .token_is(TokenType::Slash) {
         if (not in_parens and .token().seen_newline) { running = false; }
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_factor(in_parens);
-        lhs = AST::new_binop(op, lhs, rhs);
+        let rhs = .parse_factor(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs;
 }
 
 def Parser::parse_additive(&this, in_parens: bool): &AST {
-    let lhs = .parse_term(in_parens);
+    let lhs = .parse_term(in_parens)
     let running = true
     while running and .token_is(TokenType::Plus) or .token_is(TokenType::Minus) {
         if (not in_parens and .token().seen_newline) { running = false; }
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_term(in_parens);
-        lhs = AST::new_binop(op, lhs, rhs);
+        let rhs = .parse_term(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs;
 }
 
 def Parser::parse_bw_and(&this, in_parens: bool): &AST {
-    let lhs = .parse_additive(in_parens);
+    let lhs = .parse_additive(in_parens)
     let running = true
     while running and .token_is(TokenType::Ampersand) {
         if (not in_parens and .token().seen_newline) { running = false; }
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_additive(in_parens);
-        lhs = AST::new_binop(op, lhs, rhs);
+        let rhs = .parse_additive(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
+    }
+    return lhs;
+}
+
+def Parser::parse_bw_xor(&this, in_parens: bool): &AST {
+    let lhs = .parse_bw_and(in_parens)
+    let running = true
+    while running and .token_is(TokenType::Caret) {
+        if (not in_parens and .token().seen_newline) { running = false; }
+        let op = ASTType::from_token(.token().type)
+        .curr += 1
+        let rhs = .parse_bw_and(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs;
 }
 
 def Parser::parse_bw_or(&this, in_parens: bool): &AST {
-    let lhs = .parse_bw_and(in_parens);
+    let lhs = .parse_bw_xor(in_parens)
     let running = true
     while running and .token_is(TokenType::Line) {
         if (not in_parens and .token().seen_newline) { running = false; }
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_bw_and(in_parens);
-        lhs = AST::new_binop(op, lhs, rhs);
+        let rhs = .parse_bw_xor(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs;
 }
 
 def Parser::parse_relational(&this, in_parens: bool): &AST {
-    let lhs = .parse_bw_or(in_parens);
+    let lhs = .parse_bw_or(in_parens)
     let running = true
     while running and .token_is(TokenType::LessThan) or .token_is(TokenType::GreaterThan) or
             .token_is(TokenType::LessThanEquals) or
@@ -260,40 +337,40 @@ def Parser::parse_relational(&this, in_parens: bool): &AST {
         if (not in_parens and .token().seen_newline) { running = false; }
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_bw_or(in_parens);
-        lhs = AST::new_binop(op, lhs, rhs);
+        let rhs = .parse_bw_or(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs;
 }
 
 def Parser::parse_logical_and(&this, in_parens: bool): &AST {
-    let lhs = .parse_relational(in_parens);
+    let lhs = .parse_relational(in_parens)
     let running = true
     while running and .token_is(TokenType::And) {
         if (not in_parens and .token().seen_newline) { running = false; }
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_relational(in_parens);
-        lhs = AST::new_binop(op, lhs, rhs);
+        let rhs = .parse_relational(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs;
 }
 
 def Parser::parse_logical_or(&this, in_parens: bool): &AST {
-    let lhs = .parse_logical_and(in_parens);
+    let lhs = .parse_logical_and(in_parens)
     let running = true
     while running and .token_is(TokenType::Or) {
         if (not in_parens and .token().seen_newline) { running = false; }
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_logical_and(in_parens);
-        lhs = AST::new_binop(op, lhs, rhs);
+        let rhs = .parse_logical_and(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs;
 }
 
 def Parser::parse_expression(&this, in_parens: bool): &AST {
-    let lhs = .parse_logical_or(in_parens);
+    let lhs = .parse_logical_or(in_parens)
     let running = true
 
     while running and .token_is(TokenType::Equals) or .token_is(TokenType::PlusEquals) or
@@ -302,8 +379,8 @@ def Parser::parse_expression(&this, in_parens: bool): &AST {
         if (not in_parens and .token().seen_newline) { running = false; }
         let op = ASTType::from_token(.token().type)
         .curr += 1
-        let rhs = .parse_logical_or(in_parens);
-        lhs = AST::new_binop(op, lhs, rhs);
+        let rhs = .parse_logical_or(in_parens)
+        lhs = AST::new_binop(op, lhs, rhs)
     }
 
     return lhs;
@@ -349,7 +426,33 @@ def Parser::parse_statement(&this): &AST {
         node.u.loop.body = body
 
     } else if .token_is(TokenType::For) {
-        .unhandled_type("parse_statement")
+        node = AST::new(ASTType::For, .token().span);
+        .consume(TokenType::For);
+
+        if not .token_is(TokenType::Semicolon) {
+            let init = .parse_statement();
+            // FIXME: This doesn't seem very robust...
+            if init.type != ASTType::Assignment and
+                init.type != ASTType::VarDeclaration {
+                error_span(init.span, "Invalid for loop initializer");
+            }
+            node.u.loop.init = init;
+
+            // This is a hack
+            let prev = .tokens.at(.curr - 1) as &Token
+            if prev.type == TokenType::Semicolon { .curr -= 1; }
+        }
+        .consume(TokenType::Semicolon);
+        if not .token_is(TokenType::Semicolon)
+            node.u.loop.cond = .parse_expression(true)
+        .consume(TokenType::Semicolon);
+
+        // FIXME: Should we always require a curly?
+        if not .token_is(TokenType::CloseCurly)
+            node.u.loop.incr = .parse_expression(false);
+
+        node.u.loop.body = .parse_statement();
+        node.span = node.span.join(node.u.loop.body.span);
 
     } else if .token_is(TokenType::Let) {
         .consume(TokenType::Let)
@@ -418,34 +521,257 @@ def Parser::parse_function(&this): &Function {
 
     .consume(TokenType::OpenParen)
     while not .token_is(TokenType::CloseParen) {
+        let found_amp = .consume_if(TokenType::Ampersand)
         let var_name = .consume(TokenType::Identifier)
-        .consume(TokenType::Colon)
-        let var_type = .parse_type()
-        let var = Variable::new(var_name.text, var_type, var_name.span)
+        let type = 0 as &Type
+        if func.params.empty() and is_method {
+            if streq(var_name.text, "this") {
+                type = Type::new(BaseType::Structure, name.span)
+                type.name = struct_name
+                if found_amp {
+                    type = Type::new_link(BaseType::Pointer, type, name.span)
+                }
+            } else if found_amp {
+                error_span(var_name.span, "Expected 'this' over here");
+            } else {
+                is_static = true
+            }
+        }
+        if type == 0 as &Type {
+            .consume(TokenType::Colon)
+            type = .parse_type()
+        }
+        let var = Variable::new(var_name.text, type, var_name.span)
         func.params.push(var as untyped_ptr)
+
+        if not .token_is(TokenType::CloseParen) {
+            .consume(TokenType::Comma)
+        }
     }
     .consume(TokenType::CloseParen)
+    if is_method and func.params.size == 0 {
+        is_static = true;
+    }
+    func.is_static = is_static
 
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
+    } else if streq(name.text, "main") {
+        func.return_type = Type::new(BaseType::I32, name.span)
     } else {
         func.return_type = Type::new(BaseType::Void, name.span)
     }
 
-    func.is_extern = false
-    func.body = .parse_block()
+    if (.consume_if(TokenType::Extern)) {
+        func.is_extern = true
+        func.extern_name = func.name
+        if .consume_if(TokenType::OpenParen) {
+            let name = .consume(TokenType::StringLiteral)
+            func.extern_name = name.text
+            .consume(TokenType::CloseParen)
+        }
+    } else {
+        func.is_extern = false
+        func.body = .parse_block()
+    }
+
     return func
 }
 
-def Parser::parse_program(&this): &Program {
-    let program = Program::new()
+def Parser::parse_enum(&this): &Structure {
+    let start_span = .consume(TokenType::Enum).span
+    let name = .consume(TokenType::Identifier)
+
+    let enum_def = Structure::new(start_span.join(name.span))
+    enum_def.name = name.text
+    enum_def.is_enum = true
+
+    let type = Type::new(BaseType::Structure, name.span)
+    enum_def.type = type
+    type.name = name.text
+    type.struct_def = enum_def
+
+    .consume(TokenType::OpenCurly)
+    while not .token_is(TokenType::CloseCurly) {
+        let name = .consume(TokenType::Identifier)
+        let type = Type::new(BaseType::I32, name.span)
+
+        let var = Variable::new(name.text, type, name.span)
+        enum_def.fields.push(var as untyped_ptr)
+        if not .token_is(TokenType::CloseCurly) {
+            .consume_newline_or(TokenType::Comma)
+        }
+    }
+    .consume(TokenType::CloseCurly)
+
+    return enum_def
+}
+
+def Parser::parse_struct(&this): &Structure {
+    let is_union = false
+    let start_span = .token().span
+    if .consume_if(TokenType::Union) {
+        is_union = true
+    } else {
+        .consume(TokenType::Struct)
+    }
+
+    let name = .consume(TokenType::Identifier)
+
+    let struc = Structure::new(start_span.join(name.span))
+    struc.name = name.text
+
+    if .consume_if(TokenType::Extern) {
+        struc.is_extern = true
+        struc.extern_name = struc.name
+        if .consume_if(TokenType::OpenParen) {
+            let name = .consume(TokenType::StringLiteral)
+            struc.extern_name = name.text
+            .consume(TokenType::CloseParen)
+        }
+    }
+
+    // Extern structs don't need to have a body.
+    if not struc.is_extern or .token_is(TokenType::OpenCurly) {
+        .consume(TokenType::OpenCurly)
+        while not .token_is(TokenType::CloseCurly) {
+            let name = .consume(TokenType::Identifier)
+            .consume(TokenType::Colon)
+            let type = .parse_type()
+
+            let var = Variable::new(name.text, type, name.span.join(type.span))
+            struc.fields.push(var as untyped_ptr)
+            if not .token_is(TokenType::CloseCurly) {
+                .consume_newline_or(TokenType::Comma)
+            }
+        }
+        .consume(TokenType::CloseCurly)
+    }
+
+    let type = Type::new(BaseType::Structure, name.span)
+    type.name = name.text
+    struc.type     = type
+    type.struct_def  = struc
+    struc.is_union = is_union
+
+    return struc
+}
+
+def Parser::parse_global_var(&this): &AST {
+    let start_span = .consume(TokenType::Let).span
+
+    let node = AST::new(ASTType::VarDeclaration, .token().span)
+    let name = .consume(TokenType::Identifier)
+
+    let type = 0 as &Type
+    if .consume_if(TokenType::Colon) { type = .parse_type(); }
+
+    let var = Variable::new(name.text, type, start_span.join(.token().span))
+    node.u.var_decl.var = var
+
+    if .consume_if(TokenType::Extern) {
+        var.is_extern = true;
+        if .consume_if(TokenType::OpenParen) {
+            let name = .consume(TokenType::StringLiteral)
+            var.extern_name = name.text
+            .consume(TokenType::CloseParen)
+        } else {
+            var.extern_name = var.name
+        }
+
+        if type == 0 as &Type {
+            error_span(name.span, "Extern variables must have a type");
+        }
+    } else {
+        var.is_extern = false;
+        if .consume_if(TokenType::Equals) {
+            node.u.var_decl.init = .parse_expression(false);
+        }
+    }
+    .consume_newline_or(TokenType::Semicolon);
+    return node;
+}
+
+def Parser::include_file(&this, program: &Program, filename: string) {
+    if not program.is_file_included(filename) {
+        program.add_included_file(filename)
+
+        let file = File::open(filename, "r")
+        let contents = file.slurp()
+
+        let lexer = Lexer::make(contents, filename)
+        let tokens = lexer.lex()
+
+        let parser = Parser::make(tokens)
+        parser.parse_into_program(program)
+    }
+}
+
+def Parser::parse_use(&this, program: &Program) {
+    .consume(TokenType::Use)
+    let name = .consume(TokenType::StringLiteral)
+    .consume_newline_or(TokenType::Semicolon)
+    .include_file(program, name.text)
+}
+
+
+def Parser::parse_compiler_option(&this, program: &Program) {
+    .consume(TokenType::AtSign)
+    let compiler = .consume(TokenType::Identifier)
+    if not streq(compiler.text, "compiler") {
+        error_span(compiler.span, "Expected 'compiler'")
+    }
+
+    let name = .consume(TokenType::Identifier)
+
+    if streq(name.text, "c_include") {
+        let filename = .consume(TokenType::StringLiteral)
+        program.c_includes.push(filename.text as untyped_ptr)
+
+    } else if streq(name.text, "c_flag") {
+        let flag = .consume(TokenType::StringLiteral)
+        program.c_flags.push(flag.text as untyped_ptr)
+
+    } else {
+        error_span(name.span, "Unknown compiler option")
+    }
+
+}
+
+def Parser::parse_into_program(&this, program: &Program) {
     while not .token_is(TokenType::EOF) {
         if .token_is(TokenType::Def) {
             let func = .parse_function()
             program.functions.push(func as untyped_ptr)
+
+        } else if .token_is(TokenType::Use) {
+            .parse_use(program)
+
+        } else if .token_is(TokenType::Let) {
+            let node = .parse_global_var()
+            program.global_vars.push(node as untyped_ptr)
+
+        } else if .token_is(TokenType::Struct) or .token_is(TokenType::Union) {
+            let structure = .parse_struct()
+            program.structures.push(structure as untyped_ptr)
+
+        } else if .token_is(TokenType::Enum) {
+            let structure = .parse_enum()
+            program.structures.push(structure as untyped_ptr)
+
+        } else if .token_is(TokenType::AtSign) {
+            .parse_compiler_option(program)
+
         } else {
             .unhandled_type("parse_program")
         }
     }
+}
+
+def Parser::parse_program(&this): &Program {
+    let program = Program::new()
+    .include_file(program, "./lib/prelude.ae")
+    program.add_included_file(.token().span.start.filename)
+    .parse_into_program(program)
     return program
 }

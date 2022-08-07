@@ -56,8 +56,10 @@ void CodeGenerator::gen_control_body(AST *node, int indent) {
     gen_block(node, indent);
     out << " ";
   } else {
-    out << "\n";
-    gen_statement(node, indent + 1);
+    if (node->type != ASTType::If) {
+      out << "\n";
+    }
+    gen_statement(node, indent);
     gen_indent(indent);
   }
 }

@@ -18,14 +18,28 @@ def Vector::new(): &Vector {
     return vec
 }
 
+def Vector::resize(&this, new_capacity: i32) {
+    .capacity = new_capacity
+    .data = realloc(.data as untyped_ptr,
+                    .capacity * sizeof(untyped_ptr)) as &untyped_ptr
+}
+
 def Vector::push(&this, val: untyped_ptr) {
     if .size == .capacity {
-        .capacity *= 2
-        .data = realloc(
-            .data as untyped_ptr,
-            .capacity * sizeof(untyped_ptr)) as &untyped_ptr
+        .resize(.capacity * 2)
     }
     .data[.size] = val
+    .size += 1
+}
+
+def Vector::push_front(&this, val: untyped_ptr) {
+    if .size == .capacity {
+        .resize(.capacity * 2)
+    }
+    for let i = .size; i > 0; i -= 1 {
+        .data[i] = .data[i - 1]
+    }
+    .data[0] = val
     .size += 1
 }
 
@@ -52,4 +66,13 @@ def Vector::at(&this, i: i32): untyped_ptr {
         exit(1)
     }
     return .data[i]
+}
+
+def Vector::empty(&this): bool {
+    return .size == 0
+}
+
+def Vector::free(&this) {
+    free(.data as untyped_ptr)
+    free(this as untyped_ptr)
 }

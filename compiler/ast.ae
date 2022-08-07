@@ -1,3 +1,5 @@
+use "./lib/vector.ae"
+use "./lib/map.ae"
 use "./compiler/types.ae"
 
 enum ASTType {
@@ -8,6 +10,7 @@ enum ASTType {
   BoolLiteral
   BitwiseAnd
   BitwiseOr
+  BitwiseXor
   Call
   Cast
   Defer
@@ -30,6 +33,7 @@ enum ASTType {
   Member
   Minus
   MinusEquals
+  Modulus
   Multiply
   MultiplyEquals
   Not
@@ -54,6 +58,7 @@ def ASTType::str(this): string {
     if this == ASTType::BoolLiteral return "BoolLiteral"
     if this == ASTType::BitwiseAnd return "BitwiseAnd"
     if this == ASTType::BitwiseOr return "BitwiseOr"
+    if this == ASTType::BitwiseXor return "BitwiseXor"
     if this == ASTType::Call return "Call"
     if this == ASTType::Cast return "Cast"
     if this == ASTType::Defer return "Defer"
@@ -76,6 +81,7 @@ def ASTType::str(this): string {
     if this == ASTType::Member return "Member"
     if this == ASTType::Minus return "Minus"
     if this == ASTType::MinusEquals return "MinusEquals"
+    if this == ASTType::Modulus return "Modulus"
     if this == ASTType::Multiply return "Multiply"
     if this == ASTType::MultiplyEquals return "MultiplyEquals"
     if this == ASTType::Not return "Not"
@@ -100,6 +106,8 @@ def ASTType::from_token(type: TokenType): ASTType {
     if type == TokenType::Or return ASTType::Or
     if type == TokenType::Line return ASTType::BitwiseOr
     if type == TokenType::Ampersand return ASTType::BitwiseAnd
+    if type == TokenType::Caret return ASTType::BitwiseXor
+    if type == TokenType::Percent return ASTType::Modulus
 
     if type == TokenType::GreaterThan return ASTType::GreaterThan
     if type == TokenType::GreaterThanEquals return ASTType::GreaterThanEquals
@@ -184,10 +192,14 @@ def Structure::new(span: Span): &Structure {
 }
 
 struct Program {
-    functions: &Vector     // Vector<&Function>
-    structures: &Vector     // Vector<&Structure>
-    global_vars: &Vector     // Vector<&AST>
+    functions: &Vector    // Vector<&Function>
+    structures: &Vector   // Vector<&Structure>
+    global_vars: &Vector  // Vector<&AST>
     span: Span
+
+    c_flags: &Vector      // Vector<string>
+    c_includes: &Vector   // Vector<string>
+    included_files: &Map  // Map<string, string>
 }
 
 def Program::new(): &Program {
@@ -195,7 +207,27 @@ def Program::new(): &Program {
     prog.functions = Vector::new()
     prog.structures = Vector::new()
     prog.global_vars = Vector::new()
+
+    prog.c_flags = Vector::new()
+    prog.c_includes = Vector::new()
+    prog.included_files = Map::new()
     return prog
+}
+
+def Program::is_file_included(&this, filename: string): bool {
+    let len = strlen(filename)
+    if len > 2 and filename[0] == "."[0] and filename[1] == "/"[0] {
+        filename = &filename[2]
+    }
+    return this.included_files.exists(filename)
+}
+
+def Program::add_included_file(&this, filename: string) {
+    let len = strlen(filename)
+    if len > 2 and filename[0] == "."[0] and filename[1] == "/"[0] {
+        filename = &filename[2]
+    }
+    .included_files.insert(filename, filename as untyped_ptr)
 }
 
 struct Block {

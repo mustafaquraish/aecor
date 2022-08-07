@@ -281,20 +281,22 @@ def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {
-    .gen_type(func.return_type)
-    .out.puts(" ")
-    .gen_function_name(func)
-    .out.puts("(")
-    let first = true
-    for let i = 0; i < func.params.size; i += 1 {
-        if not first { .out.puts(", "); }
-        first = false
-        let var = func.params.at(i) as &Variable
-        .gen_type_and_name(var.type, var.name)
+    if not func.is_extern {
+        .gen_type(func.return_type)
+        .out.puts(" ")
+        .gen_function_name(func)
+        .out.puts("(")
+        let first = true
+        for let i = 0; i < func.params.size; i += 1 {
+            if not first { .out.puts(", "); }
+            first = false
+            let var = func.params.at(i) as &Variable
+            .gen_type_and_name(var.type, var.name)
+        }
+        .out.puts(") ")
+        .gen_block(func.body, 0)
+        .out.puts("\n\n")
     }
-    .out.puts(") ")
-    .gen_block(func.body, 0)
-    .out.puts("\n\n")
 }
 
 def CodeGenerator::gen_program(&this, program: &Program) {
