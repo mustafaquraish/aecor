@@ -1,0 +1,121 @@
+// A simple hash-map that maps strings to arbitrary objects.
+
+struct MapNode {
+	key: string
+	value: untyped_ptr
+	next: &MapNode
+}
+
+def MapNode::new(key: string, value: untyped_ptr, next: &MapNode): &MapNode {
+	let node = calloc(1, sizeof(MapNode)) as &MapNode
+	node.key = key
+	node.value = value
+	node.next = next
+	return node
+}
+
+def MapNode::free_list(node: &MapNode): void {
+	let cur = node
+	while cur != 0 as &MapNode {
+		let next = cur.next
+		free(cur as untyped_ptr)
+		cur = next
+	}
+}
+
+struct Map {
+	buckets: &&MapNode
+	num_items: i32
+	num_buckets: i32
+	num_collisions: i32
+}
+
+def Map::new(): &Map {
+	let map = calloc(1, sizeof(Map)) as &Map
+	map.num_buckets = 4
+	map.buckets = calloc(map.num_buckets, sizeof(&MapNode)) as &&MapNode
+	return map
+}
+
+def Map::hash(&this, s: string): i32 {
+	let hash = 5381
+	let len = strlen(s)
+	for let i = 0; i < len; i += 1 {
+		hash = hash * 33 ^ s[i] as i32
+	}
+	return hash % .num_buckets
+}
+
+def Map::get_node(&this, key: string): &MapNode {
+	let hash = .hash(key)
+	let node = .buckets[hash]
+	while node != 0 as &MapNode {
+		if streq(node.key, key) {
+			return node
+		}
+		node = node.next
+	}
+	return 0 as &MapNode
+}
+
+def Map::get(&this, key: string): untyped_ptr {
+	let node = .get_node(key)
+	if node != 0 as &MapNode {
+		return node.value
+	}
+	return 0 as untyped_ptr
+}
+
+def Map::exists(&this, key: string): bool {
+	return .get_node(key) != 0 as &MapNode
+}
+
+def Map::insert(&this, key: string, value: untyped_ptr) {
+	let node = .get_node(key)
+	if node != 0 as &MapNode {
+		node.value = value
+	} else {
+		let hash = .hash(key)
+		let new_node = MapNode::new(key, value, .buckets[hash])
+		if .buckets[hash] != 0 as &MapNode {
+			.num_collisions += 1
+		}
+		.buckets[hash] = new_node
+		.num_items += 1
+		if .num_items > .num_buckets {
+			.resize()
+		}
+	}
+}
+
+def Map::resize(&this) {
+	let old_buckets = .buckets
+	let old_num_buckets = .num_buckets
+	let old_num_items = .num_items
+	.num_collisions = 0
+	.num_buckets *= 2
+	.buckets = calloc(.num_buckets, sizeof(&MapNode)) as &&MapNode
+	for let i = 0; i < old_num_buckets; i += 1 {
+		let node = old_buckets[i]
+		while node != 0 as &MapNode {
+			let new_hash = .hash(node.key)
+			let new_node = MapNode::new(node.key, node.value, .buckets[new_hash])
+			if .buckets[new_hash] != 0 as &MapNode {
+				.num_collisions += 1
+			}
+			.buckets[new_hash] = new_node
+			node = node.next
+		}
+	}
+	for let i = 0; i < old_num_buckets; i += 1 {
+		MapNode::free_list(old_buckets[i])
+	}
+	free(old_buckets as untyped_ptr)
+}
+
+def Map::free(&this) {
+	for let i = 0; i < .num_buckets; i += 1 {
+		MapNode::free_list(.buckets[i])
+	}
+	free(.buckets as untyped_ptr)
+}
