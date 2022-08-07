@@ -14,6 +14,7 @@ using namespace std;
   F(BoolLiteral, "BoolLiteral")                                                \
   F(BitwiseAnd, "BitwiseAnd")                                                  \
   F(BitwiseOr, "BitwiseOr")                                                    \
+  F(BitwiseXor, "BitwiseXor")                                                  \
   F(Call, "Call")                                                              \
   F(Cast, "Cast")                                                              \
   F(Defer, "Defer")                                                            \
@@ -33,6 +34,7 @@ using namespace std;
   F(LessThan, "LessThan")                                                      \
   F(LessThanEquals, "LessThanEquals")                                          \
   F(Member, "Member")                                                          \
+  F(Modulus, "Modulus")                                                        \
   F(Minus, "Minus")                                                            \
   F(MinusEquals, "MinusEquals")                                                \
   F(Multiply, "Multiply")                                                      \

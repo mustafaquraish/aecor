@@ -531,6 +531,8 @@ ASTType token_to_op(TokenType type) {
   switch (type) {
     case TokenType::And: return ASTType::And;
     case TokenType::Or: return ASTType::Or;
+    case TokenType::Caret: return ASTType::BitwiseXor;
+    case TokenType::Percent: return ASTType::Modulus;
     case TokenType::Line: return ASTType::BitwiseOr;
     case TokenType::Ampersand: return ASTType::BitwiseAnd;
 
@@ -775,7 +777,7 @@ AST *Parser::parse_factor(bool in_parens) {
 
 AST *Parser::parse_term(bool in_parens) {
   auto lhs = parse_factor(in_parens);
-  while (token_is(TokenType::Star) || token_is(TokenType::Slash)) {
+  while (token_is(TokenType::Star) || token_is(TokenType::Slash) || token_is(TokenType::Percent)) {
     if (!in_parens && token().newline_before) break;
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
@@ -812,14 +814,27 @@ AST *Parser::parse_bw_and(bool in_parens) {
   return lhs;
 }
 
-AST *Parser::parse_bw_or(bool in_parens) {
+AST *Parser::parse_bw_xor(bool in_parens) {
   auto lhs = parse_bw_and(in_parens);
-  while (token_is(TokenType::Line)) {
+  while (token_is(TokenType::Caret)) {
     if (!in_parens && token().newline_before) break;
     auto node = new AST(token_to_op(token().type), token().location);
     ++curr;
     node->binary.lhs = lhs;
     node->binary.rhs = parse_bw_and(in_parens);
+    lhs              = node;
+  }
+  return lhs;
+}
+
+AST *Parser::parse_bw_or(bool in_parens) {
+  auto lhs = parse_bw_xor(in_parens);
+  while (token_is(TokenType::Line)) {
+    if (!in_parens && token().newline_before) break;
+    auto node = new AST(token_to_op(token().type), token().location);
+    ++curr;
+    node->binary.lhs = lhs;
+    node->binary.rhs = parse_bw_xor(in_parens);
     lhs              = node;
   }
   return lhs;

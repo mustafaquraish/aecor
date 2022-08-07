@@ -35,6 +35,8 @@ std::vector<Token> Lexer::lex() {
       case '.': push(TokenType::Dot, 1); break;
       case '&': push(TokenType::Ampersand, 1); break;
       case '|': push(TokenType::Line, 1); break;
+      case '%': push(TokenType::Percent, 1); break;
+      case '^': push(TokenType::Caret, 1); break;
 
       case '!': {
         if (peek() == '=')

@@ -41,6 +41,7 @@
   F(AtSign, "@")                                                               \
   F(Ampersand, "Ampersand")                                                    \
   F(Backtick, "Backtick")                                                      \
+  F(Caret, "Caret")                                                            \
   F(CloseCurly, "CloseCurly")                                                  \
   F(CloseParen, "CloseParen")                                                  \
   F(CloseSquare, "CloseSquare")                                                \
@@ -67,6 +68,7 @@
   F(OpenCurly, "OpenCurly")                                                    \
   F(OpenParen, "OpenParen")                                                    \
   F(OpenSquare, "OpenSquare")                                                  \
+  F(Percent, "Percent")                                                        \
   F(Plus, "Plus")                                                              \
   F(PlusEquals, "PlusEquals")                                                  \
   F(Semicolon, "Semicolon")                                                    \

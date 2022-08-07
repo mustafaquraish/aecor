@@ -13,6 +13,8 @@ void CodeGenerator::gen_op(ASTType type) {
     case ASTType::Or: out << " || "; return;
     case ASTType::BitwiseOr: out << " | "; return;
     case ASTType::BitwiseAnd: out << " & "; return;
+    case ASTType::BitwiseXor: out << " ^ "; return;
+    case ASTType::Modulus: out << " % "; return;
 
     case ASTType::Plus: out << " + "; return;
     case ASTType::Minus: out << " - "; return;
@@ -221,6 +223,8 @@ void CodeGenerator::gen_expression(AST *node, int indent) {
     case ASTType::Or:
     case ASTType::BitwiseOr:
     case ASTType::BitwiseAnd:
+    case ASTType::BitwiseXor:
+    case ASTType::Modulus:
     case ASTType::NotEquals:
     case ASTType::LessThan:
     case ASTType::GreaterThan:

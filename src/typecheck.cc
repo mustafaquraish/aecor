@@ -502,6 +502,8 @@ Type *TypeChecker::check_expression(AST *node) {
       return new Type(BaseType::Bool, node->location);
     }
 
+    case ASTType::Modulus:
+    case ASTType::BitwiseXor:
     case ASTType::BitwiseOr:
     case ASTType::BitwiseAnd: {
       auto lhs_type = check_expression(node->binary.lhs);
