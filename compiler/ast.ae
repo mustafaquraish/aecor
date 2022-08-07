@@ -199,9 +199,11 @@ struct Program {
     global_vars: &Vector  // Vector<&AST>
     span: Span
 
-    c_flags: &Vector      // Vector<string>
-    c_includes: &Vector   // Vector<string>
     included_files: &Map  // Map<string, string>
+
+    c_flags: &Vector           // Vector<string>
+    c_includes: &Vector        // Vector<string>
+    c_embed_headers: &Vector   // Vector<string>
 }
 
 def Program::new(): &Program {
@@ -210,9 +212,11 @@ def Program::new(): &Program {
     prog.structures = Vector::new()
     prog.global_vars = Vector::new()
 
+    prog.included_files = Map::new()
+
     prog.c_flags = Vector::new()
     prog.c_includes = Vector::new()
-    prog.included_files = Map::new()
+    prog.c_embed_headers = Vector::new()
     return prog
 }
 

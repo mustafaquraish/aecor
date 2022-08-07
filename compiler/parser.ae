@@ -832,6 +832,10 @@ def Parser::parse_compiler_option(&this, program: &Program) {
         let flag = .consume(TokenType::StringLiteral)
         program.c_flags.push(flag.text as untyped_ptr)
 
+    } else if streq(name.text, "c_embed_header") {
+        let filename = .consume(TokenType::StringLiteral)
+        program.c_embed_headers.push(filename.text as untyped_ptr)
+
     } else {
         error_span(name.span, "Unknown compiler option")
     }
