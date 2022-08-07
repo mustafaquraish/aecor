@@ -302,12 +302,57 @@ def CodeGenerator::gen_var_decl(&this, node: &AST) {
     }
 }
 
+def CodeGenerator::gen_match_case_body(&this, node: &AST, indent: i32) {
+    if node.type == ASTType::Block {
+        .out.puts(" ")
+        .gen_block(node, indent + 1)
+        .out.puts(" break;\n")
+    } else {
+        .out.puts(" {\n")
+        .gen_statement(node, indent + 2)
+        .indent(indent + 1)
+        .out.puts("} break;\n")
+    }
+}
+
+def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
+    let stmt = node.u.match_stmt
+    .indent(indent)
+    .out.puts("switch (")
+    .gen_expression(stmt.expr)
+    .out.puts(") {\n")
+
+    let cases = stmt.cases
+    for let i = 0; i < cases.size; i += 1 {
+        let _case = cases.at(i) as &MatchCase
+        .indent(indent + 1)
+        .out.puts("case ")
+        .gen_expression(_case.cond)
+        .out.puts(":")
+        if _case.body != 0 as &AST {
+            .gen_match_case_body(_case.body, indent)
+        } else {
+            .out.puts("\n")
+        }
+    }
+    if stmt.defolt != 0 as &AST {
+        .indent(indent + 1)
+        .out.puts("default:")
+        .gen_match_case_body(stmt.defolt, indent)
+    }
+    .indent(indent)
+    .out.puts("}\n")
+}
+
 def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
     if node.type == ASTType::Return {
         .indent(indent)
         .out.puts("return ")
         .gen_expression(node.u.unary)
         .out.puts(";\n")
+
+    } else if node.type == ASTType::Match {
+        .gen_match(node, indent)
 
     } else if node.type == ASTType::Break {
         .indent(indent)

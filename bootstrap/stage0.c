@@ -56,6 +56,8 @@ typedef struct VarDeclaration VarDeclaration;
 typedef struct IfStatement IfStatement;
 typedef struct Loop Loop;
 typedef struct Cast Cast;
+typedef struct MatchCase MatchCase;
+typedef struct Match Match;
 typedef union ASTUnion ASTUnion;
 typedef struct AST AST;
 typedef struct Parser Parser;
@@ -97,6 +99,7 @@ enum TokenType {
   TokenType__I32,
   TokenType__If,
   TokenType__Let,
+  TokenType__Match,
   TokenType__Not,
   TokenType__Or,
   TokenType__Return,
@@ -126,6 +129,7 @@ enum TokenType {
   TokenType__Equals,
   TokenType__EqualEquals,
   TokenType__Exclamation,
+  TokenType__FatArrow,
   TokenType__FloatLiteral,
   TokenType__FormatStringLiteral,
   TokenType__GreaterThan,
@@ -237,6 +241,7 @@ enum ASTType {
   ASTType__IntLiteral,
   ASTType__LessThan,
   ASTType__LessThanEquals,
+  ASTType__Match,
   ASTType__Member,
   ASTType__Minus,
   ASTType__MinusEquals,
@@ -365,6 +370,18 @@ struct Cast {
   Type* to;
 };
 
+struct MatchCase {
+  AST* cond;
+  AST* body;
+};
+
+struct Match {
+  AST* expr;
+  Vector* cases;
+  AST* defolt;
+  Span defolt_span;
+};
+
 union ASTUnion {
   Block block;
   Binary binary;
@@ -378,6 +395,7 @@ union ASTUnion {
   Loop loop;
   Cast cast;
   AST* unary;
+  Match match_stmt;
   char* num_literal;
   bool bool_literal;
   char* string_literal;
@@ -466,9 +484,11 @@ ASTType ASTType__from_token(TokenType type);
 Variable* Variable__new(char* name, Type* type, Span span);
 Function* Function__new(Span span);
 Structure* Structure__new(Span span);
+Variable* Structure__find_field(Structure* this, char* name);
 Program* Program__new();
 bool Program__is_file_included(Program* this, char* filename);
 void Program__add_included_file(Program* this, char* filename);
+MatchCase* MatchCase__new(AST* cond, AST* body);
 AST* AST__new(ASTType type, Span span);
 AST* AST__new_unop(ASTType type, Span span, AST* expr);
 AST* AST__new_binop(ASTType type, AST* lhs, AST* rhs);
@@ -501,6 +521,7 @@ AST* Parser__parse_relational(Parser* this, bool in_parens);
 AST* Parser__parse_logical_and(Parser* this, bool in_parens);
 AST* Parser__parse_logical_or(Parser* this, bool in_parens);
 AST* Parser__parse_expression(Parser* this, bool in_parens);
+AST* Parser__parse_match(Parser* this);
 AST* Parser__parse_statement(Parser* this);
 AST* Parser__parse_block(Parser* this);
 Function* Parser__parse_function(Parser* this);
@@ -525,6 +546,8 @@ Type* TypeChecker__check_call(TypeChecker* this, AST* node);
 Type* TypeChecker__check_format_string(TypeChecker* this, AST* node);
 Type* TypeChecker__check_pointer_arith(TypeChecker* this, AST* node, Type* lhs, Type* rhs);
 Type* TypeChecker__check_expression(TypeChecker* this, AST* node);
+bool TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST* node);
+bool TypeChecker__check_match(TypeChecker* this, AST* node);
 void TypeChecker__check_statement(TypeChecker* this, AST* node);
 void TypeChecker__check_block(TypeChecker* this, AST* node);
 void TypeChecker__check_function(TypeChecker* this, Function* func);
@@ -545,6 +568,8 @@ char* CodeGenerator__get_op(ASTType type);
 void CodeGenerator__gen_type(CodeGenerator* this, Type* type);
 void CodeGenerator__gen_expression(CodeGenerator* this, AST* node);
 void CodeGenerator__gen_var_decl(CodeGenerator* this, AST* node);
+void CodeGenerator__gen_match_case_body(CodeGenerator* this, AST* node, int indent);
+void CodeGenerator__gen_match(CodeGenerator* this, AST* node, int indent);
 void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent);
 void CodeGenerator__gen_block(CodeGenerator* this, AST* node, int indent);
 void CodeGenerator__gen_struct_decls(CodeGenerator* this, Program* program);
@@ -764,6 +789,9 @@ TokenType TokenType__from_text(char* text) {
   if (streq(text, "let"))
   return TokenType__Let;
   
+  if (streq(text, "match"))
+  return TokenType__Match;
+  
   if (streq(text, "not"))
   return TokenType__Not;
   
@@ -867,6 +895,9 @@ char* TokenType__str(TokenType this) {
   if (this == TokenType__Not)
   return "not";
   
+  if (this == TokenType__Match)
+  return "match";
+  
   if (this == TokenType__Or)
   return "or";
   
@@ -947,6 +978,9 @@ char* TokenType__str(TokenType this) {
   
   if (this == TokenType__Exclamation)
   return "Exclamation";
+  
+  if (this == TokenType__FatArrow)
+  return "FatArrow";
   
   if (this == TokenType__FloatLiteral)
   return "FloatLiteral";
@@ -1105,9 +1139,12 @@ Vector* Lexer__lex(Lexer* this) {
     }  else     if (c == '='){
       if (Lexer__peek(this, 1) == '='){
         Lexer__push_type(this, TokenType__EqualEquals, 2);
+      }  else       if (Lexer__peek(this, 1) == '>'){
+        Lexer__push_type(this, TokenType__FatArrow, 2);
       }  else {
         Lexer__push_type(this, TokenType__Equals, 1);
       } 
+      
     }  else     if (c == '*'){
       if (Lexer__peek(this, 1) == '='){
         Lexer__push_type(this, TokenType__StarEquals, 2);
@@ -1585,6 +1622,9 @@ char* ASTType__str(ASTType this) {
   if (this == ASTType__LessThanEquals)
   return "LessThanEquals";
   
+  if (this == ASTType__Match)
+  return "Match";
+  
   if (this == ASTType__Member)
   return "Member";
   
@@ -1733,6 +1773,16 @@ Structure* Structure__new(Span span) {
   return struct_;
 }
 
+Variable* Structure__find_field(Structure* this, char* name) {
+  for (int i = 0; (i < this->fields->size); i += 1) {
+    Variable* field = ((Variable*)Vector__at(this->fields, i));
+    if (streq(field->name, name)){
+      return field;
+    } 
+  } 
+  return ((Variable*)0);
+}
+
 Program* Program__new() {
   Program* prog = ((Program*)calloc(1, sizeof(Program)));
   prog->functions = Vector__new();
@@ -1759,6 +1809,13 @@ void Program__add_included_file(Program* this, char* filename) {
     filename = (&filename[2]);
   } 
   Map__insert(this->included_files, filename, ((void*)filename));
+}
+
+MatchCase* MatchCase__new(AST* cond, AST* body) {
+  MatchCase* _case = ((MatchCase*)calloc(1, sizeof(MatchCase)));
+  _case->cond = cond;
+  _case->body = body;
+  return _case;
 }
 
 AST* AST__new(ASTType type, Span span) {
@@ -2345,6 +2402,35 @@ AST* Parser__parse_expression(Parser* this, bool in_parens) {
   return lhs;
 }
 
+AST* Parser__parse_match(Parser* this) {
+  Token* op = Parser__consume(this, TokenType__Match);
+  AST* expr = Parser__parse_expression(this, false);
+  AST* node = AST__new(ASTType__Match, Span__join(op->span, expr->span));
+  node->u.match_stmt.expr = expr;
+  Vector* cases = Vector__new();
+  Parser__consume(this, TokenType__OpenCurly);
+  while ((!Parser__token_is(this, TokenType__CloseCurly))) {
+    if (Parser__token_is(this, TokenType__Else)){
+      node->u.match_stmt.defolt_span = Parser__token(this)->span;
+      Parser__consume(this, TokenType__Else);
+      Parser__consume(this, TokenType__FatArrow);
+      node->u.match_stmt.defolt = Parser__parse_statement(this);
+    }  else {
+      AST* cond = Parser__parse_factor(this, false);
+      AST* body = ((AST*)0);
+      if ((!Parser__consume_if(this, TokenType__Line))){
+        Parser__consume(this, TokenType__FatArrow);
+        body = Parser__parse_statement(this);
+      } 
+      MatchCase* _case = MatchCase__new(cond, body);
+      Vector__push(cases, ((void*)_case));
+    } 
+  } 
+  Parser__consume(this, TokenType__CloseCurly);
+  node->u.match_stmt.cases = cases;
+  return node;
+}
+
 AST* Parser__parse_statement(Parser* this) {
   AST* node = ((AST*)0);
   Span start_span = Parser__token(this)->span;
@@ -2361,6 +2447,8 @@ AST* Parser__parse_statement(Parser* this) {
     Parser__consume(this, TokenType__Continue);
     node = AST__new(ASTType__Continue, start_span);
     Parser__consume_newline_or(this, TokenType__Semicolon);
+  }  else   if (Parser__token_is(this, TokenType__Match)){
+    node = Parser__parse_match(this);
   }  else   if (Parser__token_is(this, TokenType__Defer)){
     Parser__consume(this, TokenType__Defer);
     AST* expr = Parser__parse_statement(this);
@@ -2434,6 +2522,7 @@ AST* Parser__parse_statement(Parser* this) {
     node = Parser__parse_expression(this, false);
     Parser__consume_newline_or(this, TokenType__Semicolon);
   } 
+  
   
   
   
@@ -2751,13 +2840,7 @@ Variable* TypeChecker__find_var(TypeChecker* this, char* name) {
 
 Variable* TypeChecker__get_struct_member(TypeChecker* this, char* lhs, char* rhs) {
   Structure* struc = ((Structure*)Map__get(this->structures, lhs));
-  for (int i = 0; (i < struc->fields->size); i += 1) {
-    Variable* field = ((Variable*)Vector__at(struc->fields, i));
-    if (streq(field->name, rhs)){
-      return field;
-    } 
-  } 
-  return ((Variable*)0);
+  return Structure__find_field(struc, rhs);
 }
 
 bool TypeChecker__type_is_valid(TypeChecker* this, Type* type) {
@@ -3138,6 +3221,90 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
   return etype;
 }
 
+bool TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST* node) {
+  Map* mapping = Map__new();
+  ;
+  Vector* cases = node->u.match_stmt.cases;
+  for (int i = 0; (i < cases->size); i += 1) {
+    MatchCase* _case = ((MatchCase*)Vector__at(cases, i));
+    AST* cond = _case->cond;
+    char* name;
+    if (cond->type == ASTType__Identifier){
+      name = cond->u.ident.name;
+      if (Structure__find_field(struc, name) == ((Variable*)0)){
+        error_span(cond->span, "Enum has no field with this name");
+      } 
+      cond->type = ASTType__EnumValue;
+      cond->u.enum_val.struct_def = struc;
+      cond->u.enum_val.name = name;
+      cond->etype = struc->type;
+    }  else {
+      Type* cond_type = TypeChecker__check_expression(this, cond);
+      if ((!Type__eq(cond_type, struc->type))){
+        error_span(cond->span, "Condition does not match expression type");
+      } 
+      name = cond->u.enum_val.name;
+    } 
+    if (Map__exists(mapping, name)){
+      error_span(cond->span, "Duplicate condition name in match");
+    } 
+    Map__insert(mapping, name, ((void*)_case));
+    if ((_case->body != ((AST*)0))){
+      TypeChecker__check_statement(this, _case->body);
+    } 
+  } 
+  AST* defolt = node->u.match_stmt.defolt;
+  if ((mapping->num_items != struc->fields->size)){
+    if (defolt == ((AST*)0)){
+      error_span(node->span, "Match does not cover all cases");
+    } 
+    TypeChecker__check_statement(this, node->u.match_stmt.defolt);
+  }  else {
+    if ((defolt != ((AST*)0))){
+      error_span(node->u.match_stmt.defolt_span, "`else` case is not needed for this match");
+    } 
+  } 
+  return true;
+
+/* defers */
+  Map__free(mapping);
+}
+
+bool TypeChecker__check_match(TypeChecker* this, AST* node) {
+  AST* expr = node->u.match_stmt.expr;
+  Type* expr_type = TypeChecker__check_expression(this, expr);
+  Structure* struc;
+  if (expr_type->base == BaseType__Structure){
+    struc = ((Structure*)Map__get(this->structures, expr_type->name));
+    if (struc->is_enum){
+      return TypeChecker__check_match_for_enum(this, struc, node);
+    } 
+  } 
+  if (((expr_type->base != BaseType__I32) && (expr_type->base != BaseType__Char))){
+    error_span(expr->span, "Match expression must be enum/integer/char");
+  } 
+  Vector* cases = node->u.match_stmt.cases;
+  for (int i = 0; (i < cases->size); i += 1) {
+    MatchCase* _case = ((MatchCase*)Vector__at(cases, i));
+    Type* cond_type = TypeChecker__check_expression(this, _case->cond);
+    if ((!Type__eq(cond_type, expr_type))){
+      error_span(_case->cond->span, "Condition does not match expression type");
+    } 
+    if (((_case->cond->type != ASTType__IntLiteral) && (_case->cond->type != ASTType__CharLiteral))){
+      error_span(_case->cond->span, "Match condition must use only literals");
+    } 
+    if ((_case->body != ((AST*)0))){
+      TypeChecker__check_statement(this, _case->body);
+    } 
+  } 
+  AST* defolt = node->u.match_stmt.defolt;
+  if (defolt == ((AST*)0)){
+    error_span(node->span, "`else` case is missing");
+  } 
+  TypeChecker__check_statement(this, defolt);
+  return true;
+}
+
 void TypeChecker__check_statement(TypeChecker* this, AST* node) {
   if (node->type == ASTType__Block){
     TypeChecker__check_block(this, node);
@@ -3162,6 +3329,8 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
     } 
   }  else   if (node->type == ASTType__Defer){
     TypeChecker__check_expression(this, node->u.unary);
+  }  else   if (node->type == ASTType__Match){
+    TypeChecker__check_match(this, node);
   }  else   if (node->type == ASTType__VarDeclaration){
     VarDeclaration* var_decl = (&node->u.var_decl);
     if ((var_decl->init != ((AST*)0))){
@@ -3224,6 +3393,7 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
   }  else {
     TypeChecker__check_expression(this, node);
   } 
+  
   
   
   
@@ -3696,12 +3866,55 @@ void CodeGenerator__gen_var_decl(CodeGenerator* this, AST* node) {
   } 
 }
 
+void CodeGenerator__gen_match_case_body(CodeGenerator* this, AST* node, int indent) {
+  if (node->type == ASTType__Block){
+    File__puts(this->out, " ");
+    CodeGenerator__gen_block(this, node, (indent + 1));
+    File__puts(this->out, " break;\n");
+  }  else {
+    File__puts(this->out, " {\n");
+    CodeGenerator__gen_statement(this, node, (indent + 2));
+    CodeGenerator__indent(this, (indent + 1));
+    File__puts(this->out, "} break;\n");
+  } 
+}
+
+void CodeGenerator__gen_match(CodeGenerator* this, AST* node, int indent) {
+  Match stmt = node->u.match_stmt;
+  CodeGenerator__indent(this, indent);
+  File__puts(this->out, "switch (");
+  CodeGenerator__gen_expression(this, stmt.expr);
+  File__puts(this->out, ") {\n");
+  Vector* cases = stmt.cases;
+  for (int i = 0; (i < cases->size); i += 1) {
+    MatchCase* _case = ((MatchCase*)Vector__at(cases, i));
+    CodeGenerator__indent(this, (indent + 1));
+    File__puts(this->out, "case ");
+    CodeGenerator__gen_expression(this, _case->cond);
+    File__puts(this->out, ":");
+    if ((_case->body != ((AST*)0))){
+      CodeGenerator__gen_match_case_body(this, _case->body, indent);
+    }  else {
+      File__puts(this->out, "\n");
+    } 
+  } 
+  if ((stmt.defolt != ((AST*)0))){
+    CodeGenerator__indent(this, (indent + 1));
+    File__puts(this->out, "default:");
+    CodeGenerator__gen_match_case_body(this, stmt.defolt, indent);
+  } 
+  CodeGenerator__indent(this, indent);
+  File__puts(this->out, "}\n");
+}
+
 void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent) {
   if (node->type == ASTType__Return){
     CodeGenerator__indent(this, indent);
     File__puts(this->out, "return ");
     CodeGenerator__gen_expression(this, node->u.unary);
     File__puts(this->out, ";\n");
+  }  else   if (node->type == ASTType__Match){
+    CodeGenerator__gen_match(this, node, indent);
   }  else   if (node->type == ASTType__Break){
     CodeGenerator__indent(this, indent);
     File__puts(this->out, "break;\n");
@@ -3760,6 +3973,7 @@ void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent) {
     CodeGenerator__gen_expression(this, node);
     File__puts(this->out, ";\n");
   } 
+  
   
   
   

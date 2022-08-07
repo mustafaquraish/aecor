@@ -33,6 +33,7 @@ enum ASTType {
   IntLiteral
   LessThan
   LessThanEquals
+  Match
   Member
   Minus
   MinusEquals
@@ -84,6 +85,7 @@ def ASTType::str(this): string {
     if this == ASTType::IntLiteral return "IntLiteral"
     if this == ASTType::LessThan return "LessThan"
     if this == ASTType::LessThanEquals return "LessThanEquals"
+    if this == ASTType::Match return "Match"
     if this == ASTType::Member return "Member"
     if this == ASTType::Minus return "Minus"
     if this == ASTType::MinusEquals return "MinusEquals"
@@ -197,6 +199,16 @@ def Structure::new(span: Span): &Structure {
     return struct_
 }
 
+def Structure::find_field(&this, name: string): &Variable {
+    for let i = 0; i < .fields.size; i += 1 {
+        let field = .fields.at(i) as &Variable
+        if streq(field.name, name) {
+            return field
+        }
+    }
+    return 0 as &Variable
+}
+
 struct Program {
     functions: &Vector    // Vector<&Function>
     structures: &Vector   // Vector<&Structure>
@@ -304,6 +316,25 @@ struct Cast {
     to: &Type
 }
 
+struct MatchCase {
+    cond: &AST
+    body: &AST
+}
+
+def MatchCase::new(cond: &AST, body: &AST): &MatchCase {
+    let _case = calloc(1, sizeof(MatchCase)) as &MatchCase
+    _case.cond = cond
+    _case.body = body
+    return _case
+}
+
+struct Match {
+    expr: &AST
+    cases: &Vector  // Vector<&MatchCase>
+    defolt: &AST
+    defolt_span: Span
+}
+
 union ASTUnion {
     block: Block
     binary: Binary
@@ -317,6 +348,7 @@ union ASTUnion {
     loop: Loop
     cast: Cast
     unary: &AST
+    match_stmt: Match
     num_literal: string
     bool_literal: bool
     string_literal: string

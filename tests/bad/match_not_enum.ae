@@ -1,0 +1,7 @@
+/// fail: Match expression must be enum/integer/char
+
+def main() {
+    match "hello" {
+
+    }
+}

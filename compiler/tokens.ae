@@ -89,6 +89,7 @@ enum TokenType {
   I32
   If
   Let
+  Match
   Not
   Or
   Return
@@ -120,6 +121,7 @@ enum TokenType {
   Equals
   EqualEquals
   Exclamation
+  FatArrow
   FloatLiteral
   FormatStringLiteral
   GreaterThan
@@ -165,6 +167,7 @@ def TokenType::from_text(text: string): TokenType {
     if streq(text, "i32") return TokenType::I32
     if streq(text, "if") return TokenType::If
     if streq(text, "let") return TokenType::Let
+    if streq(text, "match") return TokenType::Match
     if streq(text, "not") return TokenType::Not
     if streq(text, "or") return TokenType::Or
     if streq(text, "return") return TokenType::Return
@@ -207,6 +210,7 @@ def TokenType::str(this): string {
   if this == TokenType::If return "if"
   if this == TokenType::Let return "let"
   if this == TokenType::Not return "not"
+  if this == TokenType::Match return "match"
   if this == TokenType::Or return "or"
   if this == TokenType::Return return "return"
   if this == TokenType::SizeOf return "sizeof"
@@ -236,6 +240,7 @@ def TokenType::str(this): string {
   if (this == TokenType::Equals) return "Equals"
   if (this == TokenType::EqualEquals) return "EqualEquals"
   if (this == TokenType::Exclamation) return "Exclamation"
+  if (this == TokenType::FatArrow) return "FatArrow"
   if (this == TokenType::FloatLiteral) return "FloatLiteral"
   if (this == TokenType::FormatStringLiteral) return "FormatStringLiteral"
   if (this == TokenType::GreaterThan) return "GreaterThan"
