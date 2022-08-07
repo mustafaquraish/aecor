@@ -36,8 +36,10 @@ def CodeGenerator::gen_control_body(&this, node: &AST, indent: i32) {
     .gen_block(node, indent);
     .out.puts(" ")
   } else {
-    .out.puts("\n")
-    .gen_statement(node, indent + 1);
+    if node.type != ASTType::If {
+        .out.puts("\n")
+    }
+    .gen_statement(node, indent);
     .indent(indent);
   }
 }

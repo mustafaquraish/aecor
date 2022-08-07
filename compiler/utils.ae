@@ -3,6 +3,10 @@ use "./compiler/tokens.ae"
 
 def strsep(s: &string, delim: string): string extern
 
+def error_loc(loc: Location, msg: string) {
+    error_span(Span::make(loc, loc), msg)
+}
+
 def error_span(span: Span, msg: string) {
     let filename = span.start.filename;
     let file = File::open(filename, "r")

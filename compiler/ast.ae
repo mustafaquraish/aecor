@@ -222,7 +222,7 @@ def Program::new(): &Program {
 
 def Program::is_file_included(&this, filename: string): bool {
     let len = strlen(filename)
-    if len > 2 and filename[0] == "."[0] and filename[1] == "/"[0] {
+    if len > 2 and filename[0] == '.' and filename[1] == '/' {
         filename = &filename[2]
     }
     return this.included_files.exists(filename)
@@ -230,7 +230,7 @@ def Program::is_file_included(&this, filename: string): bool {
 
 def Program::add_included_file(&this, filename: string) {
     let len = strlen(filename)
-    if len > 2 and filename[0] == "."[0] and filename[1] == "/"[0] {
+    if len > 2 and filename[0] == '.' and filename[1] == '/' {
         filename = &filename[2]
     }
     .included_files.insert(filename, filename as untyped_ptr)
