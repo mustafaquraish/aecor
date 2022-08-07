@@ -76,6 +76,7 @@ enum TokenType {
   As
   Bool
   Char
+  Continue
   Def
   Defer
   Else
@@ -151,6 +152,7 @@ def TokenType::from_text(text: string): TokenType {
     if streq(text, "as") return TokenType::As
     if streq(text, "bool") return TokenType::Bool
     if streq(text, "char") return TokenType::Char
+    if streq(text, "continue") return TokenType::Continue
     if streq(text, "def") return TokenType::Def
     if streq(text, "defer") return TokenType::Defer
     if streq(text, "else") return TokenType::Else
@@ -189,7 +191,9 @@ def TokenType::str(this): string {
   if this == TokenType::And return "and"
   if this == TokenType::As return "as"
   if this == TokenType::Bool return "bool"
+  if this == TokenType::Break return "break"
   if this == TokenType::Char return "char"
+  if this == TokenType::Continue return "continue"
   if this == TokenType::Def return "def"
   if this == TokenType::Defer return "defer"
   if this == TokenType::Else return "else"
@@ -215,7 +219,6 @@ def TokenType::str(this): string {
   if this == TokenType::Use return "use"
   if this == TokenType::Void return "void"
   if this == TokenType::While return "while"
-  if this == TokenType::Break return "break"
 
   // Others
   if (this == TokenType::AtSign) return "AtSign"

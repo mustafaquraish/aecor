@@ -498,6 +498,12 @@ def Parser::parse_statement(&this): &AST {
     } else if .token_is(TokenType::Break) {
         .consume(TokenType::Break)
         node = AST::new(ASTType::Break, start_span)
+        .consume_newline_or(TokenType::Semicolon)
+
+    } else if .token_is(TokenType::Continue) {
+        .consume(TokenType::Continue)
+        node = AST::new(ASTType::Continue, start_span)
+        .consume_newline_or(TokenType::Semicolon)
 
     } else if .token_is(TokenType::Defer) {
         .consume(TokenType::Defer)

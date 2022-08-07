@@ -497,6 +497,11 @@ def TypeChecker::check_statement(&this, node: &AST) {
             error_span(node.span, "Break statement outside of loop")
         }
 
+    } else if node.type == ASTType::Continue {
+        if not .in_loop {
+            error_span(node.span, "Continue statement outside of loop")
+        }
+
     } else if node.type == ASTType::Defer {
         .check_expression(node.u.unary)
 

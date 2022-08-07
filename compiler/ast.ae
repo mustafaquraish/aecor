@@ -14,6 +14,8 @@ enum ASTType {
   Break
   Call
   Cast
+  CharLiteral
+  Continue
   Defer
   Dereference
   Divide
@@ -46,7 +48,6 @@ enum ASTType {
   SizeOf
   ScopeLookup
   StringLiteral
-  CharLiteral
   UnaryMinus
   VarDeclaration
   While
@@ -64,6 +65,8 @@ def ASTType::str(this): string {
     if this == ASTType::Break return "Break"
     if this == ASTType::Call return "Call"
     if this == ASTType::Cast return "Cast"
+    if this == ASTType::CharLiteral return "CharLiteral"
+    if this == ASTType::Continue return "Continue"
     if this == ASTType::Defer return "Defer"
     if this == ASTType::Dereference return "Dereference"
     if this == ASTType::Divide return "Divide"
@@ -96,7 +99,6 @@ def ASTType::str(this): string {
     if this == ASTType::SizeOf return "SizeOf"
     if this == ASTType::ScopeLookup return "ScopeLookup"
     if this == ASTType::StringLiteral return "StringLiteral"
-    if this == ASTType::CharLiteral return "CharLiteral"
     if this == ASTType::UnaryMinus return "UnaryMinus"
     if this == ASTType::VarDeclaration return "VarDeclaration"
     if this == ASTType::While    return "While"
