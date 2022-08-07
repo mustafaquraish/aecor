@@ -91,7 +91,34 @@ def ASTType::str(this): string {
     if this == ASTType::VarDeclaration return "VarDeclaration"
     if this == ASTType::While    return "While"
 
-    println("Unknown ASTType in ASTType::str: %d", this)
+    println("Unhandled ASTType in ASTType::str: %d", this)
+    exit(1)
+}
+
+def ASTType::from_token(type: TokenType): ASTType {
+    if type == TokenType::And return ASTType::And
+    if type == TokenType::Or return ASTType::Or
+    if type == TokenType::Line return ASTType::BitwiseOr
+    if type == TokenType::Ampersand return ASTType::BitwiseAnd
+
+    if type == TokenType::GreaterThan return ASTType::GreaterThan
+    if type == TokenType::GreaterThanEquals return ASTType::GreaterThanEquals
+    if type == TokenType::LessThan return ASTType::LessThan
+    if type == TokenType::LessThanEquals return ASTType::LessThanEquals
+    if type == TokenType::Equals return ASTType::Assignment
+    if type == TokenType::EqualEquals return ASTType::Equals
+    if type == TokenType::NotEquals return ASTType::NotEquals
+
+    if type == TokenType::Minus return ASTType::Minus
+    if type == TokenType::Plus return ASTType::Plus
+    if type == TokenType::Slash return ASTType::Divide
+    if type == TokenType::Star return ASTType::Multiply
+    if type == TokenType::MinusEquals return ASTType::MinusEquals
+    if type == TokenType::PlusEquals return ASTType::PlusEquals
+    if type == TokenType::SlashEquals return ASTType::DivideEquals
+    if type == TokenType::StarEquals return ASTType::MultiplyEquals
+
+    println("Unhandled token type in ASTType::from_token: %s", type.str())
     exit(1)
 }
 
@@ -278,4 +305,12 @@ def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
     ast.u.binary.lhs = lhs
     ast.u.binary.rhs = rhs
     return ast
+}
+
+def AST::callee_is(&this, expected: string): bool {
+    if this == 0 as &AST return false
+    if .type != ASTType::Call return false
+    if .u.call.callee.type != ASTType::Identifier return false
+    let name = .u.call.callee.u.ident.name
+    return streq(name, expected)
 }

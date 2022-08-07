@@ -96,7 +96,7 @@ enum TokenType {
   Struct
   True
   U8
-  UnypedPtr
+  UntypedPtr
   Union
   Use
   Void
@@ -167,7 +167,7 @@ def TokenType::from_text(text: string): TokenType {
     if streq(text, "struct") return TokenType::Struct
     if streq(text, "true") return TokenType::True
     if streq(text, "u8") return TokenType::U8
-    if streq(text, "unyped_ptr") return TokenType::UnypedPtr
+    if streq(text, "untyped_ptr") return TokenType::UntypedPtr
     if streq(text, "union") return TokenType::Union
     if streq(text, "use") return TokenType::Use
     if streq(text, "void") return TokenType::Void
@@ -205,7 +205,7 @@ def TokenType::str(this): string {
   if this == TokenType::Struct return "struct"
   if this == TokenType::True return "true"
   if this == TokenType::U8 return "u8"
-  if this == TokenType::UnypedPtr return "unyped_ptr"
+  if this == TokenType::UntypedPtr return "untyped_ptr"
   if this == TokenType::Union return "union"
   if this == TokenType::Use return "use"
   if this == TokenType::Void return "void"

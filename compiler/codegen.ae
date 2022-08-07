@@ -10,6 +10,94 @@ def CodeGenerator::make(filename: string): CodeGenerator {
     return gen
 }
 
+def CodeGenerator::indent(&this, num: i32) {
+    for let i = 0; i < num; i += 1 {
+        .out.puts("  ")
+    }
+}
+
+def CodeGenerator::gen_control_body(&this, node: &AST, indent: i32) {
+  if node.type == ASTType::Block {
+    .gen_block(node, indent);
+    .out.puts(" ")
+  } else {
+    .out.puts("\n")
+    .gen_statement(node, indent + 1);
+    .indent(indent);
+  }
+}
+
+def CodeGenerator::gen_enum_value(&this, enum_name: string, value_name: string) {
+  .out.puts(`{enum_name}__{value_name}`);
+}
+
+def CodeGenerator::gen_enum(&this, struc: &Structure) {
+    if not struc.is_extern {
+        .out.puts(`enum {struc.name}`);
+        .out.puts(" {\n")
+        for let i = 0; i < struc.fields.size; i += 1 {
+            let field = struc.fields.at(i) as &Variable
+            .indent(1)
+            .gen_enum_value(struc.name, field.name);
+            .out.puts(",\n");
+        }
+        .out.puts("};\n\n");
+    }
+}
+
+def CodeGenerator::gen_struct(&this, struc: &Structure) {
+    if not struc.is_extern {
+        let name = struc.type.name;
+        if (struc.is_union) {
+            .out.puts("union ")
+        } else {
+            .out.puts("struct ")
+        }
+        .out.puts(name)
+        .out.puts(" {\n")
+        for let i = 0; i < struc.fields.size; i += 1 {
+            let field = struc.fields.at(i) as &Variable
+            .indent(1)
+            .gen_type_and_name(field.type, field.name);
+            .out.puts(";\n")
+        }
+        .out.puts("};\n\n")
+    }
+}
+
+def CodeGenerator::get_op(type: ASTType): string {
+    if type == ASTType::And return " && "
+    if type == ASTType::Or return " || "
+    if type == ASTType::BitwiseOr return " | "
+    if type == ASTType::BitwiseAnd return " & "
+
+    if type == ASTType::Plus return " + "
+    if type == ASTType::Minus return " - "
+    if type == ASTType::Multiply return " * "
+    if type == ASTType::Divide return " / "
+    if type == ASTType::LessThan return " < "
+    if type == ASTType::GreaterThan return " > "
+
+    if type == ASTType::Assignment return " = "
+    if type == ASTType::PlusEquals return " += "
+    if type == ASTType::MinusEquals return " -= "
+    if type == ASTType::MultiplyEquals return " *= "
+    if type == ASTType::DivideEquals return " /= "
+    if type == ASTType::LessThanEquals return " <= "
+    if type == ASTType::GreaterThanEquals return " >= "
+
+    if type == ASTType::Equals return " == "
+    if type == ASTType::NotEquals return " != "
+
+    if type == ASTType::Address return "&"
+    if type == ASTType::Dereference return "*"
+    if type == ASTType::Not return "!"
+    if type == ASTType::UnaryMinus return "-"
+
+    println("Unknown op type in get_op: %s", type.str())
+    exit(1)
+}
+
 def CodeGenerator::gen_type(&this, type: &Type) {
     if (type.base == BaseType::Void) this.out.puts("void");
     else if (type.base == BaseType::Char) this.out.puts("char")
@@ -31,37 +119,181 @@ def CodeGenerator::gen_type(&this, type: &Type) {
 def CodeGenerator::gen_expression(&this, node: &AST) {
     if node.type == ASTType::IntLiteral {
         .out.puts(node.u.num_literal)
+    } else if node.type == ASTType::FloatLiteral {
+        .out.puts(node.u.num_literal)
+    } else if node.type == ASTType::StringLiteral {
+        .out.puts(`\"{node.u.string_literal}\"`)
+    } else if node.type == ASTType::BoolLiteral {
+        if node.u.bool_literal {
+            .out.puts("true")
+        } else {
+            .out.puts("false")
+        }
+    } else if node.type == ASTType::Identifier {
+        let ident = node.u.ident
+        .out.puts(ident.name)
+        // if ident.is_function {
+        //     .gen_function_name(ident.func)
+        // } else {
+        //     let var = ident.var
+        //     if var.is_extern {
+        //         .out.puts(var.extern_name)
+        //     } else {
+        //         .out.puts(var.name)
+        //     }
+        // }
+    } else if node.type == ASTType::Call {
+        let newline_after_first = false;
+        if node.callee_is("print") {
+            .out.puts("printf")
+        } else if node.callee_is("println") {
+            .out.puts("printf")
+            newline_after_first = true;
+        } else if node.u.call.func == 0 as &Function {
+            .gen_expression(node.u.call.callee);
+        } else {
+            .gen_function_name(node.u.call.func);
+        }
+        .out.puts("(")
+        let args = node.u.call.args
+        let first = true
+        for let i = 0; i < args.size; i += 1 {
+            if not first { .out.puts(", "); }
+            .gen_expression(args.at(i) as &AST)
+            if first and newline_after_first { .out.puts(" \"\\n\""); }
+            first = false
+        }
+        .out.puts(")")
+    } else if node.type == ASTType::And or
+            node.type == ASTType::And or
+            node.type == ASTType::Or or
+            node.type == ASTType::BitwiseOr or
+            node.type == ASTType::BitwiseAnd or
+            node.type == ASTType::NotEquals or
+            node.type == ASTType::LessThan or
+            node.type == ASTType::GreaterThan or
+            node.type == ASTType::LessThanEquals or
+            node.type == ASTType::GreaterThanEquals or
+            node.type == ASTType::Plus or
+            node.type == ASTType::Minus or
+            node.type == ASTType::Multiply or
+            node.type == ASTType::Divide {
+        .out.puts("(")
+        .gen_expression(node.u.binary.lhs)
+        .out.puts(CodeGenerator::get_op(node.type))
+        .gen_expression(node.u.binary.rhs)
+        .out.puts(")")
+
+    } else if node.type == ASTType::Address or
+            node.type == ASTType::Dereference or
+            node.type == ASTType::Not or
+            node.type == ASTType::UnaryMinus {
+        .out.puts("(")
+        .out.puts(CodeGenerator::get_op(node.type))
+        .gen_expression(node.u.unary)
+        .out.puts(")")
+
+    } else if node.type == ASTType::Equals {
+        .gen_expression(node.u.binary.lhs)
+        .out.puts(CodeGenerator::get_op(node.type))
+        .gen_expression(node.u.binary.rhs)
+
     } else {
         println("unknown type in gen_expression: %s", node.type.str())
         exit(1)
     }
 }
 
-def CodeGenerator::gen_statement(&this, node: &AST) {
+def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
     if node.type == ASTType::Return {
         .out.puts("return ")
         .gen_expression(node.u.unary)
         .out.puts(";\n")
+
+    } else if node.type == ASTType::VarDeclaration {
+        .indent(indent)
+        let var_decl = node.u.var_decl
+        .gen_type_and_name(var_decl.var.type, var_decl.var.name)
+        if var_decl.init != 0 as &AST {
+            .out.puts(" = ")
+            .gen_expression(var_decl.init)
+        }
+        .out.puts(";\n")
+
+    } else if node.type == ASTType::If {
+        .indent(indent)
+        .out.puts("if (")
+        .gen_expression(node.u.if_stmt.cond)
+        .out.puts(")")
+        .gen_statement(node.u.if_stmt.then, indent)
+        if node.u.if_stmt.els != 0 as &AST {
+            .out.puts(" else ")
+            .gen_statement(node.u.if_stmt.els, indent)
+        }
+
+    } else if node.type == ASTType::Block {
+        .indent(indent)
+        .gen_block(node, indent)
+        .out.puts("\n")
+
     } else {
-        println("unknown type in gen_statement: %s", node.type.str())
-        exit(1)
+        .indent(indent)
+        .gen_expression(node)
+        .out.puts(";\n")
     }
 }
 
-def CodeGenerator::gen_block(&this, node: &AST) {
+def CodeGenerator::gen_block(&this, node: &AST, indent: i32) {
     let statements = node.u.block.statements;
     .out.puts("{\n")
     for let i = 0; i < statements.size; i += 1 {
         let statement = statements.at(i) as &AST;
-        .gen_statement(statement)
+        .gen_statement(statement, indent + 1)
     }
     .out.puts("}")
 }
 
+def CodeGenerator::gen_function_name(&this, func: &Function) {
+    if func.is_extern {
+        .out.puts(func.extern_name)
+    } else if func.is_method {
+        .out.puts(`{func.method_struct_name}__{func.name}`)
+    } else {
+        .out.puts(func.name)
+    }
+}
+
+def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
+    if type.base == BaseType::Function {
+        .gen_type(type.return_type)
+        .out.puts(`(*{name})(`)
+        let first = true
+        for let i = 0; i < type.params.size; i += 1 {
+            if not first { .out.puts(", "); }
+            first = false
+            .gen_type(type.params.at(i) as &Type)
+        }
+        .out.puts(")")
+    } else {
+        .gen_type(type)
+        .out.puts(` {name}`)
+    }
+}
+
 def CodeGenerator::gen_function(&this, func: &Function) {
     .gen_type(func.return_type)
-    .out.puts(` {func.name} () `)
-    .gen_block(func.body)
+    .out.puts(" ")
+    .gen_function_name(func)
+    .out.puts("(")
+    let first = true
+    for let i = 0; i < func.params.size; i += 1 {
+        if not first { .out.puts(", "); }
+        first = false
+        let var = func.params.at(i) as &Variable
+        .gen_type_and_name(var.type, var.name)
+    }
+    .out.puts(") ")
+    .gen_block(func.body, 0)
     .out.puts("\n\n")
 }
 
