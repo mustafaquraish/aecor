@@ -838,22 +838,21 @@ def Parser::parse_compiler_option(&this, program: &Program) {
     }
 
     let name = .consume(TokenType::Identifier)
-    if streq(name.text, "c_include") {
-        let filename = .consume(TokenType::StringLiteral)
-        program.c_includes.push(filename.text as untyped_ptr)
-        return
+    match name.text {
+        "c_include" => {
+            let filename = .consume(TokenType::StringLiteral)
+            program.c_includes.push(filename.text as untyped_ptr)
+        }
+        "c_flag" => {
+            let flag = .consume(TokenType::StringLiteral)
+            program.c_flags.push(flag.text as untyped_ptr)
+        }
+        "c_embed_header" => {
+            let filename = .consume(TokenType::StringLiteral)
+            program.c_embed_headers.push(filename.text as untyped_ptr)
+        }
+        else => error_span(name.span, "Unknown compiler option")
     }
-    if streq(name.text, "c_flag") {
-        let flag = .consume(TokenType::StringLiteral)
-        program.c_flags.push(flag.text as untyped_ptr)
-        return
-    }
-    if streq(name.text, "c_embed_header") {
-        let filename = .consume(TokenType::StringLiteral)
-        program.c_embed_headers.push(filename.text as untyped_ptr)
-        return
-    }
-    error_span(name.span, "Unknown compiler option")
 }
 
 def Parser::parse_into_program(&this, program: &Program) {

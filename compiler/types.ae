@@ -103,3 +103,7 @@ def Type::reverse(&this): &Type {
     }
     return rev
 }
+
+def Type::is_string(&this): bool {
+    return .base == BaseType::Pointer and .ptr.base == BaseType::Char
+}

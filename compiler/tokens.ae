@@ -150,41 +150,41 @@ enum TokenType {
 }
 
 def TokenType::from_text(text: string): TokenType {
-    if streq(text, "and") return TokenType::And
-    if streq(text, "as") return TokenType::As
-    if streq(text, "bool") return TokenType::Bool
-    if streq(text, "break") return TokenType::Break
-    if streq(text, "char") return TokenType::Char
-    if streq(text, "continue") return TokenType::Continue
-    if streq(text, "def") return TokenType::Def
-    if streq(text, "defer") return TokenType::Defer
-    if streq(text, "else") return TokenType::Else
-    if streq(text, "enum") return TokenType::Enum
-    if streq(text, "extern") return TokenType::Extern
-    if streq(text, "false") return TokenType::False
-    if streq(text, "f32") return TokenType::F32
-    if streq(text, "for") return TokenType::For
-    if streq(text, "fn") return TokenType::Fn
-    if streq(text, "i32") return TokenType::I32
-    if streq(text, "if") return TokenType::If
-    if streq(text, "let") return TokenType::Let
-    if streq(text, "match") return TokenType::Match
-    if streq(text, "not") return TokenType::Not
-    if streq(text, "or") return TokenType::Or
-    if streq(text, "return") return TokenType::Return
-    if streq(text, "sizeof") return TokenType::SizeOf
-    if streq(text, "string") return TokenType::String
-    if streq(text, "struct") return TokenType::Struct
-    if streq(text, "true") return TokenType::True
-    if streq(text, "u8") return TokenType::U8
-    if streq(text, "untyped_ptr") return TokenType::UntypedPtr
-    if streq(text, "union") return TokenType::Union
-    if streq(text, "use") return TokenType::Use
-    if streq(text, "void") return TokenType::Void
-    if streq(text, "while") return TokenType::While
-
-    // Otherwise, we have an identifier
-    return TokenType::Identifier
+    match text {
+        "and" => return TokenType::And
+        "as" => return TokenType::As
+        "bool" => return TokenType::Bool
+        "break" => return TokenType::Break
+        "char" => return TokenType::Char
+        "continue" => return TokenType::Continue
+        "def" => return TokenType::Def
+        "defer" => return TokenType::Defer
+        "else" => return TokenType::Else
+        "enum" => return TokenType::Enum
+        "extern" => return TokenType::Extern
+        "false" => return TokenType::False
+        "f32" => return TokenType::F32
+        "for" => return TokenType::For
+        "fn" => return TokenType::Fn
+        "i32" => return TokenType::I32
+        "if" => return TokenType::If
+        "let" => return TokenType::Let
+        "match" => return TokenType::Match
+        "not" => return TokenType::Not
+        "or" => return TokenType::Or
+        "return" => return TokenType::Return
+        "sizeof" => return TokenType::SizeOf
+        "string" => return TokenType::String
+        "struct" => return TokenType::Struct
+        "true" => return TokenType::True
+        "u8" => return TokenType::U8
+        "untyped_ptr" => return TokenType::UntypedPtr
+        "union" => return TokenType::Union
+        "use" => return TokenType::Use
+        "void" => return TokenType::Void
+        "while" => return TokenType::While
+        else => return TokenType::Identifier
+    }
 }
 
 def TokenType::str(this): string {

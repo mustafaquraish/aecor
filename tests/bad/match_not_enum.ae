@@ -1,7 +1,7 @@
-/// fail: Match expression must be enum/integer/char
+/// fail: Match expression must be enum/integer/char/string
 
 def main() {
-    match "hello" {
+    match 3.14159 {
 
     }
 }

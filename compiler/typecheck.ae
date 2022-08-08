@@ -501,8 +501,10 @@ def TypeChecker::check_match(&this, node: &AST) {
             return
         }
     }
-    if expr_type.base != BaseType::I32 and expr_type.base != BaseType::Char {
-        error_span(expr.span, "Match expression must be enum/integer/char")
+    if expr_type.base != BaseType::I32 and
+        expr_type.base != BaseType::Char and
+        not expr_type.is_string() {
+        error_span(expr.span, "Match expression must be enum/integer/char/string")
     }
     // Here we have either i32 or char
     let cases = node.u.match_stmt.cases
@@ -512,7 +514,9 @@ def TypeChecker::check_match(&this, node: &AST) {
         if not cond_type.eq(expr_type) {
             error_span(_case.cond.span, "Condition does not match expression type")
         }
-        if _case.cond.type != ASTType::IntLiteral and _case.cond.type != ASTType::CharLiteral {
+        if _case.cond.type != ASTType::IntLiteral and
+            _case.cond.type != ASTType::CharLiteral and
+            _case.cond.type != ASTType::StringLiteral {
             error_span(_case.cond.span, "Match condition must use only literals")
         }
         if _case.body != 0 as &AST {

@@ -285,21 +285,62 @@ def CodeGenerator::gen_var_decl(&this, node: &AST) {
     }
 }
 
+def CodeGenerator::gen_match_string(&this, node: &AST, indent: i32) {
+    let stmt = node.u.match_stmt
+    .indent(indent)
+    .out.puts("{\n")
+    .indent(indent + 1)
+    .out.puts("char *__match_str = ")
+    .gen_expression(stmt.expr)
+    .out.puts(";\n")
+
+    let cases = stmt.cases
+    .indent(indent + 1)
+    .out.puts("if (")
+    for let i = 0; i < cases.size; i += 1 {
+        let _case = cases.at(i) as &MatchCase
+        .out.puts("streq(__match_str, ")
+        .gen_expression(_case.cond)
+        .out.puts(")")
+
+        if _case.body != 0 as &AST {
+            .out.puts(")")
+            .gen_match_case_body(_case.body, indent)
+            .out.puts(" else ")
+            if i != cases.size - 1 {
+                .out.puts("if (")
+            }
+        } else {
+            .out.puts(" || ")
+        }
+    }
+    if stmt.defolt != 0 as &AST {
+        .gen_match_case_body(stmt.defolt, indent)
+    }
+    .out.puts("\n")
+    .indent(indent)
+    .out.puts("}\n")
+}
+
 def CodeGenerator::gen_match_case_body(&this, node: &AST, indent: i32) {
     if node.type == ASTType::Block {
         .out.puts(" ")
         .gen_block(node, indent + 1)
-        .out.puts(" break;\n")
     } else {
         .out.puts(" {\n")
         .gen_statement(node, indent + 2)
         .indent(indent + 1)
-        .out.puts("} break;\n")
+        .out.puts("}")
     }
 }
 
 def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
     let stmt = node.u.match_stmt
+    if stmt.expr.etype.is_string() {
+        .gen_match_string(node, indent)
+        return
+    }
+
     .indent(indent)
     .out.puts("switch (")
     .gen_expression(stmt.expr)
@@ -314,6 +355,8 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
         .out.puts(":")
         if _case.body != 0 as &AST {
             .gen_match_case_body(_case.body, indent)
+            .out.puts(" break;\n")
+
         } else {
             .out.puts("\n")
         }
@@ -322,6 +365,7 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
         .indent(indent + 1)
         .out.puts("default:")
         .gen_match_case_body(stmt.defolt, indent)
+        .out.puts(" break;\n")
     }
     .indent(indent)
     .out.puts("}\n")

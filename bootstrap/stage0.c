@@ -479,6 +479,7 @@ bool Type__is_numeric(Type* this);
 bool Type__eq(Type* this, Type* other);
 char* Type__str(Type* this);
 Type* Type__reverse(Type* this);
+bool Type__is_string(Type* this);
 char* ASTType__str(ASTType this);
 ASTType ASTType__from_token(TokenType type);
 Variable* Variable__new(char* name, Type* type, Span span);
@@ -568,6 +569,7 @@ char* CodeGenerator__get_op(ASTType type);
 void CodeGenerator__gen_type(CodeGenerator* this, Type* type);
 void CodeGenerator__gen_expression(CodeGenerator* this, AST* node);
 void CodeGenerator__gen_var_decl(CodeGenerator* this, AST* node);
+void CodeGenerator__gen_match_string(CodeGenerator* this, AST* node, int indent);
 void CodeGenerator__gen_match_case_body(CodeGenerator* this, AST* node, int indent);
 void CodeGenerator__gen_match(CodeGenerator* this, AST* node, int indent);
 void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent);
@@ -738,103 +740,76 @@ char* Token__str(Token* this) {
 }
 
 TokenType TokenType__from_text(char* text) {
-  if (streq(text, "and"))
-  return TokenType__And;
-  
-  if (streq(text, "as"))
-  return TokenType__As;
-  
-  if (streq(text, "bool"))
-  return TokenType__Bool;
-  
-  if (streq(text, "break"))
-  return TokenType__Break;
-  
-  if (streq(text, "char"))
-  return TokenType__Char;
-  
-  if (streq(text, "continue"))
-  return TokenType__Continue;
-  
-  if (streq(text, "def"))
-  return TokenType__Def;
-  
-  if (streq(text, "defer"))
-  return TokenType__Defer;
-  
-  if (streq(text, "else"))
-  return TokenType__Else;
-  
-  if (streq(text, "enum"))
-  return TokenType__Enum;
-  
-  if (streq(text, "extern"))
-  return TokenType__Extern;
-  
-  if (streq(text, "false"))
-  return TokenType__False;
-  
-  if (streq(text, "f32"))
-  return TokenType__F32;
-  
-  if (streq(text, "for"))
-  return TokenType__For;
-  
-  if (streq(text, "fn"))
-  return TokenType__Fn;
-  
-  if (streq(text, "i32"))
-  return TokenType__I32;
-  
-  if (streq(text, "if"))
-  return TokenType__If;
-  
-  if (streq(text, "let"))
-  return TokenType__Let;
-  
-  if (streq(text, "match"))
-  return TokenType__Match;
-  
-  if (streq(text, "not"))
-  return TokenType__Not;
-  
-  if (streq(text, "or"))
-  return TokenType__Or;
-  
-  if (streq(text, "return"))
-  return TokenType__Return;
-  
-  if (streq(text, "sizeof"))
-  return TokenType__SizeOf;
-  
-  if (streq(text, "string"))
-  return TokenType__String;
-  
-  if (streq(text, "struct"))
-  return TokenType__Struct;
-  
-  if (streq(text, "true"))
-  return TokenType__True;
-  
-  if (streq(text, "u8"))
-  return TokenType__U8;
-  
-  if (streq(text, "untyped_ptr"))
-  return TokenType__UntypedPtr;
-  
-  if (streq(text, "union"))
-  return TokenType__Union;
-  
-  if (streq(text, "use"))
-  return TokenType__Use;
-  
-  if (streq(text, "void"))
-  return TokenType__Void;
-  
-  if (streq(text, "while"))
-  return TokenType__While;
-  
-  return TokenType__Identifier;
+  {
+    char *__match_str = text;
+    if (streq(__match_str, "and")) {
+      return TokenType__And;
+    } else if (streq(__match_str, "as")) {
+      return TokenType__As;
+    } else if (streq(__match_str, "bool")) {
+      return TokenType__Bool;
+    } else if (streq(__match_str, "break")) {
+      return TokenType__Break;
+    } else if (streq(__match_str, "char")) {
+      return TokenType__Char;
+    } else if (streq(__match_str, "continue")) {
+      return TokenType__Continue;
+    } else if (streq(__match_str, "def")) {
+      return TokenType__Def;
+    } else if (streq(__match_str, "defer")) {
+      return TokenType__Defer;
+    } else if (streq(__match_str, "else")) {
+      return TokenType__Else;
+    } else if (streq(__match_str, "enum")) {
+      return TokenType__Enum;
+    } else if (streq(__match_str, "extern")) {
+      return TokenType__Extern;
+    } else if (streq(__match_str, "false")) {
+      return TokenType__False;
+    } else if (streq(__match_str, "f32")) {
+      return TokenType__F32;
+    } else if (streq(__match_str, "for")) {
+      return TokenType__For;
+    } else if (streq(__match_str, "fn")) {
+      return TokenType__Fn;
+    } else if (streq(__match_str, "i32")) {
+      return TokenType__I32;
+    } else if (streq(__match_str, "if")) {
+      return TokenType__If;
+    } else if (streq(__match_str, "let")) {
+      return TokenType__Let;
+    } else if (streq(__match_str, "match")) {
+      return TokenType__Match;
+    } else if (streq(__match_str, "not")) {
+      return TokenType__Not;
+    } else if (streq(__match_str, "or")) {
+      return TokenType__Or;
+    } else if (streq(__match_str, "return")) {
+      return TokenType__Return;
+    } else if (streq(__match_str, "sizeof")) {
+      return TokenType__SizeOf;
+    } else if (streq(__match_str, "string")) {
+      return TokenType__String;
+    } else if (streq(__match_str, "struct")) {
+      return TokenType__Struct;
+    } else if (streq(__match_str, "true")) {
+      return TokenType__True;
+    } else if (streq(__match_str, "u8")) {
+      return TokenType__U8;
+    } else if (streq(__match_str, "untyped_ptr")) {
+      return TokenType__UntypedPtr;
+    } else if (streq(__match_str, "union")) {
+      return TokenType__Union;
+    } else if (streq(__match_str, "use")) {
+      return TokenType__Use;
+    } else if (streq(__match_str, "void")) {
+      return TokenType__Void;
+    } else if (streq(__match_str, "while")) {
+      return TokenType__While;
+    } else  {
+      return TokenType__Identifier;
+    }
+  }
 }
 
 char* TokenType__str(TokenType this) {
@@ -1496,37 +1471,38 @@ bool Type__eq(Type* this, Type* other) {
 }
 
 char* Type__str(Type* this) {
-  if (this->base == BaseType__Void)
-  return "void";
-  
-  if (this->base == BaseType__Char)
-  return "char";
-  
-  if (this->base == BaseType__I32)
-  return "i32";
-  
-  if (this->base == BaseType__F32)
-  return "f32";
-  
-  if (this->base == BaseType__Bool)
-  return "bool";
-  
-  if (this->base == BaseType__U8)
-  return "u8";
-  
-  if (this->base == BaseType__Pointer)
-  return __format_string("&%s", Type__str(this->ptr));
-  
-  if (this->base == BaseType__Structure)
-  return this->name;
-  
-  if (this->base == BaseType__Function)
-  return "<function>";
-  
-  if (this->base == BaseType__Method)
-  return "<method>";
-  
-  return "<unknown>";
+  switch (this->base) {
+    case BaseType__Void: {
+      return "void";
+    } break;
+    case BaseType__Char: {
+      return "char";
+    } break;
+    case BaseType__I32: {
+      return "i32";
+    } break;
+    case BaseType__F32: {
+      return "f32";
+    } break;
+    case BaseType__Bool: {
+      return "bool";
+    } break;
+    case BaseType__U8: {
+      return "u8";
+    } break;
+    case BaseType__Pointer: {
+      return __format_string("&%s", Type__str(this->ptr));
+    } break;
+    case BaseType__Structure: {
+      return this->name;
+    } break;
+    case BaseType__Function: {
+      return "<function>";
+    } break;
+    case BaseType__Method: {
+      return "<method>";
+    } break;
+  }
 }
 
 Type* Type__reverse(Type* this) {
@@ -1541,224 +1517,232 @@ Type* Type__reverse(Type* this) {
   return rev;
 }
 
+bool Type__is_string(Type* this) {
+  return (this->base == BaseType__Pointer && this->ptr->base == BaseType__Char);
+}
+
 char* ASTType__str(ASTType this) {
-  if (this == ASTType__Assignment)
-  return "Assignment";
-  
-  if (this == ASTType__Address)
-  return "Address";
-  
-  if (this == ASTType__And)
-  return "And";
-  
-  if (this == ASTType__Block)
-  return "Block";
-  
-  if (this == ASTType__BoolLiteral)
-  return "BoolLiteral";
-  
-  if (this == ASTType__BitwiseAnd)
-  return "BitwiseAnd";
-  
-  if (this == ASTType__BitwiseOr)
-  return "BitwiseOr";
-  
-  if (this == ASTType__BitwiseXor)
-  return "BitwiseXor";
-  
-  if (this == ASTType__Break)
-  return "Break";
-  
-  if (this == ASTType__Call)
-  return "Call";
-  
-  if (this == ASTType__Cast)
-  return "Cast";
-  
-  if (this == ASTType__CharLiteral)
-  return "CharLiteral";
-  
-  if (this == ASTType__Continue)
-  return "Continue";
-  
-  if (this == ASTType__Defer)
-  return "Defer";
-  
-  if (this == ASTType__Dereference)
-  return "Dereference";
-  
-  if (this == ASTType__Divide)
-  return "Divide";
-  
-  if (this == ASTType__DivideEquals)
-  return "DivideEquals";
-  
-  if (this == ASTType__EnumValue)
-  return "EnumValue";
-  
-  if (this == ASTType__Equals)
-  return "Equals";
-  
-  if (this == ASTType__FloatLiteral)
-  return "FloatLiteral";
-  
-  if (this == ASTType__FormatStringLiteral)
-  return "FormatStringLiteral";
-  
-  if (this == ASTType__For)
-  return "For";
-  
-  if (this == ASTType__GreaterThan)
-  return "GreaterThan";
-  
-  if (this == ASTType__GreaterThanEquals)
-  return "GreaterThanEquals";
-  
-  if (this == ASTType__If)
-  return "If";
-  
-  if (this == ASTType__Identifier)
-  return "Identifier";
-  
-  if (this == ASTType__Index)
-  return "Index";
-  
-  if (this == ASTType__IntLiteral)
-  return "IntLiteral";
-  
-  if (this == ASTType__LessThan)
-  return "LessThan";
-  
-  if (this == ASTType__LessThanEquals)
-  return "LessThanEquals";
-  
-  if (this == ASTType__Match)
-  return "Match";
-  
-  if (this == ASTType__Member)
-  return "Member";
-  
-  if (this == ASTType__Minus)
-  return "Minus";
-  
-  if (this == ASTType__MinusEquals)
-  return "MinusEquals";
-  
-  if (this == ASTType__Modulus)
-  return "Modulus";
-  
-  if (this == ASTType__Multiply)
-  return "Multiply";
-  
-  if (this == ASTType__MultiplyEquals)
-  return "MultiplyEquals";
-  
-  if (this == ASTType__Not)
-  return "Not";
-  
-  if (this == ASTType__NotEquals)
-  return "NotEquals";
-  
-  if (this == ASTType__Or)
-  return "Or";
-  
-  if (this == ASTType__Plus)
-  return "Plus";
-  
-  if (this == ASTType__PlusEquals)
-  return "PlusEquals";
-  
-  if (this == ASTType__Return)
-  return "Return";
-  
-  if (this == ASTType__SizeOf)
-  return "SizeOf";
-  
-  if (this == ASTType__ScopeLookup)
-  return "ScopeLookup";
-  
-  if (this == ASTType__StringLiteral)
-  return "StringLiteral";
-  
-  if (this == ASTType__UnaryMinus)
-  return "UnaryMinus";
-  
-  if (this == ASTType__VarDeclaration)
-  return "VarDeclaration";
-  
-  if (this == ASTType__While)
-  return "While";
-  
-  printf("Unhandled ASTType in ASTType::str: %d" "\n", this);
-  exit(1);
+  switch (this) {
+    case ASTType__Assignment: {
+      return "Assignment";
+    } break;
+    case ASTType__Address: {
+      return "Address";
+    } break;
+    case ASTType__And: {
+      return "And";
+    } break;
+    case ASTType__Block: {
+      return "Block";
+    } break;
+    case ASTType__BoolLiteral: {
+      return "BoolLiteral";
+    } break;
+    case ASTType__BitwiseAnd: {
+      return "BitwiseAnd";
+    } break;
+    case ASTType__BitwiseOr: {
+      return "BitwiseOr";
+    } break;
+    case ASTType__BitwiseXor: {
+      return "BitwiseXor";
+    } break;
+    case ASTType__Break: {
+      return "Break";
+    } break;
+    case ASTType__Call: {
+      return "Call";
+    } break;
+    case ASTType__Cast: {
+      return "Cast";
+    } break;
+    case ASTType__CharLiteral: {
+      return "CharLiteral";
+    } break;
+    case ASTType__Continue: {
+      return "Continue";
+    } break;
+    case ASTType__Defer: {
+      return "Defer";
+    } break;
+    case ASTType__Dereference: {
+      return "Dereference";
+    } break;
+    case ASTType__Divide: {
+      return "Divide";
+    } break;
+    case ASTType__DivideEquals: {
+      return "DivideEquals";
+    } break;
+    case ASTType__EnumValue: {
+      return "EnumValue";
+    } break;
+    case ASTType__Equals: {
+      return "Equals";
+    } break;
+    case ASTType__FloatLiteral: {
+      return "FloatLiteral";
+    } break;
+    case ASTType__FormatStringLiteral: {
+      return "FormatStringLiteral";
+    } break;
+    case ASTType__For: {
+      return "For";
+    } break;
+    case ASTType__GreaterThan: {
+      return "GreaterThan";
+    } break;
+    case ASTType__GreaterThanEquals: {
+      return "GreaterThanEquals";
+    } break;
+    case ASTType__If: {
+      return "If";
+    } break;
+    case ASTType__Identifier: {
+      return "Identifier";
+    } break;
+    case ASTType__Index: {
+      return "Index";
+    } break;
+    case ASTType__IntLiteral: {
+      return "IntLiteral";
+    } break;
+    case ASTType__LessThan: {
+      return "LessThan";
+    } break;
+    case ASTType__LessThanEquals: {
+      return "LessThanEquals";
+    } break;
+    case ASTType__Match: {
+      return "Match";
+    } break;
+    case ASTType__Member: {
+      return "Member";
+    } break;
+    case ASTType__Minus: {
+      return "Minus";
+    } break;
+    case ASTType__MinusEquals: {
+      return "MinusEquals";
+    } break;
+    case ASTType__Modulus: {
+      return "Modulus";
+    } break;
+    case ASTType__Multiply: {
+      return "Multiply";
+    } break;
+    case ASTType__MultiplyEquals: {
+      return "MultiplyEquals";
+    } break;
+    case ASTType__Not: {
+      return "Not";
+    } break;
+    case ASTType__NotEquals: {
+      return "NotEquals";
+    } break;
+    case ASTType__Or: {
+      return "Or";
+    } break;
+    case ASTType__Plus: {
+      return "Plus";
+    } break;
+    case ASTType__PlusEquals: {
+      return "PlusEquals";
+    } break;
+    case ASTType__Return: {
+      return "Return";
+    } break;
+    case ASTType__SizeOf: {
+      return "SizeOf";
+    } break;
+    case ASTType__ScopeLookup: {
+      return "ScopeLookup";
+    } break;
+    case ASTType__StringLiteral: {
+      return "StringLiteral";
+    } break;
+    case ASTType__UnaryMinus: {
+      return "UnaryMinus";
+    } break;
+    case ASTType__VarDeclaration: {
+      return "VarDeclaration";
+    } break;
+    case ASTType__While: {
+      return "While";
+    } break;
+  }
 }
 
 ASTType ASTType__from_token(TokenType type) {
-  if (type == TokenType__And)
-  return ASTType__And;
-  
-  if (type == TokenType__Or)
-  return ASTType__Or;
-  
-  if (type == TokenType__Line)
-  return ASTType__BitwiseOr;
-  
-  if (type == TokenType__Ampersand)
-  return ASTType__BitwiseAnd;
-  
-  if (type == TokenType__Caret)
-  return ASTType__BitwiseXor;
-  
-  if (type == TokenType__Percent)
-  return ASTType__Modulus;
-  
-  if (type == TokenType__GreaterThan)
-  return ASTType__GreaterThan;
-  
-  if (type == TokenType__GreaterThanEquals)
-  return ASTType__GreaterThanEquals;
-  
-  if (type == TokenType__LessThan)
-  return ASTType__LessThan;
-  
-  if (type == TokenType__LessThanEquals)
-  return ASTType__LessThanEquals;
-  
-  if (type == TokenType__Equals)
-  return ASTType__Assignment;
-  
-  if (type == TokenType__EqualEquals)
-  return ASTType__Equals;
-  
-  if (type == TokenType__NotEquals)
-  return ASTType__NotEquals;
-  
-  if (type == TokenType__Minus)
-  return ASTType__Minus;
-  
-  if (type == TokenType__Plus)
-  return ASTType__Plus;
-  
-  if (type == TokenType__Slash)
-  return ASTType__Divide;
-  
-  if (type == TokenType__Star)
-  return ASTType__Multiply;
-  
-  if (type == TokenType__MinusEquals)
-  return ASTType__MinusEquals;
-  
-  if (type == TokenType__PlusEquals)
-  return ASTType__PlusEquals;
-  
-  if (type == TokenType__SlashEquals)
-  return ASTType__DivideEquals;
-  
-  if (type == TokenType__StarEquals)
-  return ASTType__MultiplyEquals;
-  
-  printf("Unhandled token type in ASTType::from_token: %s" "\n", TokenType__str(type));
-  exit(1);
+  switch (type) {
+    case TokenType__Ampersand: {
+      return ASTType__BitwiseAnd;
+    } break;
+    case TokenType__And: {
+      return ASTType__And;
+    } break;
+    case TokenType__Caret: {
+      return ASTType__BitwiseXor;
+    } break;
+    case TokenType__EqualEquals: {
+      return ASTType__Equals;
+    } break;
+    case TokenType__Equals: {
+      return ASTType__Assignment;
+    } break;
+    case TokenType__GreaterThan: {
+      return ASTType__GreaterThan;
+    } break;
+    case TokenType__GreaterThanEquals: {
+      return ASTType__GreaterThanEquals;
+    } break;
+    case TokenType__LessThan: {
+      return ASTType__LessThan;
+    } break;
+    case TokenType__LessThanEquals: {
+      return ASTType__LessThanEquals;
+    } break;
+    case TokenType__Line: {
+      return ASTType__BitwiseOr;
+    } break;
+    case TokenType__Minus: {
+      return ASTType__Minus;
+    } break;
+    case TokenType__MinusEquals: {
+      return ASTType__MinusEquals;
+    } break;
+    case TokenType__NotEquals: {
+      return ASTType__NotEquals;
+    } break;
+    case TokenType__Or: {
+      return ASTType__Or;
+    } break;
+    case TokenType__Percent: {
+      return ASTType__Modulus;
+    } break;
+    case TokenType__Plus: {
+      return ASTType__Plus;
+    } break;
+    case TokenType__PlusEquals: {
+      return ASTType__PlusEquals;
+    } break;
+    case TokenType__Slash: {
+      return ASTType__Divide;
+    } break;
+    case TokenType__SlashEquals: {
+      return ASTType__DivideEquals;
+    } break;
+    case TokenType__Star: {
+      return ASTType__Multiply;
+    } break;
+    case TokenType__StarEquals: {
+      return ASTType__MultiplyEquals;
+    } break;
+    default: {
+      printf("Unhandled token type in ASTType::from_token: %s" "\n", TokenType__str(type));
+      exit(1);
+    } break;
+  }
 }
 
 Variable* Variable__new(char* name, Type* type, Span span) {
@@ -2758,22 +2742,21 @@ void Parser__parse_compiler_option(Parser* this, Program* program) {
     error_span(compiler->span, "Expected 'compiler'");
   } 
   Token* name = Parser__consume(this, TokenType__Identifier);
-  if (streq(name->text, "c_include")){
-    Token* filename = Parser__consume(this, TokenType__StringLiteral);
-    Vector__push(program->c_includes, ((void*)filename->text));
-    return;
-  } 
-  if (streq(name->text, "c_flag")){
-    Token* flag = Parser__consume(this, TokenType__StringLiteral);
-    Vector__push(program->c_flags, ((void*)flag->text));
-    return;
-  } 
-  if (streq(name->text, "c_embed_header")){
-    Token* filename = Parser__consume(this, TokenType__StringLiteral);
-    Vector__push(program->c_embed_headers, ((void*)filename->text));
-    return;
-  } 
-  error_span(name->span, "Unknown compiler option");
+  {
+    char *__match_str = name->text;
+    if (streq(__match_str, "c_include")) {
+      Token* filename = Parser__consume(this, TokenType__StringLiteral);
+      Vector__push(program->c_includes, ((void*)filename->text));
+    } else if (streq(__match_str, "c_flag")) {
+      Token* flag = Parser__consume(this, TokenType__StringLiteral);
+      Vector__push(program->c_flags, ((void*)flag->text));
+    } else if (streq(__match_str, "c_embed_header")) {
+      Token* filename = Parser__consume(this, TokenType__StringLiteral);
+      Vector__push(program->c_embed_headers, ((void*)filename->text));
+    } else  {
+      error_span(name->span, "Unknown compiler option");
+    }
+  }
 }
 
 void Parser__parse_into_program(Parser* this, Program* program) {
@@ -3328,8 +3311,8 @@ void TypeChecker__check_match(TypeChecker* this, AST* node) {
       return;
     } 
   } 
-  if (((expr_type->base != BaseType__I32) && (expr_type->base != BaseType__Char))){
-    error_span(expr->span, "Match expression must be enum/integer/char");
+  if ((((expr_type->base != BaseType__I32) && (expr_type->base != BaseType__Char)) && (!Type__is_string(expr_type)))){
+    error_span(expr->span, "Match expression must be enum/integer/char/string");
   } 
   Vector* cases = node->u.match_stmt.cases;
   for (int i = 0; (i < cases->size); i += 1) {
@@ -3338,7 +3321,7 @@ void TypeChecker__check_match(TypeChecker* this, AST* node) {
     if ((!Type__eq(cond_type, expr_type))){
       error_span(_case->cond->span, "Condition does not match expression type");
     } 
-    if (((_case->cond->type != ASTType__IntLiteral) && (_case->cond->type != ASTType__CharLiteral))){
+    if ((((_case->cond->type != ASTType__IntLiteral) && (_case->cond->type != ASTType__CharLiteral)) && (_case->cond->type != ASTType__StringLiteral))){
       error_span(_case->cond->span, "Match condition must use only literals");
     } 
     if ((_case->body != ((AST*)0))){
@@ -3947,21 +3930,59 @@ void CodeGenerator__gen_var_decl(CodeGenerator* this, AST* node) {
   } 
 }
 
+void CodeGenerator__gen_match_string(CodeGenerator* this, AST* node, int indent) {
+  Match stmt = node->u.match_stmt;
+  CodeGenerator__indent(this, indent);
+  File__puts(this->out, "{\n");
+  CodeGenerator__indent(this, (indent + 1));
+  File__puts(this->out, "char *__match_str = ");
+  CodeGenerator__gen_expression(this, stmt.expr);
+  File__puts(this->out, ";\n");
+  Vector* cases = stmt.cases;
+  CodeGenerator__indent(this, (indent + 1));
+  File__puts(this->out, "if (");
+  for (int i = 0; (i < cases->size); i += 1) {
+    MatchCase* _case = ((MatchCase*)Vector__at(cases, i));
+    File__puts(this->out, "streq(__match_str, ");
+    CodeGenerator__gen_expression(this, _case->cond);
+    File__puts(this->out, ")");
+    if ((_case->body != ((AST*)0))){
+      File__puts(this->out, ")");
+      CodeGenerator__gen_match_case_body(this, _case->body, indent);
+      File__puts(this->out, " else ");
+      if ((i != (cases->size - 1))){
+        File__puts(this->out, "if (");
+      } 
+    }  else {
+      File__puts(this->out, " || ");
+    } 
+  } 
+  if ((stmt.defolt != ((AST*)0))){
+    CodeGenerator__gen_match_case_body(this, stmt.defolt, indent);
+  } 
+  File__puts(this->out, "\n");
+  CodeGenerator__indent(this, indent);
+  File__puts(this->out, "}\n");
+}
+
 void CodeGenerator__gen_match_case_body(CodeGenerator* this, AST* node, int indent) {
   if (node->type == ASTType__Block){
     File__puts(this->out, " ");
     CodeGenerator__gen_block(this, node, (indent + 1));
-    File__puts(this->out, " break;\n");
   }  else {
     File__puts(this->out, " {\n");
     CodeGenerator__gen_statement(this, node, (indent + 2));
     CodeGenerator__indent(this, (indent + 1));
-    File__puts(this->out, "} break;\n");
+    File__puts(this->out, "}");
   } 
 }
 
 void CodeGenerator__gen_match(CodeGenerator* this, AST* node, int indent) {
   Match stmt = node->u.match_stmt;
+  if (Type__is_string(stmt.expr->etype)){
+    CodeGenerator__gen_match_string(this, node, indent);
+    return;
+  } 
   CodeGenerator__indent(this, indent);
   File__puts(this->out, "switch (");
   CodeGenerator__gen_expression(this, stmt.expr);
@@ -3975,6 +3996,7 @@ void CodeGenerator__gen_match(CodeGenerator* this, AST* node, int indent) {
     File__puts(this->out, ":");
     if ((_case->body != ((AST*)0))){
       CodeGenerator__gen_match_case_body(this, _case->body, indent);
+      File__puts(this->out, " break;\n");
     }  else {
       File__puts(this->out, "\n");
     } 
@@ -3983,6 +4005,7 @@ void CodeGenerator__gen_match(CodeGenerator* this, AST* node, int indent) {
     CodeGenerator__indent(this, (indent + 1));
     File__puts(this->out, "default:");
     CodeGenerator__gen_match_case_body(this, stmt.defolt, indent);
+    File__puts(this->out, " break;\n");
   } 
   CodeGenerator__indent(this, indent);
   File__puts(this->out, "}\n");
