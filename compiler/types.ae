@@ -78,17 +78,18 @@ def Type::eq(&this, other: &Type): bool {
 }
 
 def Type::str(&this): string {
-    if .base == BaseType::Void return "void"
-    if .base == BaseType::Char return "char"
-    if .base == BaseType::I32 return "i32"
-    if .base == BaseType::F32 return "f32"
-    if .base == BaseType::Bool return "bool"
-    if .base == BaseType::U8 return "u8"
-    if .base == BaseType::Pointer return `&{.ptr.str()}`
-    if .base == BaseType::Structure return .name
-    if .base == BaseType::Function return "<function>"
-    if .base == BaseType::Method return "<method>"
-    return "<unknown>"
+    match .base {
+        Void => return "void"
+        Char => return "char"
+        I32 => return "i32"
+        F32 => return "f32"
+        Bool => return "bool"
+        U8 => return "u8"
+        Pointer => return `&{.ptr.str()}`
+        Structure => return .name
+        Function => return "<function>"
+        Method => return "<method>"
+    }
 }
 
 def Type::reverse(&this): &Type {

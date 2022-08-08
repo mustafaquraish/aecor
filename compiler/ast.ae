@@ -55,87 +55,89 @@ enum ASTType {
 }
 
 def ASTType::str(this): string {
-    if this == ASTType::Assignment return "Assignment"
-    if this == ASTType::Address return "Address"
-    if this == ASTType::And return "And"
-    if this == ASTType::Block return "Block"
-    if this == ASTType::BoolLiteral return "BoolLiteral"
-    if this == ASTType::BitwiseAnd return "BitwiseAnd"
-    if this == ASTType::BitwiseOr return "BitwiseOr"
-    if this == ASTType::BitwiseXor return "BitwiseXor"
-    if this == ASTType::Break return "Break"
-    if this == ASTType::Call return "Call"
-    if this == ASTType::Cast return "Cast"
-    if this == ASTType::CharLiteral return "CharLiteral"
-    if this == ASTType::Continue return "Continue"
-    if this == ASTType::Defer return "Defer"
-    if this == ASTType::Dereference return "Dereference"
-    if this == ASTType::Divide return "Divide"
-    if this == ASTType::DivideEquals return "DivideEquals"
-    if this == ASTType::EnumValue return "EnumValue"
-    if this == ASTType::Equals return "Equals"
-    if this == ASTType::FloatLiteral return "FloatLiteral"
-    if this == ASTType::FormatStringLiteral return "FormatStringLiteral"
-    if this == ASTType::For return "For"
-    if this == ASTType::GreaterThan return "GreaterThan"
-    if this == ASTType::GreaterThanEquals return "GreaterThanEquals"
-    if this == ASTType::If return "If"
-    if this == ASTType::Identifier return "Identifier"
-    if this == ASTType::Index return "Index"
-    if this == ASTType::IntLiteral return "IntLiteral"
-    if this == ASTType::LessThan return "LessThan"
-    if this == ASTType::LessThanEquals return "LessThanEquals"
-    if this == ASTType::Match return "Match"
-    if this == ASTType::Member return "Member"
-    if this == ASTType::Minus return "Minus"
-    if this == ASTType::MinusEquals return "MinusEquals"
-    if this == ASTType::Modulus return "Modulus"
-    if this == ASTType::Multiply return "Multiply"
-    if this == ASTType::MultiplyEquals return "MultiplyEquals"
-    if this == ASTType::Not return "Not"
-    if this == ASTType::NotEquals return "NotEquals"
-    if this == ASTType::Or return "Or"
-    if this == ASTType::Plus return "Plus"
-    if this == ASTType::PlusEquals return "PlusEquals"
-    if this == ASTType::Return return "Return"
-    if this == ASTType::SizeOf return "SizeOf"
-    if this == ASTType::ScopeLookup return "ScopeLookup"
-    if this == ASTType::StringLiteral return "StringLiteral"
-    if this == ASTType::UnaryMinus return "UnaryMinus"
-    if this == ASTType::VarDeclaration return "VarDeclaration"
-    if this == ASTType::While    return "While"
-
-    println("Unhandled ASTType in ASTType::str: %d", this)
-    exit(1)
+    match this {
+        Assignment => return "Assignment"
+        Address => return "Address"
+        And => return "And"
+        Block => return "Block"
+        BoolLiteral => return "BoolLiteral"
+        BitwiseAnd => return "BitwiseAnd"
+        BitwiseOr => return "BitwiseOr"
+        BitwiseXor => return "BitwiseXor"
+        Break => return "Break"
+        Call => return "Call"
+        Cast => return "Cast"
+        CharLiteral => return "CharLiteral"
+        Continue => return "Continue"
+        Defer => return "Defer"
+        Dereference => return "Dereference"
+        Divide => return "Divide"
+        DivideEquals => return "DivideEquals"
+        EnumValue => return "EnumValue"
+        Equals => return "Equals"
+        FloatLiteral => return "FloatLiteral"
+        FormatStringLiteral => return "FormatStringLiteral"
+        For => return "For"
+        GreaterThan => return "GreaterThan"
+        GreaterThanEquals => return "GreaterThanEquals"
+        If => return "If"
+        Identifier => return "Identifier"
+        Index => return "Index"
+        IntLiteral => return "IntLiteral"
+        LessThan => return "LessThan"
+        LessThanEquals => return "LessThanEquals"
+        Match => return "Match"
+        Member => return "Member"
+        Minus => return "Minus"
+        MinusEquals => return "MinusEquals"
+        Modulus => return "Modulus"
+        Multiply => return "Multiply"
+        MultiplyEquals => return "MultiplyEquals"
+        Not => return "Not"
+        NotEquals => return "NotEquals"
+        Or => return "Or"
+        Plus => return "Plus"
+        PlusEquals => return "PlusEquals"
+        Return => return "Return"
+        SizeOf => return "SizeOf"
+        ScopeLookup => return "ScopeLookup"
+        StringLiteral => return "StringLiteral"
+        UnaryMinus => return "UnaryMinus"
+        VarDeclaration => return "VarDeclaration"
+        While =>    return "While"
+    }
 }
 
 def ASTType::from_token(type: TokenType): ASTType {
-    if type == TokenType::And return ASTType::And
-    if type == TokenType::Or return ASTType::Or
-    if type == TokenType::Line return ASTType::BitwiseOr
-    if type == TokenType::Ampersand return ASTType::BitwiseAnd
-    if type == TokenType::Caret return ASTType::BitwiseXor
-    if type == TokenType::Percent return ASTType::Modulus
+    match type {
+        Ampersand => return ASTType::BitwiseAnd
+        And => return ASTType::And
+        Caret => return ASTType::BitwiseXor
+        EqualEquals => return ASTType::Equals
+        Equals => return ASTType::Assignment
+        GreaterThan => return ASTType::GreaterThan
+        GreaterThanEquals => return ASTType::GreaterThanEquals
+        LessThan => return ASTType::LessThan
+        LessThanEquals => return ASTType::LessThanEquals
+        Line => return ASTType::BitwiseOr
+        Minus => return ASTType::Minus
+        MinusEquals => return ASTType::MinusEquals
+        NotEquals => return ASTType::NotEquals
+        Or => return ASTType::Or
+        Percent => return ASTType::Modulus
+        Plus => return ASTType::Plus
+        PlusEquals => return ASTType::PlusEquals
+        Slash => return ASTType::Divide
+        SlashEquals => return ASTType::DivideEquals
+        Star => return ASTType::Multiply
+        StarEquals => return ASTType::MultiplyEquals
 
-    if type == TokenType::GreaterThan return ASTType::GreaterThan
-    if type == TokenType::GreaterThanEquals return ASTType::GreaterThanEquals
-    if type == TokenType::LessThan return ASTType::LessThan
-    if type == TokenType::LessThanEquals return ASTType::LessThanEquals
-    if type == TokenType::Equals return ASTType::Assignment
-    if type == TokenType::EqualEquals return ASTType::Equals
-    if type == TokenType::NotEquals return ASTType::NotEquals
+        else => {
+            println("Unhandled token type in ASTType::from_token: %s", type.str())
+            exit(1)
+        }
+    }
 
-    if type == TokenType::Minus return ASTType::Minus
-    if type == TokenType::Plus return ASTType::Plus
-    if type == TokenType::Slash return ASTType::Divide
-    if type == TokenType::Star return ASTType::Multiply
-    if type == TokenType::MinusEquals return ASTType::MinusEquals
-    if type == TokenType::PlusEquals return ASTType::PlusEquals
-    if type == TokenType::SlashEquals return ASTType::DivideEquals
-    if type == TokenType::StarEquals return ASTType::MultiplyEquals
-
-    println("Unhandled token type in ASTType::from_token: %s", type.str())
-    exit(1)
 }
 
 struct Variable {
