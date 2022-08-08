@@ -1,4 +1,4 @@
-/// fail: Cannot return from void function
+/// fail: Cannot return value in void function
 
 def foo() {
     return 5

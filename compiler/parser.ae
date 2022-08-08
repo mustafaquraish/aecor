@@ -523,8 +523,11 @@ def Parser::parse_statement(&this): &AST {
 
     if .token_is(TokenType::Return) {
         .consume(TokenType::Return)
-        let expr = .parse_expression(false)
-        node = AST::new_unop(ASTType::Return, start_span.join(expr.span), expr)
+        let expr = 0 as &AST
+        if not .token().seen_newline {
+            expr = .parse_expression(false)
+        }
+        node = AST::new_unop(ASTType::Return, start_span.join(.token().span), expr)
         .consume_newline_or(TokenType::Semicolon)
 
     } else if .token_is(TokenType::Break) {

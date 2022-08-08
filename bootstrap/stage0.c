@@ -2436,8 +2436,11 @@ AST* Parser__parse_statement(Parser* this) {
   Span start_span = Parser__token(this)->span;
   if (Parser__token_is(this, TokenType__Return)){
     Parser__consume(this, TokenType__Return);
-    AST* expr = Parser__parse_expression(this, false);
-    node = AST__new_unop(ASTType__Return, Span__join(start_span, expr->span), expr);
+    AST* expr = ((AST*)0);
+    if ((!Parser__token(this)->seen_newline)){
+      expr = Parser__parse_expression(this, false);
+    } 
+    node = AST__new_unop(ASTType__Return, Span__join(start_span, Parser__token(this)->span), expr);
     Parser__consume_newline_or(this, TokenType__Semicolon);
   }  else   if (Parser__token_is(this, TokenType__Break)){
     Parser__consume(this, TokenType__Break);
@@ -3312,12 +3315,18 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
     if (this->cur_func == ((Function*)0)){
       error_span(node->span, "Return statement outside of function");
     } 
-    if (this->cur_func->return_type->base == BaseType__Void){
-      error_span(node->span, "Cannot return from void function");
-    } 
-    Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
-    if ((!Type__eq(ret_type, this->cur_func->return_type))){
-      error_span(node->span, "Return type does not match function return type");
+    if (node->u.unary == ((AST*)0)){
+      if ((this->cur_func->return_type->base != BaseType__Void)){
+        error_span(node->span, "Cannot have empty return in non-void function");
+      } 
+    }  else {
+      if (this->cur_func->return_type->base == BaseType__Void){
+        error_span(node->span, "Cannot return value in void function");
+      } 
+      Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
+      if ((!Type__eq(ret_type, this->cur_func->return_type))){
+        error_span(node->span, "Return type does not match function return type");
+      } 
     } 
   }  else   if (node->type == ASTType__Break){
     if ((!this->in_loop)){
@@ -3910,8 +3919,11 @@ void CodeGenerator__gen_match(CodeGenerator* this, AST* node, int indent) {
 void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent) {
   if (node->type == ASTType__Return){
     CodeGenerator__indent(this, indent);
-    File__puts(this->out, "return ");
-    CodeGenerator__gen_expression(this, node->u.unary);
+    File__puts(this->out, "return");
+    if ((node->u.unary != ((AST*)0))){
+      File__puts(this->out, " ");
+      CodeGenerator__gen_expression(this, node->u.unary);
+    } 
     File__puts(this->out, ";\n");
   }  else   if (node->type == ASTType__Match){
     CodeGenerator__gen_match(this, node, indent);

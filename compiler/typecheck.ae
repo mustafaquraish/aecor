@@ -565,12 +565,18 @@ def TypeChecker::check_statement(&this, node: &AST) {
         if .cur_func == 0 as &Function {
             error_span(node.span, "Return statement outside of function")
         }
-        if .cur_func.return_type.base == BaseType::Void {
-            error_span(node.span, "Cannot return from void function")
-        }
-        let ret_type = .check_expression(node.u.unary)
-        if not ret_type.eq(.cur_func.return_type) {
-            error_span(node.span, "Return type does not match function return type")
+        if node.u.unary == 0 as &AST {
+            if .cur_func.return_type.base != BaseType::Void {
+                error_span(node.span, "Cannot have empty return in non-void function")
+            }
+        } else {
+            if .cur_func.return_type.base == BaseType::Void {
+                error_span(node.span, "Cannot return value in void function")
+            }
+            let ret_type = .check_expression(node.u.unary)
+            if not ret_type.eq(.cur_func.return_type) {
+                error_span(node.span, "Return type does not match function return type")
+            }
         }
 
     } else if node.type == ASTType::Break {

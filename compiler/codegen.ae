@@ -347,8 +347,11 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
 def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
     if node.type == ASTType::Return {
         .indent(indent)
-        .out.puts("return ")
-        .gen_expression(node.u.unary)
+        .out.puts("return")
+        if node.u.unary != 0 as &AST {
+            .out.puts(" ")
+            .gen_expression(node.u.unary)
+        }
         .out.puts(";\n")
 
     } else if node.type == ASTType::Match {
