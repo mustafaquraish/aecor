@@ -85,6 +85,7 @@ enum TokenType {
   TokenType__And,
   TokenType__As,
   TokenType__Bool,
+  TokenType__Break,
   TokenType__Char,
   TokenType__Continue,
   TokenType__Def,
@@ -113,7 +114,6 @@ enum TokenType {
   TokenType__Use,
   TokenType__Void,
   TokenType__While,
-  TokenType__Break,
   TokenType__AtSign,
   TokenType__Ampersand,
   TokenType__Backtick,
@@ -546,8 +546,8 @@ Type* TypeChecker__check_call(TypeChecker* this, AST* node);
 Type* TypeChecker__check_format_string(TypeChecker* this, AST* node);
 Type* TypeChecker__check_pointer_arith(TypeChecker* this, AST* node, Type* lhs, Type* rhs);
 Type* TypeChecker__check_expression(TypeChecker* this, AST* node);
-bool TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST* node);
-bool TypeChecker__check_match(TypeChecker* this, AST* node);
+void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST* node);
+void TypeChecker__check_match(TypeChecker* this, AST* node);
 void TypeChecker__check_statement(TypeChecker* this, AST* node);
 void TypeChecker__check_block(TypeChecker* this, AST* node);
 void TypeChecker__check_function(TypeChecker* this, Function* func);
@@ -747,6 +747,9 @@ TokenType TokenType__from_text(char* text) {
   if (streq(text, "bool"))
   return TokenType__Bool;
   
+  if (streq(text, "break"))
+  return TokenType__Break;
+  
   if (streq(text, "char"))
   return TokenType__Char;
   
@@ -801,9 +804,6 @@ TokenType TokenType__from_text(char* text) {
   if (streq(text, "return"))
   return TokenType__Return;
   
-  if (streq(text, "break"))
-  return TokenType__Break;
-  
   if (streq(text, "sizeof"))
   return TokenType__SizeOf;
   
@@ -838,224 +838,227 @@ TokenType TokenType__from_text(char* text) {
 }
 
 char* TokenType__str(TokenType this) {
-  if (this == TokenType__And)
-  return "and";
-  
-  if (this == TokenType__As)
-  return "as";
-  
-  if (this == TokenType__Bool)
-  return "bool";
-  
-  if (this == TokenType__Break)
-  return "break";
-  
-  if (this == TokenType__Char)
-  return "char";
-  
-  if (this == TokenType__Continue)
-  return "continue";
-  
-  if (this == TokenType__Def)
-  return "def";
-  
-  if (this == TokenType__Defer)
-  return "defer";
-  
-  if (this == TokenType__Else)
-  return "else";
-  
-  if (this == TokenType__Enum)
-  return "enum";
-  
-  if (this == TokenType__Extern)
-  return "extern";
-  
-  if (this == TokenType__False)
-  return "false";
-  
-  if (this == TokenType__F32)
-  return "f32";
-  
-  if (this == TokenType__For)
-  return "for";
-  
-  if (this == TokenType__Fn)
-  return "fn";
-  
-  if (this == TokenType__I32)
-  return "i32";
-  
-  if (this == TokenType__If)
-  return "if";
-  
-  if (this == TokenType__Let)
-  return "let";
-  
-  if (this == TokenType__Not)
-  return "not";
-  
-  if (this == TokenType__Match)
-  return "match";
-  
-  if (this == TokenType__Or)
-  return "or";
-  
-  if (this == TokenType__Return)
-  return "return";
-  
-  if (this == TokenType__SizeOf)
-  return "sizeof";
-  
-  if (this == TokenType__String)
-  return "string";
-  
-  if (this == TokenType__Struct)
-  return "struct";
-  
-  if (this == TokenType__True)
-  return "true";
-  
-  if (this == TokenType__U8)
-  return "u8";
-  
-  if (this == TokenType__UntypedPtr)
-  return "untyped_ptr";
-  
-  if (this == TokenType__Union)
-  return "union";
-  
-  if (this == TokenType__Use)
-  return "use";
-  
-  if (this == TokenType__Void)
-  return "void";
-  
-  if (this == TokenType__While)
-  return "while";
-  
-  if (this == TokenType__AtSign)
-  return "AtSign";
-  
-  if (this == TokenType__Ampersand)
-  return "Ampersand";
-  
-  if (this == TokenType__Backtick)
-  return "Backtick";
-  
-  if (this == TokenType__Caret)
-  return "Caret";
-  
-  if (this == TokenType__CloseCurly)
-  return "CloseCurly";
-  
-  if (this == TokenType__CloseParen)
-  return "CloseParen";
-  
-  if (this == TokenType__CloseSquare)
-  return "CloseSquare";
-  
-  if (this == TokenType__Colon)
-  return "Colon";
-  
-  if (this == TokenType__ColonColon)
-  return "ColonColon";
-  
-  if (this == TokenType__Comma)
-  return "Comma";
-  
-  if (this == TokenType__Dot)
-  return "Dot";
-  
-  if (this == TokenType__EOF)
-  return "<EOF>";
-  
-  if (this == TokenType__Equals)
-  return "Equals";
-  
-  if (this == TokenType__EqualEquals)
-  return "EqualEquals";
-  
-  if (this == TokenType__Exclamation)
-  return "Exclamation";
-  
-  if (this == TokenType__FatArrow)
-  return "FatArrow";
-  
-  if (this == TokenType__FloatLiteral)
-  return "FloatLiteral";
-  
-  if (this == TokenType__FormatStringLiteral)
-  return "FormatStringLiteral";
-  
-  if (this == TokenType__GreaterThan)
-  return "GreaterThan";
-  
-  if (this == TokenType__GreaterThanEquals)
-  return "GreaterThanEquals";
-  
-  if (this == TokenType__Identifier)
-  return "Identifier";
-  
-  if (this == TokenType__IntLiteral)
-  return "IntLiteral";
-  
-  if (this == TokenType__LessThan)
-  return "LessThan";
-  
-  if (this == TokenType__LessThanEquals)
-  return "LessThanEquals";
-  
-  if (this == TokenType__Line)
-  return "Line";
-  
-  if (this == TokenType__Minus)
-  return "Minus";
-  
-  if (this == TokenType__MinusEquals)
-  return "MinusEquals";
-  
-  if (this == TokenType__NotEquals)
-  return "NotEquals";
-  
-  if (this == TokenType__OpenCurly)
-  return "OpenCurly";
-  
-  if (this == TokenType__OpenParen)
-  return "OpenParen";
-  
-  if (this == TokenType__OpenSquare)
-  return "OpenSquare";
-  
-  if (this == TokenType__Percent)
-  return "Percent";
-  
-  if (this == TokenType__Plus)
-  return "Plus";
-  
-  if (this == TokenType__PlusEquals)
-  return "PlusEquals";
-  
-  if (this == TokenType__Semicolon)
-  return "Semicolon";
-  
-  if (this == TokenType__Slash)
-  return "Slash";
-  
-  if (this == TokenType__SlashEquals)
-  return "SlashEquals";
-  
-  if (this == TokenType__Star)
-  return "Star";
-  
-  if (this == TokenType__StarEquals)
-  return "StarEquals";
-  
-  if (this == TokenType__StringLiteral)
-  return "StringLiteral";
-  
-  puts(__format_string("Unknown token type: %d", ((int)this)));
-  exit(1);
+  switch (this) {
+    case TokenType__And: {
+      return "and";
+    } break;
+    case TokenType__As: {
+      return "as";
+    } break;
+    case TokenType__Bool: {
+      return "bool";
+    } break;
+    case TokenType__Break: {
+      return "break";
+    } break;
+    case TokenType__Char: {
+      return "char";
+    } break;
+    case TokenType__Continue: {
+      return "continue";
+    } break;
+    case TokenType__Def: {
+      return "def";
+    } break;
+    case TokenType__Defer: {
+      return "defer";
+    } break;
+    case TokenType__Else: {
+      return "else";
+    } break;
+    case TokenType__Enum: {
+      return "enum";
+    } break;
+    case TokenType__Extern: {
+      return "extern";
+    } break;
+    case TokenType__False: {
+      return "false";
+    } break;
+    case TokenType__F32: {
+      return "f32";
+    } break;
+    case TokenType__For: {
+      return "for";
+    } break;
+    case TokenType__Fn: {
+      return "fn";
+    } break;
+    case TokenType__I32: {
+      return "i32";
+    } break;
+    case TokenType__If: {
+      return "if";
+    } break;
+    case TokenType__Let: {
+      return "let";
+    } break;
+    case TokenType__Match: {
+      return "match";
+    } break;
+    case TokenType__Not: {
+      return "not";
+    } break;
+    case TokenType__Or: {
+      return "or";
+    } break;
+    case TokenType__Return: {
+      return "return";
+    } break;
+    case TokenType__SizeOf: {
+      return "sizeof";
+    } break;
+    case TokenType__String: {
+      return "string";
+    } break;
+    case TokenType__Struct: {
+      return "struct";
+    } break;
+    case TokenType__True: {
+      return "true";
+    } break;
+    case TokenType__U8: {
+      return "u8";
+    } break;
+    case TokenType__UntypedPtr: {
+      return "untyped_ptr";
+    } break;
+    case TokenType__Union: {
+      return "union";
+    } break;
+    case TokenType__Use: {
+      return "use";
+    } break;
+    case TokenType__Void: {
+      return "void";
+    } break;
+    case TokenType__While: {
+      return "while";
+    } break;
+    case TokenType__AtSign: {
+      return "AtSign";
+    } break;
+    case TokenType__Ampersand: {
+      return "Ampersand";
+    } break;
+    case TokenType__Backtick: {
+      return "Backtick";
+    } break;
+    case TokenType__Caret: {
+      return "Caret";
+    } break;
+    case TokenType__CloseCurly: {
+      return "CloseCurly";
+    } break;
+    case TokenType__CloseParen: {
+      return "CloseParen";
+    } break;
+    case TokenType__CloseSquare: {
+      return "CloseSquare";
+    } break;
+    case TokenType__Colon: {
+      return "Colon";
+    } break;
+    case TokenType__ColonColon: {
+      return "ColonColon";
+    } break;
+    case TokenType__Comma: {
+      return "Comma";
+    } break;
+    case TokenType__Dot: {
+      return "Dot";
+    } break;
+    case TokenType__EOF: {
+      return "EOF";
+    } break;
+    case TokenType__Equals: {
+      return "Equals";
+    } break;
+    case TokenType__EqualEquals: {
+      return "EqualEquals";
+    } break;
+    case TokenType__Exclamation: {
+      return "Exclamation";
+    } break;
+    case TokenType__FatArrow: {
+      return "FatArrow";
+    } break;
+    case TokenType__FloatLiteral: {
+      return "FloatLiteral";
+    } break;
+    case TokenType__FormatStringLiteral: {
+      return "FormatStringLiteral";
+    } break;
+    case TokenType__GreaterThan: {
+      return "GreaterThan";
+    } break;
+    case TokenType__GreaterThanEquals: {
+      return "GreaterThanEquals";
+    } break;
+    case TokenType__Identifier: {
+      return "Identifier";
+    } break;
+    case TokenType__IntLiteral: {
+      return "IntLiteral";
+    } break;
+    case TokenType__LessThan: {
+      return "LessThan";
+    } break;
+    case TokenType__LessThanEquals: {
+      return "LessThanEquals";
+    } break;
+    case TokenType__Line: {
+      return "Line";
+    } break;
+    case TokenType__Minus: {
+      return "Minus";
+    } break;
+    case TokenType__MinusEquals: {
+      return "MinusEquals";
+    } break;
+    case TokenType__NotEquals: {
+      return "NotEquals";
+    } break;
+    case TokenType__OpenCurly: {
+      return "OpenCurly";
+    } break;
+    case TokenType__OpenParen: {
+      return "OpenParen";
+    } break;
+    case TokenType__OpenSquare: {
+      return "OpenSquare";
+    } break;
+    case TokenType__Percent: {
+      return "Percent";
+    } break;
+    case TokenType__Plus: {
+      return "Plus";
+    } break;
+    case TokenType__PlusEquals: {
+      return "PlusEquals";
+    } break;
+    case TokenType__Semicolon: {
+      return "Semicolon";
+    } break;
+    case TokenType__Slash: {
+      return "Slash";
+    } break;
+    case TokenType__SlashEquals: {
+      return "SlashEquals";
+    } break;
+    case TokenType__Star: {
+      return "Star";
+    } break;
+    case TokenType__StarEquals: {
+      return "StarEquals";
+    } break;
+    case TokenType__StringLiteral: {
+      return "StringLiteral";
+    } break;
+    case TokenType__CharLiteral: {
+      return "CharLiteral";
+    } break;
+  }
 }
 
 Lexer Lexer__make(char* source, char* filename) {
@@ -1092,203 +1095,210 @@ char Lexer__peek(Lexer* this, int offset) {
 Vector* Lexer__lex(Lexer* this) {
   while ((this->i < this->source_len)) {
     char c = this->source[this->i];
-    if (((((c == '\t' || c == '\v') || c == '\r') || c == ' ') || c == '\b')){
-      this->i += 1;
-      this->loc.col += 1;
-    }  else     if (c == '\n'){
-      this->loc.line += 1;
-      this->loc.col = 1;
-      this->i += 1;
-      this->seen_newline = true;
-    }  else     if (c == '!'){
-      if (Lexer__peek(this, 1) == '='){
-        Lexer__push_type(this, TokenType__NotEquals, 2);
-      }  else {
-        Lexer__push_type(this, TokenType__Exclamation, 1);
-      } 
-    }  else     if (c == ':'){
-      if (Lexer__peek(this, 1) == ':'){
-        Lexer__push_type(this, TokenType__ColonColon, 2);
-      }  else {
-        Lexer__push_type(this, TokenType__Colon, 1);
-      } 
-    }  else     if (c == ';'){
-      Lexer__push_type(this, TokenType__Semicolon, 1);
-    }  else     if (c == ','){
-      Lexer__push_type(this, TokenType__Comma, 1);
-    }  else     if (c == '.'){
-      Lexer__push_type(this, TokenType__Dot, 1);
-    }  else     if (c == '('){
-      Lexer__push_type(this, TokenType__OpenParen, 1);
-    }  else     if (c == ')'){
-      Lexer__push_type(this, TokenType__CloseParen, 1);
-    }  else     if (c == '['){
-      Lexer__push_type(this, TokenType__OpenSquare, 1);
-    }  else     if (c == ']'){
-      Lexer__push_type(this, TokenType__CloseSquare, 1);
-    }  else     if (c == '{'){
-      Lexer__push_type(this, TokenType__OpenCurly, 1);
-    }  else     if (c == '}'){
-      Lexer__push_type(this, TokenType__CloseCurly, 1);
-    }  else     if (c == '@'){
-      Lexer__push_type(this, TokenType__AtSign, 1);
-    }  else     if (c == '%'){
-      Lexer__push_type(this, TokenType__Percent, 1);
-    }  else     if (c == '^'){
-      Lexer__push_type(this, TokenType__Caret, 1);
-    }  else     if (c == '='){
-      if (Lexer__peek(this, 1) == '='){
-        Lexer__push_type(this, TokenType__EqualEquals, 2);
-      }  else       if (Lexer__peek(this, 1) == '>'){
-        Lexer__push_type(this, TokenType__FatArrow, 2);
-      }  else {
-        Lexer__push_type(this, TokenType__Equals, 1);
-      } 
-      
-    }  else     if (c == '*'){
-      if (Lexer__peek(this, 1) == '='){
-        Lexer__push_type(this, TokenType__StarEquals, 2);
-      }  else {
-        Lexer__push_type(this, TokenType__Star, 1);
-      } 
-    }  else     if (c == '+'){
-      if (Lexer__peek(this, 1) == '='){
-        Lexer__push_type(this, TokenType__PlusEquals, 2);
-      }  else {
-        Lexer__push_type(this, TokenType__Plus, 1);
-      } 
-    }  else     if (c == '-'){
-      if (Lexer__peek(this, 1) == '='){
-        Lexer__push_type(this, TokenType__MinusEquals, 2);
-      }  else {
-        Lexer__push_type(this, TokenType__Minus, 1);
-      } 
-    }  else     if (c == '/'){
-      if (Lexer__peek(this, 1) == '/'){
+    switch (c) {
+      case ' ':
+      case '\t':
+      case '\v':
+      case '\r':
+      case '\b': {
+        this->loc.col += 1;
         this->i += 1;
-        while (((this->i < this->source_len) && (this->source[this->i] != '\n'))) {
+      } break;
+      case '\n': {
+        this->loc.line += 1;
+        this->loc.col = 1;
+        this->i += 1;
+        this->seen_newline = true;
+      } break;
+      case ';': {
+        Lexer__push_type(this, TokenType__Semicolon, 1);
+      } break;
+      case ',': {
+        Lexer__push_type(this, TokenType__Comma, 1);
+      } break;
+      case '.': {
+        Lexer__push_type(this, TokenType__Dot, 1);
+      } break;
+      case '(': {
+        Lexer__push_type(this, TokenType__OpenParen, 1);
+      } break;
+      case ')': {
+        Lexer__push_type(this, TokenType__CloseParen, 1);
+      } break;
+      case '[': {
+        Lexer__push_type(this, TokenType__OpenSquare, 1);
+      } break;
+      case ']': {
+        Lexer__push_type(this, TokenType__CloseSquare, 1);
+      } break;
+      case '{': {
+        Lexer__push_type(this, TokenType__OpenCurly, 1);
+      } break;
+      case '}': {
+        Lexer__push_type(this, TokenType__CloseCurly, 1);
+      } break;
+      case '@': {
+        Lexer__push_type(this, TokenType__AtSign, 1);
+      } break;
+      case '%': {
+        Lexer__push_type(this, TokenType__Percent, 1);
+      } break;
+      case '^': {
+        Lexer__push_type(this, TokenType__Caret, 1);
+      } break;
+      case '&': {
+        Lexer__push_type(this, TokenType__Ampersand, 1);
+      } break;
+      case '|': {
+        Lexer__push_type(this, TokenType__Line, 1);
+      } break;
+      case '!': {
+        if (Lexer__peek(this, 1) == '=')
+        Lexer__push_type(this, TokenType__NotEquals, 2);
+         else 
+        Lexer__push_type(this, TokenType__Exclamation, 1);
+        
+      } break;
+      case ':': {
+        if (Lexer__peek(this, 1) == ':')
+        Lexer__push_type(this, TokenType__ColonColon, 2);
+         else 
+        Lexer__push_type(this, TokenType__Colon, 1);
+        
+      } break;
+      case '=': {
+        if (Lexer__peek(this, 1) == '=')
+        Lexer__push_type(this, TokenType__EqualEquals, 2);
+         else         if (Lexer__peek(this, 1) == '>')
+        Lexer__push_type(this, TokenType__FatArrow, 2);
+         else 
+        Lexer__push_type(this, TokenType__Equals, 1);
+        
+        
+      } break;
+      case '*': {
+        if (Lexer__peek(this, 1) == '=')
+        Lexer__push_type(this, TokenType__StarEquals, 2);
+         else 
+        Lexer__push_type(this, TokenType__Star, 1);
+        
+      } break;
+      case '+': {
+        if (Lexer__peek(this, 1) == '=')
+        Lexer__push_type(this, TokenType__PlusEquals, 2);
+         else 
+        Lexer__push_type(this, TokenType__Plus, 1);
+        
+      } break;
+      case '-': {
+        if (Lexer__peek(this, 1) == '=')
+        Lexer__push_type(this, TokenType__MinusEquals, 2);
+         else 
+        Lexer__push_type(this, TokenType__Minus, 1);
+        
+      } break;
+      case '/': {
+        if (Lexer__peek(this, 1) == '/'){
           this->i += 1;
+          while (((this->i < this->source_len) && (this->source[this->i] != '\n'))) {
+            this->i += 1;
+          } 
+        }  else         if (Lexer__peek(this, 1) == '='){
+          Lexer__push_type(this, TokenType__SlashEquals, 2);
+        }  else {
+          Lexer__push_type(this, TokenType__Slash, 1);
         } 
-      }  else       if (Lexer__peek(this, 1) == '='){
-        Lexer__push_type(this, TokenType__SlashEquals, 2);
-      }  else {
-        Lexer__push_type(this, TokenType__Slash, 1);
-      } 
-      
-    }  else     if (c == '<'){
-      if (Lexer__peek(this, 1) == '='){
+        
+      } break;
+      case '<': {
+        if (Lexer__peek(this, 1) == '=')
         Lexer__push_type(this, TokenType__LessThanEquals, 2);
-      }  else {
+         else 
         Lexer__push_type(this, TokenType__LessThan, 1);
-      } 
-    }  else     if (c == '>'){
-      if (Lexer__peek(this, 1) == '='){
+        
+      } break;
+      case '>': {
+        if (Lexer__peek(this, 1) == '=')
         Lexer__push_type(this, TokenType__GreaterThanEquals, 2);
-      }  else {
+         else 
         Lexer__push_type(this, TokenType__GreaterThan, 1);
-      } 
-    }  else     if (c == '&'){
-      Lexer__push_type(this, TokenType__Ampersand, 1);
-    }  else     if (c == '|'){
-      Lexer__push_type(this, TokenType__Line, 1);
-    }  else {
-      Location start_loc = this->loc;
-      if (isdigit(c)){
-        int start = this->i;
-        TokenType token_type;
-        while (isdigit(this->source[this->i])) {
-          this->i += 1;
-        } 
-        if (this->source[this->i] == '.'){
-          this->i += 1;
+        
+      } break;
+      default: {
+        Location start_loc = this->loc;
+        if (isdigit(c)){
+          int start = this->i;
+          TokenType token_type;
           while (isdigit(this->source[this->i])) {
             this->i += 1;
           } 
-          token_type = TokenType__FloatLiteral;
-        }  else {
-          token_type = TokenType__IntLiteral;
-        } 
-        int len = (this->i - start);
-        char* text = substring(this->source, start, len);
-        this->loc.col += len;
-        Lexer__push(this, Token__new(token_type, Span__make(start_loc, this->loc), text));
-      }  else       if ((isalpha(c) || c == '_')){
-        int start = this->i;
-        while ((isalnum(this->source[this->i]) || this->source[this->i] == '_')) {
-          this->i += 1;
-        } 
-        int len = (this->i - start);
-        char* text = substring(this->source, start, len);
-        this->loc.col += len;
-        Lexer__push(this, Token__from_ident(text, Span__make(start_loc, this->loc)));
-      }  else       if (c == '\''){
-        int start = (this->i + 1);
-        this->i += 1;
-        if (this->source[this->i] == '\\'){
-          this->i += 2;
-        }  else {
-          this->i += 1;
-        } 
-        if ((this->source[this->i] != '\'')){
-          this->loc.col += ((this->i - start) + 1);
-          error_loc(this->loc, "Expected ' after character literal");
-        } 
-        int len = (this->i - start);
-        char* text = substring(this->source, start, len);
-        this->loc.col += (len + 2);
-        this->i += 1;
-        Lexer__push(this, Token__new(TokenType__CharLiteral, Span__make(start_loc, this->loc), text));
-      }  else       if ((c == '"' || c == '`')){
-        char end_char = c;
-        int start = (this->i + 1);
-        this->i += 1;
-        while ((this->source[this->i] != c)) {
-          if (this->source[this->i] == '\\'){
+          if (this->source[this->i] == '.'){
+            this->i += 1;
+            while (isdigit(this->source[this->i])) {
+              this->i += 1;
+            } 
+            token_type = TokenType__FloatLiteral;
+          }  else {
+            token_type = TokenType__IntLiteral;
+          } 
+          int len = (this->i - start);
+          char* text = substring(this->source, start, len);
+          this->loc.col += len;
+          Lexer__push(this, Token__new(token_type, Span__make(start_loc, this->loc), text));
+        }  else         if ((isalpha(c) || c == '_')){
+          int start = this->i;
+          while ((isalnum(this->source[this->i]) || this->source[this->i] == '_')) {
             this->i += 1;
           } 
+          int len = (this->i - start);
+          char* text = substring(this->source, start, len);
+          this->loc.col += len;
+          Lexer__push(this, Token__from_ident(text, Span__make(start_loc, this->loc)));
+        }  else         if (c == '\''){
+          int start = (this->i + 1);
           this->i += 1;
-        } 
-        int len = (this->i - start);
-        char* text = substring(this->source, start, len);
-        this->loc.col += (len + 2);
-        this->i += 1;
-        if (end_char == '`'){
-          Lexer__push(this, Token__new(TokenType__FormatStringLiteral, Span__make(start_loc, this->loc), text));
+          if (this->source[this->i] == '\\'){
+            this->i += 2;
+          }  else {
+            this->i += 1;
+          } 
+          if ((this->source[this->i] != '\'')){
+            this->loc.col += ((this->i - start) + 1);
+            error_loc(this->loc, "Expected ' after character literal");
+          } 
+          int len = (this->i - start);
+          char* text = substring(this->source, start, len);
+          this->loc.col += (len + 2);
+          this->i += 1;
+          Lexer__push(this, Token__new(TokenType__CharLiteral, Span__make(start_loc, this->loc), text));
+        }  else         if ((c == '"' || c == '`')){
+          char end_char = c;
+          int start = (this->i + 1);
+          this->i += 1;
+          while ((this->source[this->i] != c)) {
+            if (this->source[this->i] == '\\'){
+              this->i += 1;
+            } 
+            this->i += 1;
+          } 
+          int len = (this->i - start);
+          char* text = substring(this->source, start, len);
+          this->loc.col += (len + 2);
+          this->i += 1;
+          if (end_char == '`'){
+            Lexer__push(this, Token__new(TokenType__FormatStringLiteral, Span__make(start_loc, this->loc), text));
+          }  else {
+            Lexer__push(this, Token__new(TokenType__StringLiteral, Span__make(start_loc, this->loc), text));
+          } 
         }  else {
-          Lexer__push(this, Token__new(TokenType__StringLiteral, Span__make(start_loc, this->loc), text));
+          printf("%s: Unrecognized char in lexer: '%d'" "\n", Location__str(this->loc), c);
+          exit(1);
         } 
-      }  else {
-        printf("%s: Unrecognized char in lexer: '%d'" "\n", Location__str(this->loc), c);
-        exit(1);
-      } 
-      
-      
-      
-    } 
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+        
+        
+        
+      } break;
+    }
   } 
   Lexer__push_type(this, TokenType__EOF, 0);
   return this->tokens;
@@ -1993,72 +2003,74 @@ Token* Parser__consume(Parser* this, TokenType type) {
 Type* Parser__parse_type(Parser* this) {
   Type* type = ((Type*)0);
   Span start_span = Parser__token(this)->span;
-  bool running = true;
-  while (running) {
+  while (true) {
     if (Parser__token_is(this, TokenType__Ampersand)){
       type = Type__new_link(BaseType__Pointer, type, Parser__token(this)->span);
       this->curr += 1;
     }  else {
-      running = false;
+      break;
     } 
   } 
-  if (Parser__token_is(this, TokenType__I32)){
-    type = Type__new_link(BaseType__I32, type, Span__join(start_span, Parser__token(this)->span));
-    this->curr += 1;
-  }  else   if (Parser__token_is(this, TokenType__Bool)){
-    type = Type__new_link(BaseType__Bool, type, Span__join(start_span, Parser__token(this)->span));
-    this->curr += 1;
-  }  else   if (Parser__token_is(this, TokenType__Char)){
-    type = Type__new_link(BaseType__Char, type, Span__join(start_span, Parser__token(this)->span));
-    this->curr += 1;
-  }  else   if (Parser__token_is(this, TokenType__U8)){
-    type = Type__new_link(BaseType__U8, type, Span__join(start_span, Parser__token(this)->span));
-    this->curr += 1;
-  }  else   if (Parser__token_is(this, TokenType__F32)){
-    type = Type__new_link(BaseType__F32, type, Span__join(start_span, Parser__token(this)->span));
-    this->curr += 1;
-  }  else   if (Parser__token_is(this, TokenType__String)){
-    Span span = Span__join(start_span, Parser__token(this)->span);
-    type = Type__new_link(BaseType__Char, Type__new_link(BaseType__Pointer, type, span), span);
-    this->curr += 1;
-  }  else   if (Parser__token_is(this, TokenType__UntypedPtr)){
-    Span span = Span__join(start_span, Parser__token(this)->span);
-    type = Type__new_link(BaseType__Void, Type__new_link(BaseType__Pointer, type, span), span);
-    this->curr += 1;
-  }  else   if (Parser__token_is(this, TokenType__Identifier)){
-    type = Type__new_link(BaseType__Structure, type, Span__join(start_span, Parser__token(this)->span));
-    type->name = Parser__consume(this, TokenType__Identifier)->text;
-  }  else   if (Parser__token_is(this, TokenType__Fn)){
-    Parser__consume(this, TokenType__Fn);
-    Parser__consume(this, TokenType__OpenParen);
-    Vector* params = Vector__new();
-    while ((!Parser__token_is(this, TokenType__CloseParen))) {
-      Vector__push(params, ((void*)Parser__parse_type(this)));
-      if ((!Parser__token_is(this, TokenType__CloseParen))){
-        Parser__consume(this, TokenType__Comma);
+  switch (Parser__token(this)->type) {
+    case TokenType__I32: {
+      type = Type__new_link(BaseType__I32, type, Span__join(start_span, Parser__token(this)->span));
+      this->curr += 1;
+    } break;
+    case TokenType__Bool: {
+      type = Type__new_link(BaseType__Bool, type, Span__join(start_span, Parser__token(this)->span));
+      this->curr += 1;
+    } break;
+    case TokenType__Char: {
+      type = Type__new_link(BaseType__Char, type, Span__join(start_span, Parser__token(this)->span));
+      this->curr += 1;
+    } break;
+    case TokenType__U8: {
+      type = Type__new_link(BaseType__U8, type, Span__join(start_span, Parser__token(this)->span));
+      this->curr += 1;
+    } break;
+    case TokenType__F32: {
+      type = Type__new_link(BaseType__F32, type, Span__join(start_span, Parser__token(this)->span));
+      this->curr += 1;
+    } break;
+    case TokenType__String: {
+      Span span = Span__join(start_span, Parser__token(this)->span);
+      type = Type__new_link(BaseType__Char, Type__new_link(BaseType__Pointer, type, span), span);
+      this->curr += 1;
+    } break;
+    case TokenType__UntypedPtr: {
+      Span span = Span__join(start_span, Parser__token(this)->span);
+      type = Type__new_link(BaseType__Void, Type__new_link(BaseType__Pointer, type, span), span);
+      this->curr += 1;
+    } break;
+    case TokenType__Identifier: {
+      type = Type__new_link(BaseType__Structure, type, Span__join(start_span, Parser__token(this)->span));
+      type->name = Parser__consume(this, TokenType__Identifier)->text;
+    } break;
+    case TokenType__Fn: {
+      Parser__consume(this, TokenType__Fn);
+      Parser__consume(this, TokenType__OpenParen);
+      Vector* params = Vector__new();
+      while ((!Parser__token_is(this, TokenType__CloseParen))) {
+        Vector__push(params, ((void*)Parser__parse_type(this)));
+        if ((!Parser__token_is(this, TokenType__CloseParen))){
+          Parser__consume(this, TokenType__Comma);
+        } 
       } 
-    } 
-    Parser__consume(this, TokenType__CloseParen);
-    Type* return_type;
-    if (Parser__consume_if(this, TokenType__Colon)){
-      return_type = Parser__parse_type(this);
-    }  else {
-      return_type = Type__new(BaseType__Void, Parser__token(this)->span);
-    } 
-    type = Type__new_link(BaseType__Function, type, Span__join(start_span, Parser__token(this)->span));
-    type->params = params;
-    type->return_type = return_type;
-  }  else {
-    Parser__unhandled_type(this, "parse_type");
-  } 
-  
-  
-  
-  
-  
-  
-  
-  
+      Parser__consume(this, TokenType__CloseParen);
+      Type* return_type;
+      if (Parser__consume_if(this, TokenType__Colon)){
+        return_type = Parser__parse_type(this);
+      }  else {
+        return_type = Type__new(BaseType__Void, Parser__token(this)->span);
+      } 
+      type = Type__new_link(BaseType__Function, type, Span__join(start_span, Parser__token(this)->span));
+      type->params = params;
+      type->return_type = return_type;
+    } break;
+    default: {
+      Parser__unhandled_type(this, "parse_type");
+    } break;
+  }
   return Type__reverse(type);
 }
 
@@ -2067,6 +2079,8 @@ AST* Parser__parse_format_string(Parser* this) {
   int fstr_len = strlen(fstr->text);
   Vector* expr_parts = Vector__new();
   Vector* expr_start = Vector__new();
+  ;
+  ;
   Vector* format_parts = Vector__new();
   int count = 0;
   int cur_start = 0;
@@ -2113,291 +2127,282 @@ AST* Parser__parse_format_string(Parser* this) {
     Vector__push(expr_nodes, ((void*)expr));
   } 
   node->u.fmt_str.exprs = expr_nodes;
-  Vector__free(expr_parts);
-  Vector__free(expr_start);
   return node;
+
+/* defers */
+  Vector__free(expr_start);
+  Vector__free(expr_parts);
 }
 
 AST* Parser__parse_factor(Parser* this, bool in_parens) {
   AST* node = ((AST*)0);
-  if (Parser__token_is(this, TokenType__IntLiteral)){
-    node = AST__new(ASTType__IntLiteral, Parser__token(this)->span);
-    Token* tok = Parser__consume(this, TokenType__IntLiteral);
-    node->u.num_literal = tok->text;
-  }  else   if (Parser__token_is(this, TokenType__FloatLiteral)){
-    node = AST__new(ASTType__FloatLiteral, Parser__token(this)->span);
-    Token* tok = Parser__consume(this, TokenType__FloatLiteral);
-    node->u.num_literal = tok->text;
-  }  else   if (Parser__token_is(this, TokenType__StringLiteral)){
-    node = AST__new(ASTType__StringLiteral, Parser__token(this)->span);
-    Token* tok = Parser__consume(this, TokenType__StringLiteral);
-    node->u.string_literal = tok->text;
-  }  else   if (Parser__token_is(this, TokenType__FormatStringLiteral)){
-    node = Parser__parse_format_string(this);
-  }  else   if (Parser__token_is(this, TokenType__CharLiteral)){
-    node = AST__new(ASTType__CharLiteral, Parser__token(this)->span);
-    Token* tok = Parser__consume(this, TokenType__CharLiteral);
-    node->u.char_literal = tok->text;
-  }  else   if ((Parser__token_is(this, TokenType__True) || Parser__token_is(this, TokenType__False))){
-    Token* tok = Parser__consume(this, Parser__token(this)->type);
-    node = AST__new(ASTType__BoolLiteral, tok->span);
-    node->u.bool_literal = tok->type == TokenType__True;
-  }  else   if (Parser__token_is(this, TokenType__Dot)){
-    Token* op = Parser__consume(this, TokenType__Dot);
-    Token* rhs = Parser__consume(this, TokenType__Identifier);
-    AST* lhs = AST__new(ASTType__Identifier, op->span);
-    lhs->u.ident.name = "this";
-    lhs->u.ident.is_function = false;
-    node = AST__new(ASTType__Member, Span__join(lhs->span, rhs->span));
-    node->u.member.lhs = lhs;
-    node->u.member.name = rhs->text;
-  }  else   if (Parser__token_is(this, TokenType__Minus)){
-    Token* op = Parser__consume(this, TokenType__Minus);
-    AST* expr = Parser__parse_factor(this, in_parens);
-    node = AST__new_unop(ASTType__UnaryMinus, Span__join(op->span, expr->span), expr);
-  }  else   if (Parser__token_is(this, TokenType__Not)){
-    Token* op = Parser__consume(this, TokenType__Not);
-    AST* expr = Parser__parse_factor(this, in_parens);
-    node = AST__new_unop(ASTType__Not, Span__join(op->span, expr->span), expr);
-  }  else   if (Parser__token_is(this, TokenType__Ampersand)){
-    Token* op = Parser__consume(this, TokenType__Ampersand);
-    AST* expr = Parser__parse_factor(this, in_parens);
-    node = AST__new_unop(ASTType__Address, Span__join(op->span, expr->span), expr);
-  }  else   if (Parser__token_is(this, TokenType__Star)){
-    Token* op = Parser__consume(this, TokenType__Star);
-    AST* expr = Parser__parse_factor(this, in_parens);
-    node = AST__new_unop(ASTType__Dereference, Span__join(op->span, expr->span), expr);
-  }  else   if (Parser__token_is(this, TokenType__Identifier)){
-    Token* op = Parser__consume(this, TokenType__Identifier);
-    node = AST__new(ASTType__Identifier, op->span);
-    node->u.ident.name = op->text;
-  }  else   if (Parser__token_is(this, TokenType__OpenParen)){
-    Token* open = Parser__consume(this, TokenType__OpenParen);
-    node = Parser__parse_expression(this, true);
-    Token* close = Parser__consume(this, TokenType__CloseParen);
-    node->span = Span__join(open->span, close->span);
-  }  else   if (Parser__token_is(this, TokenType__SizeOf)){
-    Token* start = Parser__consume(this, TokenType__SizeOf);
-    Parser__consume(this, TokenType__OpenParen);
-    Type* type = Parser__parse_type(this);
-    Token* close = Parser__consume(this, TokenType__CloseParen);
-    node = AST__new(ASTType__SizeOf, Span__join(start->span, close->span));
-    node->u.size_of_type = type;
-  }  else {
-    Parser__unhandled_type(this, "parse_expression");
-  } 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+  switch (Parser__token(this)->type) {
+    case TokenType__FormatStringLiteral: {
+      node = Parser__parse_format_string(this);
+    } break;
+    case TokenType__IntLiteral: {
+      node = AST__new(ASTType__IntLiteral, Parser__token(this)->span);
+      Token* tok = Parser__consume(this, TokenType__IntLiteral);
+      node->u.num_literal = tok->text;
+    } break;
+    case TokenType__FloatLiteral: {
+      node = AST__new(ASTType__FloatLiteral, Parser__token(this)->span);
+      Token* tok = Parser__consume(this, TokenType__FloatLiteral);
+      node->u.num_literal = tok->text;
+    } break;
+    case TokenType__StringLiteral: {
+      node = AST__new(ASTType__StringLiteral, Parser__token(this)->span);
+      Token* tok = Parser__consume(this, TokenType__StringLiteral);
+      node->u.string_literal = tok->text;
+    } break;
+    case TokenType__CharLiteral: {
+      node = AST__new(ASTType__CharLiteral, Parser__token(this)->span);
+      Token* tok = Parser__consume(this, TokenType__CharLiteral);
+      node->u.char_literal = tok->text;
+    } break;
+    case TokenType__True:
+    case TokenType__False: {
+      Token* tok = Parser__consume(this, Parser__token(this)->type);
+      node = AST__new(ASTType__BoolLiteral, tok->span);
+      node->u.bool_literal = tok->type == TokenType__True;
+    } break;
+    case TokenType__Dot: {
+      Token* op = Parser__consume(this, TokenType__Dot);
+      Token* rhs = Parser__consume(this, TokenType__Identifier);
+      AST* lhs = AST__new(ASTType__Identifier, op->span);
+      lhs->u.ident.name = "this";
+      lhs->u.ident.is_function = false;
+      node = AST__new(ASTType__Member, Span__join(lhs->span, rhs->span));
+      node->u.member.lhs = lhs;
+      node->u.member.name = rhs->text;
+    } break;
+    case TokenType__Minus: {
+      Token* op = Parser__consume(this, TokenType__Minus);
+      AST* expr = Parser__parse_factor(this, in_parens);
+      node = AST__new_unop(ASTType__UnaryMinus, Span__join(op->span, expr->span), expr);
+    } break;
+    case TokenType__Not: {
+      Token* op = Parser__consume(this, TokenType__Not);
+      AST* expr = Parser__parse_factor(this, in_parens);
+      node = AST__new_unop(ASTType__Not, Span__join(op->span, expr->span), expr);
+    } break;
+    case TokenType__Ampersand: {
+      Token* op = Parser__consume(this, TokenType__Ampersand);
+      AST* expr = Parser__parse_factor(this, in_parens);
+      node = AST__new_unop(ASTType__Address, Span__join(op->span, expr->span), expr);
+    } break;
+    case TokenType__Star: {
+      Token* op = Parser__consume(this, TokenType__Star);
+      AST* expr = Parser__parse_factor(this, in_parens);
+      node = AST__new_unop(ASTType__Dereference, Span__join(op->span, expr->span), expr);
+    } break;
+    case TokenType__Identifier: {
+      Token* op = Parser__consume(this, TokenType__Identifier);
+      node = AST__new(ASTType__Identifier, op->span);
+      node->u.ident.name = op->text;
+    } break;
+    case TokenType__OpenParen: {
+      Token* open = Parser__consume(this, TokenType__OpenParen);
+      node = Parser__parse_expression(this, true);
+      Token* close = Parser__consume(this, TokenType__CloseParen);
+      node->span = Span__join(open->span, close->span);
+    } break;
+    case TokenType__SizeOf: {
+      Token* start = Parser__consume(this, TokenType__SizeOf);
+      Parser__consume(this, TokenType__OpenParen);
+      Type* type = Parser__parse_type(this);
+      Token* close = Parser__consume(this, TokenType__CloseParen);
+      node = AST__new(ASTType__SizeOf, Span__join(start->span, close->span));
+      node->u.size_of_type = type;
+    } break;
+    default: {
+      Parser__unhandled_type(this, "parse_expression");
+    } break;
+  }
   bool running = true;
   while (running) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else     if (Parser__token_is(this, TokenType__OpenParen)){
-      Span paren_span = Parser__consume(this, TokenType__OpenParen)->span;
-      Vector* args = Vector__new();
-      while ((!Parser__token_is(this, TokenType__CloseParen))) {
-        AST* expr = Parser__parse_expression(this, false);
-        Vector__push(args, ((void*)expr));
-        if ((!Parser__token_is(this, TokenType__CloseParen))){
-          Parser__consume(this, TokenType__Comma);
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    switch (Parser__token(this)->type) {
+      case TokenType__OpenParen: {
+        Span paren_span = Parser__consume(this, TokenType__OpenParen)->span;
+        Vector* args = Vector__new();
+        while ((!Parser__token_is(this, TokenType__CloseParen))) {
+          AST* expr = Parser__parse_expression(this, false);
+          Vector__push(args, ((void*)expr));
+          if ((!Parser__token_is(this, TokenType__CloseParen))){
+            Parser__consume(this, TokenType__Comma);
+          } 
         } 
-      } 
-      Parser__consume(this, TokenType__CloseParen);
-      ASTType call_type = ASTType__Call;
-      AST* call = AST__new(call_type, paren_span);
-      call->u.call.callee = node;
-      call->u.call.args = args;
-      call->u.call.added_method_arg = false;
-      node = call;
-    }  else     if (Parser__token_is(this, TokenType__OpenSquare)){
-      Parser__consume(this, TokenType__OpenSquare);
-      AST* index = Parser__parse_expression(this, true);
-      Parser__consume(this, TokenType__CloseSquare);
-      node = AST__new_binop(ASTType__Index, node, index);
-    }  else     if (Parser__token_is(this, TokenType__Dot)){
-      Parser__consume(this, TokenType__Dot);
-      Token* name = Parser__consume(this, TokenType__Identifier);
-      AST* member = AST__new(ASTType__Member, Span__join(node->span, name->span));
-      member->u.member.lhs = node;
-      member->u.member.name = name->text;
-      node = member;
-    }  else     if (Parser__token_is(this, TokenType__ColonColon)){
-      Parser__consume(this, TokenType__ColonColon);
-      Token* name = Parser__consume(this, TokenType__Identifier);
-      AST* member = AST__new(ASTType__ScopeLookup, Span__join(node->span, name->span));
-      member->u.member.lhs = node;
-      member->u.member.name = name->text;
-      node = member;
-    }  else     if (Parser__token_is(this, TokenType__As)){
-      Parser__consume(this, TokenType__As);
-      Type* type = Parser__parse_type(this);
-      AST* cast = AST__new(ASTType__Cast, Span__join(node->span, type->span));
-      cast->u.cast.lhs = node;
-      cast->u.cast.to = type;
-      node = cast;
-    }  else {
-      running = false;
-    } 
-    
-    
-    
-    
-    
+        Parser__consume(this, TokenType__CloseParen);
+        ASTType call_type = ASTType__Call;
+        AST* call = AST__new(call_type, paren_span);
+        call->u.call.callee = node;
+        call->u.call.args = args;
+        call->u.call.added_method_arg = false;
+        node = call;
+      } break;
+      case TokenType__OpenSquare: {
+        Parser__consume(this, TokenType__OpenSquare);
+        AST* index = Parser__parse_expression(this, true);
+        Parser__consume(this, TokenType__CloseSquare);
+        node = AST__new_binop(ASTType__Index, node, index);
+      } break;
+      case TokenType__Dot: {
+        Parser__consume(this, TokenType__Dot);
+        Token* name = Parser__consume(this, TokenType__Identifier);
+        AST* member = AST__new(ASTType__Member, Span__join(node->span, name->span));
+        member->u.member.lhs = node;
+        member->u.member.name = name->text;
+        node = member;
+      } break;
+      case TokenType__ColonColon: {
+        Parser__consume(this, TokenType__ColonColon);
+        Token* name = Parser__consume(this, TokenType__Identifier);
+        AST* member = AST__new(ASTType__ScopeLookup, Span__join(node->span, name->span));
+        member->u.member.lhs = node;
+        member->u.member.name = name->text;
+        node = member;
+      } break;
+      case TokenType__As: {
+        Parser__consume(this, TokenType__As);
+        Type* type = Parser__parse_type(this);
+        AST* cast = AST__new(ASTType__Cast, Span__join(node->span, type->span));
+        cast->u.cast.lhs = node;
+        cast->u.cast.to = type;
+        node = cast;
+      } break;
+      default: {
+        running = false;
+      } break;
+    }
   } 
   return node;
 }
 
 AST* Parser__parse_term(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_factor(this, in_parens);
-  bool running = true;
-  while ((((running && Parser__token_is(this, TokenType__Star)) || Parser__token_is(this, TokenType__Slash)) || Parser__token_is(this, TokenType__Percent))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_factor(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while (((Parser__token_is(this, TokenType__Star) || Parser__token_is(this, TokenType__Slash)) || Parser__token_is(this, TokenType__Percent))) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_factor(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
 AST* Parser__parse_additive(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_term(this, in_parens);
-  bool running = true;
-  while (((running && Parser__token_is(this, TokenType__Plus)) || Parser__token_is(this, TokenType__Minus))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_term(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while ((Parser__token_is(this, TokenType__Plus) || Parser__token_is(this, TokenType__Minus))) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_term(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
 AST* Parser__parse_bw_and(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_additive(this, in_parens);
-  bool running = true;
-  while ((running && Parser__token_is(this, TokenType__Ampersand))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_additive(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while (Parser__token_is(this, TokenType__Ampersand)) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_additive(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
 AST* Parser__parse_bw_xor(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_bw_and(this, in_parens);
-  bool running = true;
-  while ((running && Parser__token_is(this, TokenType__Caret))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_bw_and(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while (Parser__token_is(this, TokenType__Caret)) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_bw_and(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
 AST* Parser__parse_bw_or(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_bw_xor(this, in_parens);
-  bool running = true;
-  while ((running && Parser__token_is(this, TokenType__Line))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_bw_xor(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while (Parser__token_is(this, TokenType__Line)) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_bw_xor(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
 AST* Parser__parse_relational(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_bw_or(this, in_parens);
-  bool running = true;
-  while (((((((running && Parser__token_is(this, TokenType__LessThan)) || Parser__token_is(this, TokenType__GreaterThan)) || Parser__token_is(this, TokenType__LessThanEquals)) || Parser__token_is(this, TokenType__GreaterThanEquals)) || Parser__token_is(this, TokenType__EqualEquals)) || Parser__token_is(this, TokenType__NotEquals))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_bw_or(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while ((((((Parser__token_is(this, TokenType__LessThan) || Parser__token_is(this, TokenType__GreaterThan)) || Parser__token_is(this, TokenType__LessThanEquals)) || Parser__token_is(this, TokenType__GreaterThanEquals)) || Parser__token_is(this, TokenType__EqualEquals)) || Parser__token_is(this, TokenType__NotEquals))) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_bw_or(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
 AST* Parser__parse_logical_and(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_relational(this, in_parens);
-  bool running = true;
-  while ((running && Parser__token_is(this, TokenType__And))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_relational(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while (Parser__token_is(this, TokenType__And)) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_relational(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
 AST* Parser__parse_logical_or(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_logical_and(this, in_parens);
-  bool running = true;
-  while ((running && Parser__token_is(this, TokenType__Or))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_logical_and(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while (Parser__token_is(this, TokenType__Or)) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_logical_and(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
 AST* Parser__parse_expression(Parser* this, bool in_parens) {
   AST* lhs = Parser__parse_logical_or(this, in_parens);
-  bool running = true;
-  while ((((((running && Parser__token_is(this, TokenType__Equals)) || Parser__token_is(this, TokenType__PlusEquals)) || Parser__token_is(this, TokenType__MinusEquals)) || Parser__token_is(this, TokenType__StarEquals)) || Parser__token_is(this, TokenType__SlashEquals))) {
-    if (((!in_parens) && Parser__token(this)->seen_newline)){
-      running = false;
-    }  else {
-      ASTType op = ASTType__from_token(Parser__token(this)->type);
-      this->curr += 1;
-      AST* rhs = Parser__parse_expression(this, in_parens);
-      lhs = AST__new_binop(op, lhs, rhs);
-    } 
+  while (((((Parser__token_is(this, TokenType__Equals) || Parser__token_is(this, TokenType__PlusEquals)) || Parser__token_is(this, TokenType__MinusEquals)) || Parser__token_is(this, TokenType__StarEquals)) || Parser__token_is(this, TokenType__SlashEquals))) {
+    if (((!in_parens) && Parser__token(this)->seen_newline))
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST* rhs = Parser__parse_expression(this, in_parens);
+    lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
@@ -2421,6 +2426,9 @@ AST* Parser__parse_match(Parser* this) {
       if ((!Parser__consume_if(this, TokenType__Line))){
         Parser__consume(this, TokenType__FatArrow);
         body = Parser__parse_statement(this);
+        if ((!Parser__token_is(this, TokenType__CloseCurly))){
+          Parser__consume_newline_or(this, TokenType__Comma);
+        } 
       } 
       MatchCase* _case = MatchCase__new(cond, body);
       Vector__push(cases, ((void*)_case));
@@ -2434,106 +2442,109 @@ AST* Parser__parse_match(Parser* this) {
 AST* Parser__parse_statement(Parser* this) {
   AST* node = ((AST*)0);
   Span start_span = Parser__token(this)->span;
-  if (Parser__token_is(this, TokenType__Return)){
-    Parser__consume(this, TokenType__Return);
-    AST* expr = ((AST*)0);
-    if ((!Parser__token(this)->seen_newline)){
-      expr = Parser__parse_expression(this, false);
-    } 
-    node = AST__new_unop(ASTType__Return, Span__join(start_span, Parser__token(this)->span), expr);
-    Parser__consume_newline_or(this, TokenType__Semicolon);
-  }  else   if (Parser__token_is(this, TokenType__Break)){
-    Parser__consume(this, TokenType__Break);
-    node = AST__new(ASTType__Break, start_span);
-    Parser__consume_newline_or(this, TokenType__Semicolon);
-  }  else   if (Parser__token_is(this, TokenType__Continue)){
-    Parser__consume(this, TokenType__Continue);
-    node = AST__new(ASTType__Continue, start_span);
-    Parser__consume_newline_or(this, TokenType__Semicolon);
-  }  else   if (Parser__token_is(this, TokenType__Match)){
-    node = Parser__parse_match(this);
-  }  else   if (Parser__token_is(this, TokenType__Defer)){
-    Parser__consume(this, TokenType__Defer);
-    AST* expr = Parser__parse_statement(this);
-    node = AST__new_unop(ASTType__Defer, Span__join(start_span, expr->span), expr);
-  }  else   if (Parser__token_is(this, TokenType__If)){
-    Parser__consume(this, TokenType__If);
-    AST* cond = Parser__parse_expression(this, false);
-    AST* then = Parser__parse_statement(this);
-    Span end_span = then->span;
-    AST* els = ((AST*)0);
-    if (Parser__consume_if(this, TokenType__Else)){
-      els = Parser__parse_statement(this);
-      end_span = els->span;
-    } 
-    node = AST__new(ASTType__If, Span__join(start_span, end_span));
-    node->u.if_stmt.cond = cond;
-    node->u.if_stmt.then = then;
-    node->u.if_stmt.els = els;
-  }  else   if (Parser__token_is(this, TokenType__While)){
-    Parser__consume(this, TokenType__While);
-    AST* cond = Parser__parse_expression(this, false);
-    AST* body = Parser__parse_statement(this);
-    node = AST__new(ASTType__While, Span__join(start_span, body->span));
-    node->u.loop.cond = cond;
-    node->u.loop.body = body;
-  }  else   if (Parser__token_is(this, TokenType__For)){
-    node = AST__new(ASTType__For, Parser__token(this)->span);
-    Parser__consume(this, TokenType__For);
-    if ((!Parser__token_is(this, TokenType__Semicolon))){
-      AST* init = Parser__parse_statement(this);
-      if (((init->type != ASTType__Assignment) && (init->type != ASTType__VarDeclaration))){
-        error_span(init->span, "Invalid for loop initializer");
+  switch (Parser__token(this)->type) {
+    case TokenType__Match: {
+      node = Parser__parse_match(this);
+    } break;
+    case TokenType__OpenCurly: {
+      node = Parser__parse_block(this);
+    } break;
+    case TokenType__Return: {
+      Parser__consume(this, TokenType__Return);
+      AST* expr = ((AST*)0);
+      if ((!Parser__token(this)->seen_newline)){
+        expr = Parser__parse_expression(this, false);
       } 
-      node->u.loop.init = init;
-      Token* prev = ((Token*)Vector__at(this->tokens, (this->curr - 1)));
-      if (prev->type == TokenType__Semicolon){
-        this->curr -= 1;
+      node = AST__new_unop(ASTType__Return, Span__join(start_span, Parser__token(this)->span), expr);
+      Parser__consume_newline_or(this, TokenType__Semicolon);
+    } break;
+    case TokenType__Break: {
+      node = AST__new(ASTType__Break, start_span);
+      Parser__consume(this, TokenType__Break);
+      Parser__consume_newline_or(this, TokenType__Semicolon);
+    } break;
+    case TokenType__Continue: {
+      Parser__consume(this, TokenType__Continue);
+      node = AST__new(ASTType__Continue, start_span);
+      Parser__consume_newline_or(this, TokenType__Semicolon);
+    } break;
+    case TokenType__Defer: {
+      Parser__consume(this, TokenType__Defer);
+      AST* expr = Parser__parse_statement(this);
+      node = AST__new_unop(ASTType__Defer, Span__join(start_span, expr->span), expr);
+    } break;
+    case TokenType__If: {
+      Parser__consume(this, TokenType__If);
+      AST* cond = Parser__parse_expression(this, false);
+      AST* then = Parser__parse_statement(this);
+      Span end_span = then->span;
+      AST* els = ((AST*)0);
+      if (Parser__consume_if(this, TokenType__Else)){
+        els = Parser__parse_statement(this);
+        end_span = els->span;
       } 
-    } 
-    Parser__consume(this, TokenType__Semicolon);
-    if ((!Parser__token_is(this, TokenType__Semicolon)))
-    node->u.loop.cond = Parser__parse_expression(this, true);
-    
-    Parser__consume(this, TokenType__Semicolon);
-    if ((!Parser__token_is(this, TokenType__CloseCurly)))
-    node->u.loop.incr = Parser__parse_expression(this, false);
-    
-    node->u.loop.body = Parser__parse_statement(this);
-    node->span = Span__join(node->span, node->u.loop.body->span);
-  }  else   if (Parser__token_is(this, TokenType__Let)){
-    Parser__consume(this, TokenType__Let);
-    Token* name = Parser__consume(this, TokenType__Identifier);
-    Span end_span = name->span;
-    Type* type = ((Type*)0);
-    if (Parser__consume_if(this, TokenType__Colon)){
-      type = Parser__parse_type(this);
-      end_span = type->span;
-    } 
-    AST* init = ((AST*)0);
-    if (Parser__consume_if(this, TokenType__Equals)){
-      init = Parser__parse_expression(this, false);
-      end_span = init->span;
-    } 
-    Parser__consume_newline_or(this, TokenType__Semicolon);
-    node = AST__new(ASTType__VarDeclaration, Span__join(start_span, end_span));
-    node->u.var_decl.var = Variable__new(name->text, type, name->span);
-    node->u.var_decl.init = init;
-  }  else   if (Parser__token_is(this, TokenType__OpenCurly)){
-    node = Parser__parse_block(this);
-  }  else {
-    node = Parser__parse_expression(this, false);
-    Parser__consume_newline_or(this, TokenType__Semicolon);
-  } 
-  
-  
-  
-  
-  
-  
-  
-  
-  
+      node = AST__new(ASTType__If, Span__join(start_span, end_span));
+      node->u.if_stmt.cond = cond;
+      node->u.if_stmt.then = then;
+      node->u.if_stmt.els = els;
+    } break;
+    case TokenType__While: {
+      Parser__consume(this, TokenType__While);
+      AST* cond = Parser__parse_expression(this, false);
+      AST* body = Parser__parse_statement(this);
+      node = AST__new(ASTType__While, Span__join(start_span, body->span));
+      node->u.loop.cond = cond;
+      node->u.loop.body = body;
+    } break;
+    case TokenType__For: {
+      node = AST__new(ASTType__For, Parser__token(this)->span);
+      Parser__consume(this, TokenType__For);
+      if ((!Parser__token_is(this, TokenType__Semicolon))){
+        AST* init = Parser__parse_statement(this);
+        if (((init->type != ASTType__Assignment) && (init->type != ASTType__VarDeclaration))){
+          error_span(init->span, "Invalid for loop initializer");
+        } 
+        node->u.loop.init = init;
+        Token* prev = ((Token*)Vector__at(this->tokens, (this->curr - 1)));
+        if (prev->type == TokenType__Semicolon){
+          this->curr -= 1;
+        } 
+      } 
+      Parser__consume(this, TokenType__Semicolon);
+      if ((!Parser__token_is(this, TokenType__Semicolon)))
+      node->u.loop.cond = Parser__parse_expression(this, true);
+      
+      Parser__consume(this, TokenType__Semicolon);
+      if ((!Parser__token_is(this, TokenType__CloseCurly)))
+      node->u.loop.incr = Parser__parse_expression(this, false);
+      
+      node->u.loop.body = Parser__parse_statement(this);
+      node->span = Span__join(node->span, node->u.loop.body->span);
+    } break;
+    case TokenType__Let: {
+      Parser__consume(this, TokenType__Let);
+      Token* name = Parser__consume(this, TokenType__Identifier);
+      Span end_span = name->span;
+      Type* type = ((Type*)0);
+      if (Parser__consume_if(this, TokenType__Colon)){
+        type = Parser__parse_type(this);
+        end_span = type->span;
+      } 
+      AST* init = ((AST*)0);
+      if (Parser__consume_if(this, TokenType__Equals)){
+        init = Parser__parse_expression(this, false);
+        end_span = init->span;
+      } 
+      Parser__consume_newline_or(this, TokenType__Semicolon);
+      node = AST__new(ASTType__VarDeclaration, Span__join(start_span, end_span));
+      node->u.var_decl.var = Variable__new(name->text, type, name->span);
+      node->u.var_decl.init = init;
+    } break;
+    default: {
+      node = Parser__parse_expression(this, false);
+      Parser__consume_newline_or(this, TokenType__Semicolon);
+    } break;
+  }
   return node;
 }
 
@@ -2721,15 +2732,16 @@ AST* Parser__parse_global_var(Parser* this) {
 }
 
 void Parser__include_file(Parser* this, Program* program, char* filename) {
-  if ((!Program__is_file_included(program, filename))){
-    Program__add_included_file(program, filename);
-    FILE* file = File__open(filename, "r");
-    char* contents = File__slurp(file);
-    Lexer lexer = Lexer__make(contents, filename);
-    Vector* tokens = Lexer__lex((&lexer));
-    Parser* parser = Parser__make(tokens);
-    Parser__parse_into_program(parser, program);
-  } 
+  if (Program__is_file_included(program, filename))
+  return;
+  
+  Program__add_included_file(program, filename);
+  FILE* file = File__open(filename, "r");
+  char* contents = File__slurp(file);
+  Lexer lexer = Lexer__make(contents, filename);
+  Vector* tokens = Lexer__lex((&lexer));
+  Parser* parser = Parser__make(tokens);
+  Parser__parse_into_program(parser, program);
 }
 
 void Parser__parse_use(Parser* this, Program* program) {
@@ -2749,45 +2761,51 @@ void Parser__parse_compiler_option(Parser* this, Program* program) {
   if (streq(name->text, "c_include")){
     Token* filename = Parser__consume(this, TokenType__StringLiteral);
     Vector__push(program->c_includes, ((void*)filename->text));
-  }  else   if (streq(name->text, "c_flag")){
+    return;
+  } 
+  if (streq(name->text, "c_flag")){
     Token* flag = Parser__consume(this, TokenType__StringLiteral);
     Vector__push(program->c_flags, ((void*)flag->text));
-  }  else   if (streq(name->text, "c_embed_header")){
+    return;
+  } 
+  if (streq(name->text, "c_embed_header")){
     Token* filename = Parser__consume(this, TokenType__StringLiteral);
     Vector__push(program->c_embed_headers, ((void*)filename->text));
-  }  else {
-    error_span(name->span, "Unknown compiler option");
+    return;
   } 
-  
-  
+  error_span(name->span, "Unknown compiler option");
 }
 
 void Parser__parse_into_program(Parser* this, Program* program) {
   while ((!Parser__token_is(this, TokenType__EOF))) {
-    if (Parser__token_is(this, TokenType__Def)){
-      Function* func = Parser__parse_function(this);
-      Vector__push(program->functions, ((void*)func));
-    }  else     if (Parser__token_is(this, TokenType__Use)){
-      Parser__parse_use(this, program);
-    }  else     if (Parser__token_is(this, TokenType__Let)){
-      AST* node = Parser__parse_global_var(this);
-      Vector__push(program->global_vars, ((void*)node));
-    }  else     if ((Parser__token_is(this, TokenType__Struct) || Parser__token_is(this, TokenType__Union))){
-      Structure* structure = Parser__parse_struct(this);
-      Vector__push(program->structures, ((void*)structure));
-    }  else     if (Parser__token_is(this, TokenType__Enum)){
-      Structure* structure = Parser__parse_enum(this);
-      Vector__push(program->structures, ((void*)structure));
-    }  else     if (Parser__token_is(this, TokenType__AtSign)){
-      Parser__parse_compiler_option(this, program);
-    }  else {
-      Parser__unhandled_type(this, "parse_program");
-    } 
-    
-    
-    
-    
-    
+    switch (Parser__token(this)->type) {
+      case TokenType__Use: {
+        Parser__parse_use(this, program);
+      } break;
+      case TokenType__AtSign: {
+        Parser__parse_compiler_option(this, program);
+      } break;
+      case TokenType__Def: {
+        Function* func = Parser__parse_function(this);
+        Vector__push(program->functions, ((void*)func));
+      } break;
+      case TokenType__Let: {
+        AST* node = Parser__parse_global_var(this);
+        Vector__push(program->global_vars, ((void*)node));
+      } break;
+      case TokenType__Struct:
+      case TokenType__Union: {
+        Structure* structure = Parser__parse_struct(this);
+        Vector__push(program->structures, ((void*)structure));
+      } break;
+      case TokenType__Enum: {
+        Structure* structure = Parser__parse_enum(this);
+        Vector__push(program->structures, ((void*)structure));
+      } break;
+      default: {
+        Parser__unhandled_type(this, "parse_program");
+      } break;
+    }
   } 
 }
 
@@ -2847,27 +2865,30 @@ Variable* TypeChecker__get_struct_member(TypeChecker* this, char* lhs, char* rhs
 }
 
 bool TypeChecker__type_is_valid(TypeChecker* this, Type* type) {
-  if (type->base == BaseType__Pointer){
-    return TypeChecker__type_is_valid(this, type->ptr);
-  }  else   if (type->base == BaseType__Function){
-    for (int i = 0; (i < type->params->size); i += 1) {
-      if ((!TypeChecker__type_is_valid(this, ((Type*)Vector__at(type->params, i))))){
-        return false;
+  switch (type->base) {
+    case BaseType__Pointer: {
+      return TypeChecker__type_is_valid(this, type->ptr);
+    } break;
+    case BaseType__Function: {
+      for (int i = 0; (i < type->params->size); i += 1) {
+        if ((!TypeChecker__type_is_valid(this, ((Type*)Vector__at(type->params, i))))){
+          return false;
+        } 
       } 
-    } 
-    return TypeChecker__type_is_valid(this, type->return_type);
-  }  else   if (type->base == BaseType__Structure){
-    Structure* struc = ((Structure*)Map__get(this->structures, type->name));
-    if ((struc != ((Structure*)0))){
-      type->struct_def = struc;
+      return TypeChecker__type_is_valid(this, type->return_type);
+    } break;
+    case BaseType__Structure: {
+      Structure* struc = ((Structure*)Map__get(this->structures, type->name));
+      if ((struc != ((Structure*)0))){
+        type->struct_def = struc;
+        return true;
+      } 
+      return false;
+    } break;
+    default: {
       return true;
-    } 
-    return false;
-  }  else {
-    return true;
-  } 
-  
-  
+    } break;
+  }
 }
 
 void TypeChecker__check_method_call(TypeChecker* this, Type* method_type, AST* node) {
@@ -2878,24 +2899,26 @@ void TypeChecker__check_method_call(TypeChecker* this, Type* method_type, AST* n
   Map* s_methods = ((Map*)Map__get(this->methods, method_type->name));
   Function* method = ((Function*)Map__get(s_methods, callee->u.member.name));
   node->u.call.func = method;
-  if ((!node->u.call.added_method_arg)){
-    node->u.call.added_method_arg = true;
-    if (callee->type == ASTType__Member){
-      if (method->params->size == 0){
-        error_span(callee->span, "Instance method should have `this` argument, internal error");
-      } 
-      Type* method_param = ((Variable*)Vector__at(method->params, 0))->type;
-      Member member = callee->u.member;
-      AST* first_arg = member.lhs;
-      if ((member.is_pointer && (method_param->base != BaseType__Pointer))){
-        first_arg = AST__new_unop(ASTType__Dereference, first_arg->span, first_arg);
-      }  else       if (((!member.is_pointer) && method_param->base == BaseType__Pointer)){
-        first_arg = AST__new_unop(ASTType__Address, first_arg->span, first_arg);
-      } 
-      
-      Vector__push_front(node->u.call.args, ((void*)first_arg));
-    } 
+  if (node->u.call.added_method_arg)
+  return;
+  
+  node->u.call.added_method_arg = true;
+  if ((callee->type != ASTType__Member))
+  return;
+  
+  if (method->params->size == 0){
+    error_span(callee->span, "Instance method should have `this` argument, internal error");
   } 
+  Type* method_param = ((Variable*)Vector__at(method->params, 0))->type;
+  Member member = callee->u.member;
+  AST* first_arg = member.lhs;
+  if ((member.is_pointer && (method_param->base != BaseType__Pointer))){
+    first_arg = AST__new_unop(ASTType__Dereference, first_arg->span, first_arg);
+  }  else   if (((!member.is_pointer) && method_param->base == BaseType__Pointer)){
+    first_arg = AST__new_unop(ASTType__Address, first_arg->span, first_arg);
+  } 
+  
+  Vector__push_front(node->u.call.args, ((void*)first_arg));
 }
 
 Type* TypeChecker__check_call(TypeChecker* this, AST* node) {
@@ -2941,8 +2964,8 @@ Type* TypeChecker__check_format_string(TypeChecker* this, AST* node) {
     error_span(node->span, "Number of format string parts does not match number of expressions");
   } 
   int size = 0;
-  for (int i = 0; (i < node->u.fmt_str.parts->size); i += 1) {
-    size += (strlen(((char*)Vector__at(node->u.fmt_str.parts, i))) + 3);
+  for (int i = 0; (i < parts->size); i += 1) {
+    size += (strlen(((char*)Vector__at(parts, i))) + 3);
   } 
   char* buf = ((char*)calloc((size + 1), 1));
   for (int i = 0; (i < exprs->size); i += 1) {
@@ -2950,26 +2973,31 @@ Type* TypeChecker__check_format_string(TypeChecker* this, AST* node) {
     AST* expr = ((AST*)Vector__at(exprs, i));
     strcat(buf, part);
     Type* expr_type = TypeChecker__check_expression(this, expr);
-    if ((expr_type->base == BaseType__I32 || expr_type->base == BaseType__U8)){
-      strcat(buf, "%d");
-    }  else     if (expr_type->base == BaseType__Bool){
-      strcat(buf, "%s");
-    }  else     if (expr_type->base == BaseType__F32){
-      strcat(buf, "%f");
-    }  else     if (expr_type->base == BaseType__Char){
-      strcat(buf, "%c");
-    }  else     if ((expr_type->base == BaseType__Pointer && expr_type->ptr->base == BaseType__Char)){
-      strcat(buf, "%s");
-    }  else     if (expr_type->base == BaseType__Pointer){
-      strcat(buf, "%p");
-    }  else {
-      strcat(buf, "%s");
-    } 
-    
-    
-    
-    
-    
+    switch (expr_type->base) {
+      case BaseType__I32:
+      case BaseType__U8: {
+        strcat(buf, "%d");
+      } break;
+      case BaseType__Bool: {
+        strcat(buf, "%s");
+      } break;
+      case BaseType__F32: {
+        strcat(buf, "%f");
+      } break;
+      case BaseType__Char: {
+        strcat(buf, "%c");
+      } break;
+      case BaseType__Pointer: {
+        if (expr_type->ptr->base == BaseType__Char)
+        strcat(buf, "%s");
+         else 
+        strcat(buf, "%p");
+        
+      } break;
+      default: {
+        error_span(expr->span, "Invalid type for format string");
+      } break;
+    }
   } 
   strcat(buf, ((char*)Vector__back(parts)));
   node->u.fmt_str.str = buf;
@@ -2996,235 +3024,252 @@ Type* TypeChecker__check_pointer_arith(TypeChecker* this, AST* node, Type* lhs, 
 
 Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
   Type* etype = ((Type*)0);
-  if (node->type == ASTType__Call){
-    etype = TypeChecker__check_call(this, node);
-  }  else   if (node->type == ASTType__IntLiteral){
-    etype = Type__new(BaseType__I32, node->span);
-  }  else   if (node->type == ASTType__FloatLiteral){
-    etype = Type__new(BaseType__F32, node->span);
-  }  else   if (node->type == ASTType__BoolLiteral){
-    etype = Type__new(BaseType__Bool, node->span);
-  }  else   if (node->type == ASTType__StringLiteral){
-    etype = Type__ptr_to(BaseType__Char, node->span);
-  }  else   if (node->type == ASTType__CharLiteral){
-    etype = Type__new(BaseType__Char, node->span);
-  }  else   if (node->type == ASTType__FormatStringLiteral){
-    etype = TypeChecker__check_format_string(this, node);
-  }  else   if (node->type == ASTType__SizeOf){
-    if ((!TypeChecker__type_is_valid(this, node->u.size_of_type))){
-      error_span(node->u.size_of_type->span, "Invalid type");
-    } 
-    etype = Type__new(BaseType__I32, node->span);
-  }  else   if (node->type == ASTType__Identifier){
-    Identifier* ident = (&node->u.ident);
-    Variable* var = TypeChecker__find_var(this, ident->name);
-    Function* func = ((Function*)Map__get(this->functions, ident->name));
-    if (ident->is_function){
-      etype = ident->func->type;
-    }  else     if ((var != ((Variable*)0))){
-      ident->is_function = false;
-      ident->var = var;
-      etype = var->type;
-    }  else     if ((func != ((Function*)0))){
-      ident->is_function = true;
-      ident->func = func;
-      etype = func->type;
-    }  else {
-      error_span(node->span, "Unknown Identifier");
-    } 
-    
-    
-  }  else   if ((((node->type == ASTType__Plus || node->type == ASTType__Minus) || node->type == ASTType__Multiply) || node->type == ASTType__Divide)){
-    Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-    Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-    if ((lhs->base == BaseType__Pointer || rhs->base == BaseType__Pointer)){
-      etype = TypeChecker__check_pointer_arith(this, node, lhs, rhs);
-    }  else     if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))){
-      error_span(node->span, "Operator requires numeric types");
-    }  else     if ((!Type__eq(lhs, rhs))){
-      error_span(node->span, "Operands must be be of the same type");
-    }  else {
-      etype = lhs;
-    } 
-    
-    
-  }  else   if ((((node->type == ASTType__LessThan || node->type == ASTType__LessThanEquals) || node->type == ASTType__GreaterThan) || node->type == ASTType__GreaterThanEquals)){
-    Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-    Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-    if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))){
-      error_span(node->span, "Operator requires numeric types");
-    } 
-    if ((!Type__eq(lhs, rhs))){
-      error_span(node->span, "Operands must be be of the same type");
-    } 
-    etype = Type__new(BaseType__Bool, node->span);
-  }  else   if ((node->type == ASTType__Equals || node->type == ASTType__NotEquals)){
-    Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-    Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-    if ((!Type__eq(lhs, rhs))){
-      error_span(node->span, "Operands must be be of the same type");
-    } 
-    if (lhs->base == BaseType__Structure){
-      Structure* struc = ((Structure*)Map__get(this->structures, lhs->name));
-      if ((!struc->is_enum)){
-        error_span(node->span, "Cannot compare structs directly");
+  switch (node->type) {
+    case ASTType__Call: {
+      etype = TypeChecker__check_call(this, node);
+    } break;
+    case ASTType__IntLiteral: {
+      etype = Type__new(BaseType__I32, node->span);
+    } break;
+    case ASTType__FloatLiteral: {
+      etype = Type__new(BaseType__F32, node->span);
+    } break;
+    case ASTType__BoolLiteral: {
+      etype = Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__StringLiteral: {
+      etype = Type__ptr_to(BaseType__Char, node->span);
+    } break;
+    case ASTType__CharLiteral: {
+      etype = Type__new(BaseType__Char, node->span);
+    } break;
+    case ASTType__FormatStringLiteral: {
+      etype = TypeChecker__check_format_string(this, node);
+    } break;
+    case ASTType__SizeOf: {
+      if ((!TypeChecker__type_is_valid(this, node->u.size_of_type))){
+        error_span(node->u.size_of_type->span, "Invalid type");
       } 
-    } 
-    etype = Type__new(BaseType__Bool, node->span);
-  }  else   if ((node->type == ASTType__And || node->type == ASTType__Or)){
-    Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-    Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-    if (((!Type__eq(lhs, rhs)) || (lhs->base != BaseType__Bool))){
-      error_span(node->span, "Operands must be boolean");
-    } 
-    etype = Type__new(BaseType__Bool, node->span);
-  }  else   if (node->type == ASTType__Not){
-    Type* rhs = TypeChecker__check_expression(this, node->u.unary);
-    if ((rhs->base != BaseType__Bool)){
-      error_span(node->u.unary->span, "Expression must be boolean");
-    } 
-    etype = Type__new(BaseType__Bool, node->span);
-  }  else   if ((((node->type == ASTType__Modulus || node->type == ASTType__BitwiseOr) || node->type == ASTType__BitwiseAnd) || node->type == ASTType__BitwiseXor)){
-    Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-    Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-    if (((lhs->base != BaseType__I32) || (rhs->base != BaseType__I32))){
-      error_span(node->span, "Operator requires integer types");
-    } 
-    etype = lhs;
-  }  else   if (node->type == ASTType__UnaryMinus){
-    etype = TypeChecker__check_expression(this, node->u.unary);
-    if ((!Type__is_numeric(etype))){
-      error_span(node->u.unary->span, "Expression must be a number");
-    } 
-  }  else   if (node->type == ASTType__Address){
-    etype = TypeChecker__check_expression(this, node->u.unary);
-    etype = Type__new_link(BaseType__Pointer, etype, node->span);
-  }  else   if (node->type == ASTType__Dereference){
-    Type* expr_type = TypeChecker__check_expression(this, node->u.unary);
-    if ((expr_type->base != BaseType__Pointer)){
-      error_span(node->u.unary->span, "Expression must be a pointer-type");
-    } 
-    etype = expr_type->ptr;
-  }  else   if (node->type == ASTType__Index){
-    Type* expr_type = TypeChecker__check_expression(this, node->u.binary.lhs);
-    if ((expr_type->base != BaseType__Pointer)){
-      error_span(node->u.binary.lhs->span, "Expression must be a pointer-type");
-    } 
-    Type* index_type = TypeChecker__check_expression(this, node->u.binary.rhs);
-    if ((index_type->base != BaseType__I32)){
-      error_span(node->u.binary.rhs->span, "Index must be an integer");
-    } 
-    etype = expr_type->ptr;
-  }  else   if ((((node->type == ASTType__PlusEquals || node->type == ASTType__MinusEquals) || node->type == ASTType__DivideEquals) || node->type == ASTType__MultiplyEquals)){
-    Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-    Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-    if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))){
-      error_span(node->u.binary.lhs->span, "Operator requires numeric types");
-    } 
-    if ((!Type__eq(lhs, rhs))){
-      error_span(node->span, "Operands must be be of the same type");
-    } 
-    etype = lhs;
-  }  else   if (node->type == ASTType__Assignment){
-    Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-    Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-    if ((!Type__eq(lhs, rhs))){
-      error_span(node->span, "Variable type does not match assignment type");
-    } 
-    etype = lhs;
-  }  else   if (node->type == ASTType__ScopeLookup){
-    if ((node->u.member.lhs->type != ASTType__Identifier)){
-      error_span(node->u.member.lhs->span, "Left hand side of `::` must be a struct name");
-    } 
-    char* struct_name = node->u.member.lhs->u.ident.name;
-    Structure* struc = ((Structure*)Map__get(this->structures, struct_name));
-    if (struc == ((Structure*)0)){
-      error_span(node->u.member.lhs->span, "Unknown struct with this name");
-    } 
-    char* field_name = node->u.member.name;
-    Variable* var = TypeChecker__get_struct_member(this, struct_name, field_name);
-    Map* s_methods = ((Map*)Map__get(this->methods, struct_name));
-    Function* method = ((Function*)Map__get(s_methods, field_name));
-    if ((struc->is_enum && (var != ((Variable*)0)))){
-      node->type = ASTType__EnumValue;
-      node->u.enum_val.struct_def = struc;
-      node->u.enum_val.name = field_name;
-      etype = struc->type;
-    }  else     if ((method != ((Function*)0))){
-      etype = method->type;
-    }  else {
-      error_span(node->span, "Struct has no static method with this name");
-    } 
-    
-  }  else   if (node->type == ASTType__Member){
-    Type* lhs_type = TypeChecker__check_expression(this, node->u.member.lhs);
-    if ((!Type__is_struct_or_ptr(lhs_type))){
-      error_span(node->u.member.lhs->span, "LHS of member access must be a (pointer to) struct");
-    } 
-    node->u.member.is_pointer = lhs_type->base == BaseType__Pointer;
-    Type* struct_type = lhs_type;
-    if (lhs_type->base == BaseType__Pointer){
-      struct_type = lhs_type->ptr;
-    } 
-    char* struct_name = struct_type->name;
-    char* field_name = node->u.member.name;
-    Structure* struc = ((Structure*)Map__get(this->structures, struct_name));
-    Variable* field = TypeChecker__get_struct_member(this, struct_name, field_name);
-    Map* s_methods = ((Map*)Map__get(this->methods, struct_name));
-    Function* method = ((Function*)Map__get(s_methods, field_name));
-    if (((!struc->is_enum) && (field != ((Variable*)0)))){
-      etype = field->type;
-    }  else     if ((method != ((Function*)0))){
-      if (method->is_static){
-        error_span(node->span, "Member access requires a non-static method");
-      } 
-      etype = method->type;
-    }  else {
-      if (struc->is_enum){
-        error_span(node->span, "Enum has no method with this name");
+      etype = Type__new(BaseType__I32, node->span);
+    } break;
+    case ASTType__Identifier: {
+      Identifier* ident = (&node->u.ident);
+      Variable* var = TypeChecker__find_var(this, ident->name);
+      Function* func = ((Function*)Map__get(this->functions, ident->name));
+      if (ident->is_function){
+        etype = ident->func->type;
+      }  else       if ((var != ((Variable*)0))){
+        ident->is_function = false;
+        ident->var = var;
+        etype = var->type;
+      }  else       if ((func != ((Function*)0))){
+        ident->is_function = true;
+        ident->func = func;
+        etype = func->type;
       }  else {
-        error_span(node->span, "Struct has no member with this name");
+        error_span(node->span, "Unknown Identifier");
       } 
-    } 
-    
-  }  else   if (node->type == ASTType__Cast){
-    Type* lhs_type = TypeChecker__check_expression(this, node->u.cast.lhs);
-    if ((!TypeChecker__type_is_valid(this, node->u.cast.to))){
-      error_span(node->u.cast.to->span, "Type does not exist");
-    } 
-    etype = node->u.cast.to;
-  }  else {
-    printf("Unhandled type in check_expression: %s" "\n", ASTType__str(node->type));
-    exit(1);
-  } 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+      
+      
+    } break;
+    case ASTType__Plus:
+    case ASTType__Minus:
+    case ASTType__Multiply:
+    case ASTType__Divide: {
+      Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
+      Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if ((lhs->base == BaseType__Pointer || rhs->base == BaseType__Pointer)){
+        etype = TypeChecker__check_pointer_arith(this, node, lhs, rhs);
+      }  else       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))){
+        error_span(node->span, "Operator requires numeric types");
+      }  else       if ((!Type__eq(lhs, rhs))){
+        error_span(node->span, "Operands must be be of the same type");
+      }  else {
+        etype = lhs;
+      } 
+      
+      
+    } break;
+    case ASTType__LessThan:
+    case ASTType__LessThanEquals:
+    case ASTType__GreaterThan:
+    case ASTType__GreaterThanEquals: {
+      Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
+      Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))){
+        error_span(node->span, "Operator requires numeric types");
+      } 
+      if ((!Type__eq(lhs, rhs))){
+        error_span(node->span, "Operands must be be of the same type");
+      } 
+      etype = Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__Equals:
+    case ASTType__NotEquals: {
+      Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
+      Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if ((!Type__eq(lhs, rhs))){
+        error_span(node->span, "Operands must be be of the same type");
+      } 
+      if (lhs->base == BaseType__Structure){
+        Structure* struc = ((Structure*)Map__get(this->structures, lhs->name));
+        if ((!struc->is_enum)){
+          error_span(node->span, "Cannot compare structs directly");
+        } 
+      } 
+      etype = Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__And:
+    case ASTType__Or: {
+      Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
+      Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if (((!Type__eq(lhs, rhs)) || (lhs->base != BaseType__Bool))){
+        error_span(node->span, "Operands must be boolean");
+      } 
+      etype = Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__Not: {
+      Type* rhs = TypeChecker__check_expression(this, node->u.unary);
+      if ((rhs->base != BaseType__Bool)){
+        error_span(node->u.unary->span, "Expression must be boolean");
+      } 
+      etype = Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__Modulus:
+    case ASTType__BitwiseOr:
+    case ASTType__BitwiseAnd:
+    case ASTType__BitwiseXor: {
+      Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
+      Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if (((lhs->base != BaseType__I32) || (rhs->base != BaseType__I32))){
+        error_span(node->span, "Operator requires integer types");
+      } 
+      etype = lhs;
+    } break;
+    case ASTType__UnaryMinus: {
+      etype = TypeChecker__check_expression(this, node->u.unary);
+      if ((!Type__is_numeric(etype))){
+        error_span(node->u.unary->span, "Expression must be a number");
+      } 
+    } break;
+    case ASTType__Address: {
+      etype = TypeChecker__check_expression(this, node->u.unary);
+      etype = Type__new_link(BaseType__Pointer, etype, node->span);
+    } break;
+    case ASTType__Dereference: {
+      Type* expr_type = TypeChecker__check_expression(this, node->u.unary);
+      if ((expr_type->base != BaseType__Pointer)){
+        error_span(node->u.unary->span, "Expression must be a pointer-type");
+      } 
+      etype = expr_type->ptr;
+    } break;
+    case ASTType__Index: {
+      Type* expr_type = TypeChecker__check_expression(this, node->u.binary.lhs);
+      if ((expr_type->base != BaseType__Pointer)){
+        error_span(node->u.binary.lhs->span, "Expression must be a pointer-type");
+      } 
+      Type* index_type = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if ((index_type->base != BaseType__I32)){
+        error_span(node->u.binary.rhs->span, "Index must be an integer");
+      } 
+      etype = expr_type->ptr;
+    } break;
+    case ASTType__PlusEquals:
+    case ASTType__MinusEquals:
+    case ASTType__DivideEquals:
+    case ASTType__MultiplyEquals: {
+      Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
+      Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))){
+        error_span(node->u.binary.lhs->span, "Operator requires numeric types");
+      } 
+      if ((!Type__eq(lhs, rhs))){
+        error_span(node->span, "Operands must be be of the same type");
+      } 
+      etype = lhs;
+    } break;
+    case ASTType__Assignment: {
+      Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
+      Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if ((!Type__eq(lhs, rhs))){
+        error_span(node->span, "Variable type does not match assignment type");
+      } 
+      etype = lhs;
+    } break;
+    case ASTType__ScopeLookup: {
+      if ((node->u.member.lhs->type != ASTType__Identifier)){
+        error_span(node->u.member.lhs->span, "Left hand side of `::` must be a struct name");
+      } 
+      char* struct_name = node->u.member.lhs->u.ident.name;
+      Structure* struc = ((Structure*)Map__get(this->structures, struct_name));
+      if (struc == ((Structure*)0)){
+        error_span(node->u.member.lhs->span, "Unknown struct with this name");
+      } 
+      char* field_name = node->u.member.name;
+      Variable* var = TypeChecker__get_struct_member(this, struct_name, field_name);
+      Map* s_methods = ((Map*)Map__get(this->methods, struct_name));
+      Function* method = ((Function*)Map__get(s_methods, field_name));
+      if ((struc->is_enum && (var != ((Variable*)0)))){
+        node->type = ASTType__EnumValue;
+        node->u.enum_val.struct_def = struc;
+        node->u.enum_val.name = field_name;
+        etype = struc->type;
+      }  else       if ((method != ((Function*)0))){
+        etype = method->type;
+      }  else {
+        error_span(node->span, "Struct has no static method with this name");
+      } 
+      
+    } break;
+    case ASTType__Member: {
+      Type* lhs_type = TypeChecker__check_expression(this, node->u.member.lhs);
+      if ((!Type__is_struct_or_ptr(lhs_type))){
+        error_span(node->u.member.lhs->span, "LHS of member access must be a (pointer to) struct");
+      } 
+      node->u.member.is_pointer = lhs_type->base == BaseType__Pointer;
+      Type* struct_type = lhs_type;
+      if (lhs_type->base == BaseType__Pointer){
+        struct_type = lhs_type->ptr;
+      } 
+      char* struct_name = struct_type->name;
+      char* field_name = node->u.member.name;
+      Structure* struc = ((Structure*)Map__get(this->structures, struct_name));
+      Variable* field = TypeChecker__get_struct_member(this, struct_name, field_name);
+      Map* s_methods = ((Map*)Map__get(this->methods, struct_name));
+      Function* method = ((Function*)Map__get(s_methods, field_name));
+      if (((!struc->is_enum) && (field != ((Variable*)0)))){
+        etype = field->type;
+      }  else       if ((method != ((Function*)0))){
+        if (method->is_static){
+          error_span(node->span, "Member access requires a non-static method");
+        } 
+        etype = method->type;
+      }  else {
+        if (struc->is_enum){
+          error_span(node->span, "Enum has no method with this name");
+        }  else {
+          error_span(node->span, "Struct has no member with this name");
+        } 
+      } 
+      
+    } break;
+    case ASTType__Cast: {
+      Type* lhs_type = TypeChecker__check_expression(this, node->u.cast.lhs);
+      if ((!TypeChecker__type_is_valid(this, node->u.cast.to))){
+        error_span(node->u.cast.to->span, "Type does not exist");
+      } 
+      etype = node->u.cast.to;
+    } break;
+    default: {
+      printf("Unhandled type in check_expression: %s" "\n", ASTType__str(node->type));
+      exit(1);
+    } break;
+  }
   node->etype = etype;
   return etype;
 }
 
-bool TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST* node) {
+void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST* node) {
   Map* mapping = Map__new();
   ;
   Vector* cases = node->u.match_stmt.cases;
@@ -3267,20 +3312,20 @@ bool TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST*
       error_span(node->u.match_stmt.defolt_span, "`else` case is not needed for this match");
     } 
   } 
-  return true;
 
 /* defers */
   Map__free(mapping);
 }
 
-bool TypeChecker__check_match(TypeChecker* this, AST* node) {
+void TypeChecker__check_match(TypeChecker* this, AST* node) {
   AST* expr = node->u.match_stmt.expr;
   Type* expr_type = TypeChecker__check_expression(this, expr);
   Structure* struc;
   if (expr_type->base == BaseType__Structure){
     struc = ((Structure*)Map__get(this->structures, expr_type->name));
     if (struc->is_enum){
-      return TypeChecker__check_match_for_enum(this, struc, node);
+      TypeChecker__check_match_for_enum(this, struc, node);
+      return;
     } 
   } 
   if (((expr_type->base != BaseType__I32) && (expr_type->base != BaseType__Char))){
@@ -3305,112 +3350,110 @@ bool TypeChecker__check_match(TypeChecker* this, AST* node) {
     error_span(node->span, "`else` case is missing");
   } 
   TypeChecker__check_statement(this, defolt);
-  return true;
 }
 
 void TypeChecker__check_statement(TypeChecker* this, AST* node) {
-  if (node->type == ASTType__Block){
-    TypeChecker__check_block(this, node);
-  }  else   if (node->type == ASTType__Return){
-    if (this->cur_func == ((Function*)0)){
-      error_span(node->span, "Return statement outside of function");
-    } 
-    if (node->u.unary == ((AST*)0)){
-      if ((this->cur_func->return_type->base != BaseType__Void)){
-        error_span(node->span, "Cannot have empty return in non-void function");
+  switch (node->type) {
+    case ASTType__Block: {
+      TypeChecker__check_block(this, node);
+    } break;
+    case ASTType__Defer: {
+      TypeChecker__check_expression(this, node->u.unary);
+    } break;
+    case ASTType__Match: {
+      TypeChecker__check_match(this, node);
+    } break;
+    case ASTType__Return: {
+      if (this->cur_func == ((Function*)0)){
+        error_span(node->span, "Return statement outside of function");
       } 
-    }  else {
-      if (this->cur_func->return_type->base == BaseType__Void){
-        error_span(node->span, "Cannot return value in void function");
+      if (node->u.unary == ((AST*)0)){
+        if ((this->cur_func->return_type->base != BaseType__Void)){
+          error_span(node->span, "Cannot have empty return in non-void function");
+        } 
+      }  else {
+        if (this->cur_func->return_type->base == BaseType__Void){
+          error_span(node->span, "Cannot return value in void function");
+        } 
+        Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
+        if ((!Type__eq(ret_type, this->cur_func->return_type))){
+          error_span(node->span, "Return type does not match function return type");
+        } 
       } 
-      Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
-      if ((!Type__eq(ret_type, this->cur_func->return_type))){
-        error_span(node->span, "Return type does not match function return type");
+    } break;
+    case ASTType__Break:
+    case ASTType__Continue: {
+      if ((!this->in_loop)){
+        error_span(node->span, __format_string("%s statement outside of loop", ASTType__str(node->type)));
       } 
-    } 
-  }  else   if (node->type == ASTType__Break){
-    if ((!this->in_loop)){
-      error_span(node->span, "Break statement outside of loop");
-    } 
-  }  else   if (node->type == ASTType__Continue){
-    if ((!this->in_loop)){
-      error_span(node->span, "Continue statement outside of loop");
-    } 
-  }  else   if (node->type == ASTType__Defer){
-    TypeChecker__check_expression(this, node->u.unary);
-  }  else   if (node->type == ASTType__Match){
-    TypeChecker__check_match(this, node);
-  }  else   if (node->type == ASTType__VarDeclaration){
-    VarDeclaration* var_decl = (&node->u.var_decl);
-    if ((var_decl->init != ((AST*)0))){
-      Type* init_type = TypeChecker__check_expression(this, var_decl->init);
-      if (init_type->base == BaseType__Method){
-        error_span(var_decl->init->span, "Cannot assign methods to variables");
+    } break;
+    case ASTType__VarDeclaration: {
+      VarDeclaration* var_decl = (&node->u.var_decl);
+      if ((var_decl->init != ((AST*)0))){
+        Type* init_type = TypeChecker__check_expression(this, var_decl->init);
+        if (init_type->base == BaseType__Method){
+          error_span(var_decl->init->span, "Cannot assign methods to variables");
+        } 
+        if (var_decl->var->type == ((Type*)0)){
+          var_decl->var->type = init_type;
+        }  else         if ((!Type__eq(var_decl->var->type, init_type))){
+          error_span(var_decl->init->span, "Variable type does not match initializer type");
+        } 
+        
+      }  else {
+        if (var_decl->var->type == ((Type*)0)){
+          error_span(var_decl->var->span, "Variable type cannot be inferred, specify explicitly");
+        } 
+        if ((!TypeChecker__type_is_valid(this, var_decl->var->type))){
+          error_span(var_decl->var->type->span, "Invalid variable type");
+        } 
       } 
-      if (var_decl->var->type == ((Type*)0)){
-        var_decl->var->type = init_type;
-      }  else       if ((!Type__eq(var_decl->var->type, init_type))){
-        error_span(var_decl->init->span, "Variable type does not match initializer type");
-      } 
-      
-    }  else {
-      if (var_decl->var->type == ((Type*)0)){
-        error_span(var_decl->var->span, "Variable type cannot be inferred, specify explicitly");
-      } 
-      if ((!TypeChecker__type_is_valid(this, var_decl->var->type))){
-        error_span(var_decl->var->type->span, "Invalid variable type");
-      } 
-    } 
-    TypeChecker__push_var(this, var_decl->var);
-  }  else   if (node->type == ASTType__While){
-    bool was_in_loop = this->in_loop;
-    this->in_loop = true;
-    Type* cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
-    if ((cond_type->base != BaseType__Bool)){
-      error_span(node->u.loop.cond->span, "Condition must be boolean");
-    } 
-    TypeChecker__check_statement(this, node->u.loop.body);
-    this->in_loop = was_in_loop;
-  }  else   if (node->type == ASTType__For){
-    bool was_in_loop = this->in_loop;
-    this->in_loop = true;
-    TypeChecker__push_scope(this);
-    if ((node->u.loop.init != ((AST*)0))){
-      TypeChecker__check_statement(this, node->u.loop.init);
-    } 
-    if ((node->u.loop.init != ((AST*)0))){
+      TypeChecker__push_var(this, var_decl->var);
+    } break;
+    case ASTType__While: {
+      bool was_in_loop = this->in_loop;
+      this->in_loop = true;
       Type* cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
       if ((cond_type->base != BaseType__Bool)){
         error_span(node->u.loop.cond->span, "Condition must be boolean");
       } 
-    } 
-    if ((node->u.loop.incr != ((AST*)0))){
-      TypeChecker__check_statement(this, node->u.loop.incr);
-    } 
-    TypeChecker__check_statement(this, node->u.loop.body);
-    TypeChecker__pop_scope(this);
-    this->in_loop = was_in_loop;
-  }  else   if (node->type == ASTType__If){
-    Type* cond_type = TypeChecker__check_expression(this, node->u.if_stmt.cond);
-    if ((cond_type->base != BaseType__Bool)){
-      error_span(node->u.if_stmt.cond->span, "Condition must be boolean");
-    } 
-    TypeChecker__check_statement(this, node->u.if_stmt.then);
-    if ((node->u.if_stmt.els != ((AST*)0))){
-      TypeChecker__check_statement(this, node->u.if_stmt.els);
-    } 
-  }  else {
-    TypeChecker__check_expression(this, node);
-  } 
-  
-  
-  
-  
-  
-  
-  
-  
-  
+      TypeChecker__check_statement(this, node->u.loop.body);
+      this->in_loop = was_in_loop;
+    } break;
+    case ASTType__For: {
+      bool was_in_loop = this->in_loop;
+      this->in_loop = true;
+      TypeChecker__push_scope(this);
+      if ((node->u.loop.init != ((AST*)0))){
+        TypeChecker__check_statement(this, node->u.loop.init);
+      } 
+      if ((node->u.loop.init != ((AST*)0))){
+        Type* cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
+        if ((cond_type->base != BaseType__Bool)){
+          error_span(node->u.loop.cond->span, "Condition must be boolean");
+        } 
+      } 
+      if ((node->u.loop.incr != ((AST*)0))){
+        TypeChecker__check_statement(this, node->u.loop.incr);
+      } 
+      TypeChecker__check_statement(this, node->u.loop.body);
+      TypeChecker__pop_scope(this);
+      this->in_loop = was_in_loop;
+    } break;
+    case ASTType__If: {
+      Type* cond_type = TypeChecker__check_expression(this, node->u.if_stmt.cond);
+      if ((cond_type->base != BaseType__Bool)){
+        error_span(node->u.if_stmt.cond->span, "Condition must be boolean");
+      } 
+      TypeChecker__check_statement(this, node->u.if_stmt.then);
+      if ((node->u.if_stmt.els != ((AST*)0))){
+        TypeChecker__check_statement(this, node->u.if_stmt.els);
+      } 
+    } break;
+    default: {
+      TypeChecker__check_expression(this, node);
+    } break;
+  }
 }
 
 void TypeChecker__check_block(TypeChecker* this, AST* node) {
@@ -3619,259 +3662,288 @@ void CodeGenerator__gen_struct(CodeGenerator* this, Structure* struc) {
 }
 
 char* CodeGenerator__get_op(ASTType type) {
-  if (type == ASTType__And)
-  return " && ";
-  
-  if (type == ASTType__Or)
-  return " || ";
-  
-  if (type == ASTType__BitwiseOr)
-  return " | ";
-  
-  if (type == ASTType__BitwiseAnd)
-  return " & ";
-  
-  if (type == ASTType__BitwiseXor)
-  return " ^ ";
-  
-  if (type == ASTType__Modulus)
-  return " % ";
-  
-  if (type == ASTType__Plus)
-  return " + ";
-  
-  if (type == ASTType__Minus)
-  return " - ";
-  
-  if (type == ASTType__Multiply)
-  return " * ";
-  
-  if (type == ASTType__Divide)
-  return " / ";
-  
-  if (type == ASTType__LessThan)
-  return " < ";
-  
-  if (type == ASTType__GreaterThan)
-  return " > ";
-  
-  if (type == ASTType__Assignment)
-  return " = ";
-  
-  if (type == ASTType__PlusEquals)
-  return " += ";
-  
-  if (type == ASTType__MinusEquals)
-  return " -= ";
-  
-  if (type == ASTType__MultiplyEquals)
-  return " *= ";
-  
-  if (type == ASTType__DivideEquals)
-  return " /= ";
-  
-  if (type == ASTType__LessThanEquals)
-  return " <= ";
-  
-  if (type == ASTType__GreaterThanEquals)
-  return " >= ";
-  
-  if (type == ASTType__Equals)
-  return " == ";
-  
-  if (type == ASTType__NotEquals)
-  return " != ";
-  
-  if (type == ASTType__Address)
-  return "&";
-  
-  if (type == ASTType__Dereference)
-  return "*";
-  
-  if (type == ASTType__Not)
-  return "!";
-  
-  if (type == ASTType__UnaryMinus)
-  return "-";
-  
-  printf("Unknown op type in get_op: %s" "\n", ASTType__str(type));
-  exit(1);
+  switch (type) {
+    case ASTType__Address: {
+      return "&";
+    } break;
+    case ASTType__And: {
+      return " && ";
+    } break;
+    case ASTType__Assignment: {
+      return " = ";
+    } break;
+    case ASTType__BitwiseAnd: {
+      return " & ";
+    } break;
+    case ASTType__BitwiseOr: {
+      return " | ";
+    } break;
+    case ASTType__BitwiseXor: {
+      return " ^ ";
+    } break;
+    case ASTType__Dereference: {
+      return "*";
+    } break;
+    case ASTType__Divide: {
+      return " / ";
+    } break;
+    case ASTType__DivideEquals: {
+      return " /= ";
+    } break;
+    case ASTType__Equals: {
+      return " == ";
+    } break;
+    case ASTType__GreaterThan: {
+      return " > ";
+    } break;
+    case ASTType__GreaterThanEquals: {
+      return " >= ";
+    } break;
+    case ASTType__LessThan: {
+      return " < ";
+    } break;
+    case ASTType__LessThanEquals: {
+      return " <= ";
+    } break;
+    case ASTType__Minus: {
+      return " - ";
+    } break;
+    case ASTType__MinusEquals: {
+      return " -= ";
+    } break;
+    case ASTType__Modulus: {
+      return " % ";
+    } break;
+    case ASTType__Multiply: {
+      return " * ";
+    } break;
+    case ASTType__MultiplyEquals: {
+      return " *= ";
+    } break;
+    case ASTType__Not: {
+      return "!";
+    } break;
+    case ASTType__NotEquals: {
+      return " != ";
+    } break;
+    case ASTType__Or: {
+      return " || ";
+    } break;
+    case ASTType__Plus: {
+      return " + ";
+    } break;
+    case ASTType__PlusEquals: {
+      return " += ";
+    } break;
+    case ASTType__UnaryMinus: {
+      return "-";
+    } break;
+    default: {
+      printf("Unknown op type in get_op: %s" "\n", ASTType__str(type));
+      exit(1);
+    } break;
+  }
 }
 
 void CodeGenerator__gen_type(CodeGenerator* this, Type* type) {
-  if (type->base == BaseType__Void)
-  File__puts(this->out, "void");
-   else   if (type->base == BaseType__Char)
-  File__puts(this->out, "char");
-   else   if (type->base == BaseType__I32)
-  File__puts(this->out, "int");
-   else   if (type->base == BaseType__F32)
-  File__puts(this->out, "float");
-   else   if (type->base == BaseType__Bool)
-  File__puts(this->out, "bool");
-   else   if (type->base == BaseType__U8)
-  File__puts(this->out, "unsigned char");
-   else   if (type->base == BaseType__Pointer){
-    CodeGenerator__gen_type(this, type->ptr);
-    File__puts(this->out, "*");
-  }  else   if (type->base == BaseType__Structure){
-    if (type->struct_def->is_extern){
-      File__puts(this->out, type->struct_def->extern_name);
-    }  else {
-      File__puts(this->out, type->struct_def->name);
-    } 
-  }  else {
-    printf("unknown type in gen_type: %s" "\n", Type__str(type));
-    exit(1);
-  } 
-  
-  
-  
-  
-  
-  
-  
+  switch (type->base) {
+    case BaseType__Void: {
+      File__puts(this->out, "void");
+    } break;
+    case BaseType__Char: {
+      File__puts(this->out, "char");
+    } break;
+    case BaseType__I32: {
+      File__puts(this->out, "int");
+    } break;
+    case BaseType__F32: {
+      File__puts(this->out, "float");
+    } break;
+    case BaseType__Bool: {
+      File__puts(this->out, "bool");
+    } break;
+    case BaseType__U8: {
+      File__puts(this->out, "unsigned char");
+    } break;
+    case BaseType__Pointer: {
+      CodeGenerator__gen_type(this, type->ptr);
+      File__puts(this->out, "*");
+    } break;
+    case BaseType__Structure: {
+      if (type->struct_def->is_extern){
+        File__puts(this->out, type->struct_def->extern_name);
+      }  else {
+        File__puts(this->out, type->struct_def->name);
+      } 
+    } break;
+    default: {
+      printf("Unknown type in gen_type: %s" "\n", Type__str(type));
+      exit(1);
+    } break;
+  }
 }
 
 void CodeGenerator__gen_expression(CodeGenerator* this, AST* node) {
-  if (node->type == ASTType__IntLiteral){
-    File__puts(this->out, node->u.num_literal);
-  }  else   if (node->type == ASTType__FloatLiteral){
-    File__puts(this->out, node->u.num_literal);
-  }  else   if (node->type == ASTType__StringLiteral){
-    File__puts(this->out, __format_string("\"%s\"", node->u.string_literal));
-  }  else   if (node->type == ASTType__CharLiteral){
-    File__puts(this->out, __format_string("'%s'", node->u.char_literal));
-  }  else   if (node->type == ASTType__BoolLiteral){
-    if (node->u.bool_literal){
-      File__puts(this->out, "true");
-    }  else {
-      File__puts(this->out, "false");
-    } 
-  }  else   if (node->type == ASTType__Identifier){
-    Identifier ident = node->u.ident;
-    if (ident.is_function){
-      CodeGenerator__gen_function_name(this, ident.func);
-    }  else {
-      Variable* var = ident.var;
-      if (var->is_extern){
-        File__puts(this->out, var->extern_name);
+  switch (node->type) {
+    case ASTType__IntLiteral: {
+      File__puts(this->out, node->u.num_literal);
+    } break;
+    case ASTType__FloatLiteral: {
+      File__puts(this->out, node->u.num_literal);
+    } break;
+    case ASTType__StringLiteral: {
+      File__puts(this->out, __format_string("\"%s\"", node->u.string_literal));
+    } break;
+    case ASTType__CharLiteral: {
+      File__puts(this->out, __format_string("'%s'", node->u.char_literal));
+    } break;
+    case ASTType__BoolLiteral: {
+      if (node->u.bool_literal){
+        File__puts(this->out, "true");
       }  else {
-        File__puts(this->out, var->name);
+        File__puts(this->out, "false");
       } 
-    } 
-  }  else   if (node->type == ASTType__Call){
-    bool newline_after_first = false;
-    if (AST__callee_is(node, "print")){
-      File__puts(this->out, "printf");
-    }  else     if (AST__callee_is(node, "println")){
-      File__puts(this->out, "printf");
-      newline_after_first = true;
-    }  else     if (node->u.call.func == ((Function*)0)){
-      CodeGenerator__gen_expression(this, node->u.call.callee);
-    }  else {
-      CodeGenerator__gen_function_name(this, node->u.call.func);
-    } 
-    
-    
-    File__puts(this->out, "(");
-    Vector* args = node->u.call.args;
-    bool first = true;
-    for (int i = 0; (i < args->size); i += 1) {
-      if ((!first)){
+    } break;
+    case ASTType__Identifier: {
+      Identifier ident = node->u.ident;
+      if (ident.is_function){
+        CodeGenerator__gen_function_name(this, ident.func);
+      }  else       if (ident.var->is_extern){
+        File__puts(this->out, ident.var->extern_name);
+      }  else {
+        File__puts(this->out, ident.var->name);
+      } 
+      
+    } break;
+    case ASTType__Call: {
+      bool newline_after_first = false;
+      if (AST__callee_is(node, "print")){
+        File__puts(this->out, "printf");
+      }  else       if (AST__callee_is(node, "println")){
+        File__puts(this->out, "printf");
+        newline_after_first = true;
+      }  else       if (node->u.call.func == ((Function*)0)){
+        CodeGenerator__gen_expression(this, node->u.call.callee);
+      }  else {
+        CodeGenerator__gen_function_name(this, node->u.call.func);
+      } 
+      
+      
+      File__puts(this->out, "(");
+      Vector* args = node->u.call.args;
+      for (int i = 0; (i < args->size); i += 1) {
+        if ((i > 0)){
+          File__puts(this->out, ", ");
+        } 
+        CodeGenerator__gen_expression(this, ((AST*)Vector__at(args, i)));
+        if ((i == 0 && newline_after_first)){
+          File__puts(this->out, " \"\\n\"");
+        } 
+      } 
+      File__puts(this->out, ")");
+    } break;
+    case ASTType__And:
+    case ASTType__BitwiseAnd:
+    case ASTType__BitwiseOr:
+    case ASTType__BitwiseXor:
+    case ASTType__Divide:
+    case ASTType__GreaterThan:
+    case ASTType__GreaterThanEquals:
+    case ASTType__LessThan:
+    case ASTType__LessThanEquals:
+    case ASTType__Minus:
+    case ASTType__Modulus:
+    case ASTType__Multiply:
+    case ASTType__NotEquals:
+    case ASTType__Or:
+    case ASTType__Plus: {
+      File__puts(this->out, "(");
+      CodeGenerator__gen_expression(this, node->u.binary.lhs);
+      File__puts(this->out, CodeGenerator__get_op(node->type));
+      CodeGenerator__gen_expression(this, node->u.binary.rhs);
+      File__puts(this->out, ")");
+    } break;
+    case ASTType__Address:
+    case ASTType__Dereference:
+    case ASTType__Not:
+    case ASTType__UnaryMinus: {
+      File__puts(this->out, "(");
+      File__puts(this->out, CodeGenerator__get_op(node->type));
+      CodeGenerator__gen_expression(this, node->u.unary);
+      File__puts(this->out, ")");
+    } break;
+    case ASTType__Index: {
+      CodeGenerator__gen_expression(this, node->u.binary.lhs);
+      File__puts(this->out, "[");
+      CodeGenerator__gen_expression(this, node->u.binary.rhs);
+      File__puts(this->out, "]");
+    } break;
+    case ASTType__Member: {
+      CodeGenerator__gen_expression(this, node->u.member.lhs);
+      if (node->u.member.is_pointer){
+        File__puts(this->out, "->");
+      }  else {
+        File__puts(this->out, ".");
+      } 
+      File__puts(this->out, node->u.member.name);
+    } break;
+    case ASTType__EnumValue: {
+      EnumValue enum_value = node->u.enum_val;
+      CodeGenerator__gen_enum_value(this, enum_value.struct_def->name, enum_value.name);
+    } break;
+    case ASTType__Cast: {
+      File__puts(this->out, "((");
+      CodeGenerator__gen_type(this, node->u.cast.to);
+      File__puts(this->out, ")");
+      CodeGenerator__gen_expression(this, node->u.cast.lhs);
+      File__puts(this->out, ")");
+    } break;
+    case ASTType__FormatStringLiteral: {
+      File__puts(this->out, "__format_string(\"");
+      File__puts(this->out, node->u.fmt_str.str);
+      File__puts(this->out, "\"");
+      Vector* exprs = node->u.fmt_str.exprs;
+      for (int i = 0; (i < exprs->size); i += 1) {
+        AST* expr = ((AST*)Vector__at(exprs, i));
         File__puts(this->out, ", ");
+        CodeGenerator__gen_expression(this, expr);
       } 
-      CodeGenerator__gen_expression(this, ((AST*)Vector__at(args, i)));
-      if ((first && newline_after_first)){
-        File__puts(this->out, " \"\\n\"");
-      } 
-      first = false;
-    } 
-    File__puts(this->out, ")");
-  }  else   if ((((((((((((((((node->type == ASTType__And || node->type == ASTType__And) || node->type == ASTType__Or) || node->type == ASTType__BitwiseOr) || node->type == ASTType__BitwiseAnd) || node->type == ASTType__BitwiseXor) || node->type == ASTType__Modulus) || node->type == ASTType__NotEquals) || node->type == ASTType__LessThan) || node->type == ASTType__GreaterThan) || node->type == ASTType__LessThanEquals) || node->type == ASTType__GreaterThanEquals) || node->type == ASTType__Plus) || node->type == ASTType__Minus) || node->type == ASTType__Multiply) || node->type == ASTType__Divide)){
-    File__puts(this->out, "(");
-    CodeGenerator__gen_expression(this, node->u.binary.lhs);
-    File__puts(this->out, CodeGenerator__get_op(node->type));
-    CodeGenerator__gen_expression(this, node->u.binary.rhs);
-    File__puts(this->out, ")");
-  }  else   if ((((node->type == ASTType__Address || node->type == ASTType__Dereference) || node->type == ASTType__Not) || node->type == ASTType__UnaryMinus)){
-    File__puts(this->out, "(");
-    File__puts(this->out, CodeGenerator__get_op(node->type));
-    CodeGenerator__gen_expression(this, node->u.unary);
-    File__puts(this->out, ")");
-  }  else   if (node->type == ASTType__Index){
-    CodeGenerator__gen_expression(this, node->u.binary.lhs);
-    File__puts(this->out, "[");
-    CodeGenerator__gen_expression(this, node->u.binary.rhs);
-    File__puts(this->out, "]");
-  }  else   if (node->type == ASTType__Member){
-    CodeGenerator__gen_expression(this, node->u.member.lhs);
-    if (node->u.member.is_pointer){
-      File__puts(this->out, "->");
-    }  else {
-      File__puts(this->out, ".");
-    } 
-    File__puts(this->out, node->u.member.name);
-  }  else   if (node->type == ASTType__EnumValue){
-    EnumValue enum_value = node->u.enum_val;
-    CodeGenerator__gen_enum_value(this, enum_value.struct_def->name, enum_value.name);
-  }  else   if (node->type == ASTType__Cast){
-    File__puts(this->out, "((");
-    CodeGenerator__gen_type(this, node->u.cast.to);
-    File__puts(this->out, ")");
-    CodeGenerator__gen_expression(this, node->u.cast.lhs);
-    File__puts(this->out, ")");
-  }  else   if (node->type == ASTType__FormatStringLiteral){
-    File__puts(this->out, "__format_string(\"");
-    File__puts(this->out, node->u.fmt_str.str);
-    File__puts(this->out, "\"");
-    Vector* exprs = node->u.fmt_str.exprs;
-    for (int i = 0; (i < exprs->size); i += 1) {
-      AST* expr = ((AST*)Vector__at(exprs, i));
-      File__puts(this->out, ", ");
-      CodeGenerator__gen_expression(this, expr);
-    } 
-    File__puts(this->out, ")");
-  }  else   if (node->type == ASTType__Defer){
-    Vector__push(CodeGenerator__scope(this), ((void*)node->u.unary));
-  }  else   if (node->type == ASTType__SizeOf){
-    File__puts(this->out, "sizeof(");
-    CodeGenerator__gen_type(this, node->u.size_of_type);
-    File__puts(this->out, ")");
-  }  else   if ((((((node->type == ASTType__Equals || node->type == ASTType__Assignment) || node->type == ASTType__PlusEquals) || node->type == ASTType__MinusEquals) || node->type == ASTType__DivideEquals) || node->type == ASTType__MultiplyEquals)){
-    CodeGenerator__gen_expression(this, node->u.binary.lhs);
-    File__puts(this->out, CodeGenerator__get_op(node->type));
-    CodeGenerator__gen_expression(this, node->u.binary.rhs);
-  }  else {
-    printf("unknown type in gen_expression: %s" "\n", ASTType__str(node->type));
-    exit(1);
-  } 
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+      File__puts(this->out, ")");
+    } break;
+    case ASTType__Defer: {
+      Vector__push(CodeGenerator__scope(this), ((void*)node->u.unary));
+    } break;
+    case ASTType__SizeOf: {
+      File__puts(this->out, "sizeof(");
+      CodeGenerator__gen_type(this, node->u.size_of_type);
+      File__puts(this->out, ")");
+    } break;
+    case ASTType__Equals:
+    case ASTType__Assignment:
+    case ASTType__PlusEquals:
+    case ASTType__MinusEquals:
+    case ASTType__DivideEquals:
+    case ASTType__MultiplyEquals: {
+      CodeGenerator__gen_expression(this, node->u.binary.lhs);
+      File__puts(this->out, CodeGenerator__get_op(node->type));
+      CodeGenerator__gen_expression(this, node->u.binary.rhs);
+    } break;
+    default: {
+      printf("unknown type in gen_expression: %s" "\n", ASTType__str(node->type));
+      exit(1);
+    } break;
+  }
 }
 
 void CodeGenerator__gen_var_decl(CodeGenerator* this, AST* node) {
   Variable* var = node->u.var_decl.var;
-  if ((!var->is_extern)){
-    CodeGenerator__gen_type_and_name(this, var->type, var->name);
-    if ((node->u.var_decl.init != ((AST*)0))){
-      File__puts(this->out, " = ");
-      CodeGenerator__gen_expression(this, node->u.var_decl.init);
-    } 
+  if (var->is_extern)
+  return;
+  
+  CodeGenerator__gen_type_and_name(this, var->type, var->name);
+  if ((node->u.var_decl.init != ((AST*)0))){
+    File__puts(this->out, " = ");
+    CodeGenerator__gen_expression(this, node->u.var_decl.init);
   } 
 }
 
@@ -4022,18 +4094,19 @@ void CodeGenerator__gen_struct_decls(CodeGenerator* this, Program* program) {
   File__puts(this->out, "/* struct declarations */\n");
   for (int i = 0; (i < program->structures->size); i += 1) {
     Structure* struc = ((Structure*)Vector__at(program->structures, i));
-    if ((!struc->is_extern)){
-      char* name = struc->name;
-      if (struc->is_enum){
-        File__puts(this->out, "typedef enum ");
-      }  else       if (struc->is_union){
-        File__puts(this->out, "typedef union ");
-      }  else {
-        File__puts(this->out, "typedef struct ");
-      } 
-      
-      File__puts(this->out, __format_string("%s %s;\n", name, name));
+    if (struc->is_extern)
+    continue;
+    
+    char* name = struc->name;
+    if (struc->is_enum){
+      File__puts(this->out, "typedef enum ");
+    }  else     if (struc->is_union){
+      File__puts(this->out, "typedef union ");
+    }  else {
+      File__puts(this->out, "typedef struct ");
     } 
+    
+    File__puts(this->out, __format_string("%s %s;\n", name, name));
   } 
   File__puts(this->out, "\n");
 }
@@ -4042,12 +4115,10 @@ void CodeGenerator__gen_type_and_name(CodeGenerator* this, Type* type, char* nam
   if (type->base == BaseType__Function){
     CodeGenerator__gen_type(this, type->return_type);
     File__puts(this->out, __format_string("(*%s)(", name));
-    bool first = true;
     for (int i = 0; (i < type->params->size); i += 1) {
-      if ((!first)){
+      if ((i > 0)){
         File__puts(this->out, ", ");
       } 
-      first = false;
       CodeGenerator__gen_type(this, ((Type*)Vector__at(type->params, i)));
     } 
     File__puts(this->out, ")");
@@ -4077,13 +4148,11 @@ void CodeGenerator__gen_function_decls(CodeGenerator* this, Program* program) {
       File__puts(this->out, " ");
       CodeGenerator__gen_function_name(this, func);
       File__puts(this->out, "(");
-      bool first = true;
       for (int i = 0; (i < func->params->size); i += 1) {
         Variable* param = ((Variable*)Vector__at(func->params, i));
-        if ((!first)){
+        if ((i > 0)){
           File__puts(this->out, ", ");
         } 
-        first = false;
         CodeGenerator__gen_type_and_name(this, param->type, param->name);
       } 
       File__puts(this->out, ");\n");
@@ -4098,12 +4167,10 @@ void CodeGenerator__gen_function(CodeGenerator* this, Function* func) {
     File__puts(this->out, " ");
     CodeGenerator__gen_function_name(this, func);
     File__puts(this->out, "(");
-    bool first = true;
     for (int i = 0; (i < func->params->size); i += 1) {
-      if ((!first)){
+      if ((i > 0)){
         File__puts(this->out, ", ");
       } 
-      first = false;
       Variable* var = ((Variable*)Vector__at(func->params, i));
       CodeGenerator__gen_type_and_name(this, var->type, var->name);
     } 

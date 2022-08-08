@@ -75,6 +75,7 @@ enum TokenType {
   And
   As
   Bool
+  Break
   Char
   Continue
   Def
@@ -103,7 +104,6 @@ enum TokenType {
   Use
   Void
   While
-  Break
 
   // Other tokens
   AtSign
@@ -153,6 +153,7 @@ def TokenType::from_text(text: string): TokenType {
     if streq(text, "and") return TokenType::And
     if streq(text, "as") return TokenType::As
     if streq(text, "bool") return TokenType::Bool
+    if streq(text, "break") return TokenType::Break
     if streq(text, "char") return TokenType::Char
     if streq(text, "continue") return TokenType::Continue
     if streq(text, "def") return TokenType::Def
@@ -171,7 +172,6 @@ def TokenType::from_text(text: string): TokenType {
     if streq(text, "not") return TokenType::Not
     if streq(text, "or") return TokenType::Or
     if streq(text, "return") return TokenType::Return
-    if streq(text, "break") return TokenType::Break
     if streq(text, "sizeof") return TokenType::SizeOf
     if streq(text, "string") return TokenType::String
     if streq(text, "struct") return TokenType::Struct
@@ -188,84 +188,82 @@ def TokenType::from_text(text: string): TokenType {
 }
 
 def TokenType::str(this): string {
-  // TODO: Match statement
+    match this {
+        // Keywords
+        TokenType::And => return "and"
+        TokenType::As => return "as"
+        TokenType::Bool => return "bool"
+        TokenType::Break => return "break"
+        TokenType::Char => return "char"
+        TokenType::Continue => return "continue"
+        TokenType::Def => return "def"
+        TokenType::Defer => return "defer"
+        TokenType::Else => return "else"
+        TokenType::Enum => return "enum"
+        TokenType::Extern => return "extern"
+        TokenType::False => return "false"
+        TokenType::F32 => return "f32"
+        TokenType::For => return "for"
+        TokenType::Fn => return "fn"
+        TokenType::I32 => return "i32"
+        TokenType::If => return "if"
+        TokenType::Let => return "let"
+        TokenType::Match => return "match"
+        TokenType::Not => return "not"
+        TokenType::Or => return "or"
+        TokenType::Return => return "return"
+        TokenType::SizeOf => return "sizeof"
+        TokenType::String => return "string"
+        TokenType::Struct => return "struct"
+        TokenType::True => return "true"
+        TokenType::U8 => return "u8"
+        TokenType::UntypedPtr => return "untyped_ptr"
+        TokenType::Union => return "union"
+        TokenType::Use => return "use"
+        TokenType::Void => return "void"
+        TokenType::While => return "while"
 
-  // Keywords
-  if this == TokenType::And return "and"
-  if this == TokenType::As return "as"
-  if this == TokenType::Bool return "bool"
-  if this == TokenType::Break return "break"
-  if this == TokenType::Char return "char"
-  if this == TokenType::Continue return "continue"
-  if this == TokenType::Def return "def"
-  if this == TokenType::Defer return "defer"
-  if this == TokenType::Else return "else"
-  if this == TokenType::Enum return "enum"
-  if this == TokenType::Extern return "extern"
-  if this == TokenType::False return "false"
-  if this == TokenType::F32 return "f32"
-  if this == TokenType::For return "for"
-  if this == TokenType::Fn return "fn"
-  if this == TokenType::I32 return "i32"
-  if this == TokenType::If return "if"
-  if this == TokenType::Let return "let"
-  if this == TokenType::Not return "not"
-  if this == TokenType::Match return "match"
-  if this == TokenType::Or return "or"
-  if this == TokenType::Return return "return"
-  if this == TokenType::SizeOf return "sizeof"
-  if this == TokenType::String return "string"
-  if this == TokenType::Struct return "struct"
-  if this == TokenType::True return "true"
-  if this == TokenType::U8 return "u8"
-  if this == TokenType::UntypedPtr return "untyped_ptr"
-  if this == TokenType::Union return "union"
-  if this == TokenType::Use return "use"
-  if this == TokenType::Void return "void"
-  if this == TokenType::While return "while"
-
-  // Others
-  if (this == TokenType::AtSign) return "AtSign"
-  if (this == TokenType::Ampersand) return "Ampersand"
-  if (this == TokenType::Backtick) return "Backtick"
-  if (this == TokenType::Caret) return "Caret"
-  if (this == TokenType::CloseCurly) return "CloseCurly"
-  if (this == TokenType::CloseParen) return "CloseParen"
-  if (this == TokenType::CloseSquare) return "CloseSquare"
-  if (this == TokenType::Colon) return "Colon"
-  if (this == TokenType::ColonColon) return "ColonColon"
-  if (this == TokenType::Comma) return "Comma"
-  if (this == TokenType::Dot) return "Dot"
-  if (this == TokenType::EOF) return "<EOF>"
-  if (this == TokenType::Equals) return "Equals"
-  if (this == TokenType::EqualEquals) return "EqualEquals"
-  if (this == TokenType::Exclamation) return "Exclamation"
-  if (this == TokenType::FatArrow) return "FatArrow"
-  if (this == TokenType::FloatLiteral) return "FloatLiteral"
-  if (this == TokenType::FormatStringLiteral) return "FormatStringLiteral"
-  if (this == TokenType::GreaterThan) return "GreaterThan"
-  if (this == TokenType::GreaterThanEquals) return "GreaterThanEquals"
-  if (this == TokenType::Identifier) return "Identifier"
-  if (this == TokenType::IntLiteral) return "IntLiteral"
-  if (this == TokenType::LessThan) return "LessThan"
-  if (this == TokenType::LessThanEquals) return "LessThanEquals"
-  if (this == TokenType::Line) return "Line"
-  if (this == TokenType::Minus) return "Minus"
-  if (this == TokenType::MinusEquals) return "MinusEquals"
-  if (this == TokenType::NotEquals) return "NotEquals"
-  if (this == TokenType::OpenCurly) return "OpenCurly"
-  if (this == TokenType::OpenParen) return "OpenParen"
-  if (this == TokenType::OpenSquare) return "OpenSquare"
-  if (this == TokenType::Percent) return "Percent"
-  if (this == TokenType::Plus) return "Plus"
-  if (this == TokenType::PlusEquals) return "PlusEquals"
-  if (this == TokenType::Semicolon) return "Semicolon"
-  if (this == TokenType::Slash) return "Slash"
-  if (this == TokenType::SlashEquals) return "SlashEquals"
-  if (this == TokenType::Star) return "Star"
-  if (this == TokenType::StarEquals) return "StarEquals"
-  if (this == TokenType::StringLiteral) return "StringLiteral"
-
-  puts(`Unknown token type: {this as i32}`)
-  exit(1)
+        // Others
+        TokenType::AtSign => return "AtSign"
+        TokenType::Ampersand => return "Ampersand"
+        TokenType::Backtick => return "Backtick"
+        TokenType::Caret => return "Caret"
+        TokenType::CloseCurly => return "CloseCurly"
+        TokenType::CloseParen => return "CloseParen"
+        TokenType::CloseSquare => return "CloseSquare"
+        TokenType::Colon => return "Colon"
+        TokenType::ColonColon => return "ColonColon"
+        TokenType::Comma => return "Comma"
+        TokenType::Dot => return "Dot"
+        TokenType::EOF => return "EOF"
+        TokenType::Equals => return "Equals"
+        TokenType::EqualEquals => return "EqualEquals"
+        TokenType::Exclamation => return "Exclamation"
+        TokenType::FatArrow => return "FatArrow"
+        TokenType::FloatLiteral => return "FloatLiteral"
+        TokenType::FormatStringLiteral => return "FormatStringLiteral"
+        TokenType::GreaterThan => return "GreaterThan"
+        TokenType::GreaterThanEquals => return "GreaterThanEquals"
+        TokenType::Identifier => return "Identifier"
+        TokenType::IntLiteral => return "IntLiteral"
+        TokenType::LessThan => return "LessThan"
+        TokenType::LessThanEquals => return "LessThanEquals"
+        TokenType::Line => return "Line"
+        TokenType::Minus => return "Minus"
+        TokenType::MinusEquals => return "MinusEquals"
+        TokenType::NotEquals => return "NotEquals"
+        TokenType::OpenCurly => return "OpenCurly"
+        TokenType::OpenParen => return "OpenParen"
+        TokenType::OpenSquare => return "OpenSquare"
+        TokenType::Percent => return "Percent"
+        TokenType::Plus => return "Plus"
+        TokenType::PlusEquals => return "PlusEquals"
+        TokenType::Semicolon => return "Semicolon"
+        TokenType::Slash => return "Slash"
+        TokenType::SlashEquals => return "SlashEquals"
+        TokenType::Star => return "Star"
+        TokenType::StarEquals => return "StarEquals"
+        TokenType::StringLiteral => return "StringLiteral"
+        TokenType::CharLiteral => return "CharLiteral"
+    }
 }

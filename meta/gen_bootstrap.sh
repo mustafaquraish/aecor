@@ -1,18 +1,13 @@
 #!/bin/bash
 
 initial=$1
+if [ -z "$initial" ]; then
+    initial=./bootstrap/aecor
+fi
+
 mkdir -p build
 
 set -e
-
-echo "[+] Running test suite"
-if python3 meta/test.py -c $initial; then
-    echo
-else
-    echo
-    echo "[-] Error: Test suite failed"
-    exit 1
-fi
 
 echo "[+] Testing 3-stage bootstrap for validity"
 $initial compiler/main.ae -o build/stage1
@@ -25,6 +20,16 @@ else
     echo "[-] Error: Stage 2 and 3 are different, pleaes verify manually"
     exit 1
 fi
+
+echo "[+] Running test suite"
+if python3 meta/test.py -c ./build/stage3; then
+    echo
+else
+    echo
+    echo "[-] Error: Test suite failed"
+    exit 1
+fi
+
 
 read -p "Are you sure you want to replace bootstrap/stage0.c? [y/N] " confirm
 if [[ $confirm =~ ^[Yy]$ ]]; then

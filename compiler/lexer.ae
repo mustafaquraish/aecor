@@ -50,183 +50,174 @@ def Lexer::peek(&this, offset: i32): char {
 def Lexer::lex(&this): &Vector {
     while .i < .source_len {
         let c = .source[.i]
-        if (c == '\t' or c == '\v' or c == '\r' or c ==  ' ' or c ==  '\b') {
-            .i += 1
-            .loc.col += 1
-        } else if (c == '\n') {
-            .loc.line += 1
-            .loc.col = 1
-            .i += 1
-            .seen_newline = true
-        } else if (c == '!') {
-            if (.peek(1) == '=') {
-                .push_type(TokenType::NotEquals, 2)
-            } else {
-                .push_type(TokenType::Exclamation, 1)
-            }
-        } else if (c == ':') {
-            if (.peek(1) == ':') {
-                .push_type(TokenType::ColonColon, 2)
-            } else {
-                .push_type(TokenType::Colon, 1)
-            }
-        } else if (c == ';') {
-            .push_type(TokenType::Semicolon, 1)
-        } else if (c == ',') {
-            .push_type(TokenType::Comma, 1)
-        } else if (c == '.') {
-            .push_type(TokenType::Dot, 1)
-        } else if (c == '(') {
-            .push_type(TokenType::OpenParen, 1)
-        } else if (c == ')') {
-            .push_type(TokenType::CloseParen, 1)
-        } else if (c == '[') {
-            .push_type(TokenType::OpenSquare, 1)
-        } else if (c == ']') {
-            .push_type(TokenType::CloseSquare, 1)
-        } else if (c == '{') {
-            .push_type(TokenType::OpenCurly, 1)
-        } else if (c == '}') {
-            .push_type(TokenType::CloseCurly, 1)
-        } else if (c == '@') {
-            .push_type(TokenType::AtSign, 1)
-        } else if (c == '%') {
-            .push_type(TokenType::Percent, 1)
-        } else if (c == '^') {
-            .push_type(TokenType::Caret, 1)
-        } else if (c == '=') {
-            if (.peek(1) == '=') {
-                .push_type(TokenType::EqualEquals, 2)
-            } else if (.peek(1) == '>') {
-                .push_type(TokenType::FatArrow, 2)
-            } else {
-                .push_type(TokenType::Equals, 1)
-            }
-        } else if (c == '*') {
-            if (.peek(1) == '=') {
-                .push_type(TokenType::StarEquals, 2)
-            } else {
-                .push_type(TokenType::Star, 1)
-            }
-        } else if (c == '+') {
-            if (.peek(1) == '=') {
-                .push_type(TokenType::PlusEquals, 2)
-            } else {
-                .push_type(TokenType::Plus, 1)
-            }
-        } else if (c == '-') {
-            if (.peek(1) == '=') {
-                .push_type(TokenType::MinusEquals, 2)
-            } else {
-                .push_type(TokenType::Minus, 1)
-            }
-        } else if (c == '/') {
-            if (.peek(1) == '/') {
+        match c {
+            ' ' | '\t' | '\v' | '\r' | '\b' => {
+                .loc.col += 1
                 .i += 1
-                while (.i < .source_len and .source[.i] != '\n') {
+            }
+            '\n' => {
+                .loc.line += 1
+                .loc.col = 1
+                .i += 1
+                .seen_newline = true
+            }
+            ';' => .push_type(TokenType::Semicolon, 1)
+            ',' => .push_type(TokenType::Comma, 1)
+            '.' => .push_type(TokenType::Dot, 1)
+            '(' => .push_type(TokenType::OpenParen, 1)
+            ')' => .push_type(TokenType::CloseParen, 1)
+            '[' => .push_type(TokenType::OpenSquare, 1)
+            ']' => .push_type(TokenType::CloseSquare, 1)
+            '{' => .push_type(TokenType::OpenCurly, 1)
+            '}' => .push_type(TokenType::CloseCurly, 1)
+            '@' => .push_type(TokenType::AtSign, 1)
+            '%' => .push_type(TokenType::Percent, 1)
+            '^' => .push_type(TokenType::Caret, 1)
+            '&' => .push_type(TokenType::Ampersand, 1)
+            '|' => .push_type(TokenType::Line, 1)
+            '!' => {
+                if .peek(1) == '='
+                    .push_type(TokenType::NotEquals, 2)
+                else
+                    .push_type(TokenType::Exclamation, 1)
+            }
+            ':' => {
+                if .peek(1) == ':'
+                    .push_type(TokenType::ColonColon, 2)
+                else
+                    .push_type(TokenType::Colon, 1)
+            }
+            '=' => {
+                if .peek(1) == '='
+                    .push_type(TokenType::EqualEquals, 2)
+                else if .peek(1) == '>'
+                    .push_type(TokenType::FatArrow, 2)
+                else
+                    .push_type(TokenType::Equals, 1)
+            }
+            '*' => {
+                if .peek(1) == '='
+                    .push_type(TokenType::StarEquals, 2)
+                else
+                    .push_type(TokenType::Star, 1)
+            }
+            '+' => {
+                if .peek(1) == '='
+                    .push_type(TokenType::PlusEquals, 2)
+                else
+                    .push_type(TokenType::Plus, 1)
+            }
+            '-' => {
+                if .peek(1) == '='
+                    .push_type(TokenType::MinusEquals, 2)
+                else
+                    .push_type(TokenType::Minus, 1)
+            }
+            '/' => {
+                if .peek(1) == '/' {
                     .i += 1
+                    while .i < .source_len and .source[.i] != '\n' {
+                        .i += 1
+                    }
+                } else if .peek(1) == '=' {
+                    .push_type(TokenType::SlashEquals, 2)
+                } else {
+                    .push_type(TokenType::Slash, 1)
                 }
-            } else if (.peek(1) == '=') {
-                .push_type(TokenType::SlashEquals, 2)
-            } else {
-                .push_type(TokenType::Slash, 1)
             }
-        } else if (c == '<') {
-            if (.peek(1) == '=') {
-                .push_type(TokenType::LessThanEquals, 2)
-            } else {
-                .push_type(TokenType::LessThan, 1)
+            '<' => {
+                if .peek(1) == '='
+                    .push_type(TokenType::LessThanEquals, 2)
+                else
+                    .push_type(TokenType::LessThan, 1)
             }
-        } else if (c == '>') {
-            if (.peek(1) == '=') {
-                .push_type(TokenType::GreaterThanEquals, 2)
-            } else {
-                .push_type(TokenType::GreaterThan, 1)
+            '>' => {
+                if .peek(1) == '='
+                    .push_type(TokenType::GreaterThanEquals, 2)
+                else
+                    .push_type(TokenType::GreaterThan, 1)
             }
-        } else if (c == '&') {
-            .push_type(TokenType::Ampersand, 1)
-        } else if (c == '|') {
-            .push_type(TokenType::Line, 1)
-        } else {
-            let start_loc = .loc
+            else => {
+                let start_loc = .loc
 
-            if (is_digit(c)) {
-                let start = .i
+                if (is_digit(c)) {
+                    let start = .i
 
-                let token_type: TokenType
-                while (is_digit(.source[.i])) {
-                    .i += 1
-                }
-                if .source[.i] == '.' {
-                    .i += 1
+                    let token_type: TokenType
                     while (is_digit(.source[.i])) {
                         .i += 1
                     }
-                    token_type = TokenType::FloatLiteral
-                } else {
-                    token_type = TokenType::IntLiteral
-                }
-                let len = .i - start
-                let text = substring(.source, start, len)
+                    if .source[.i] == '.' {
+                        .i += 1
+                        while (is_digit(.source[.i])) {
+                            .i += 1
+                        }
+                        token_type = TokenType::FloatLiteral
+                    } else {
+                        token_type = TokenType::IntLiteral
+                    }
+                    let len = .i - start
+                    let text = substring(.source, start, len)
 
-                .loc.col += len
-                .push(Token::new(token_type, Span::make(start_loc, .loc), text))
+                    .loc.col += len
+                    .push(Token::new(token_type, Span::make(start_loc, .loc), text))
 
-            } else if (is_alpha(c) or c == '_') {
-                let start = .i
-                while (is_alnum(.source[.i]) or .source[.i] == '_') {
-                    .i += 1
-                }
-                let len = .i - start
-                let text = substring(.source, start, len)
-
-                .loc.col += len
-                .push(Token::from_ident(text, Span::make(start_loc, .loc)))
-
-            } else if c == '\'' {
-                let start = .i + 1
-                .i += 1
-
-                if .source[.i] == '\\' {
-                    .i += 2
-                } else {
-                    .i += 1
-                }
-                if .source[.i] != '\'' {
-                    .loc.col += .i - start + 1
-                    error_loc(.loc, "Expected ' after character literal")
-                }
-
-                let len = .i - start
-                let text = substring(.source, start, len)
-
-                .loc.col += len + 2;
-                .i += 1
-                .push(Token::new(TokenType::CharLiteral, Span::make(start_loc, .loc), text))
-
-            } else if c == '"' or c == '`' {
-                let end_char = c
-                let start = .i + 1;
-                .i += 1
-                while (.source[.i] != c) {
-                    if (.source[.i] == '\\') {
+                } else if (is_alpha(c) or c == '_') {
+                    let start = .i
+                    while (is_alnum(.source[.i]) or .source[.i] == '_') {
                         .i += 1
                     }
-                    .i += 1
-                }
+                    let len = .i - start
+                    let text = substring(.source, start, len)
 
-                let len = .i - start
-                let text = substring(.source, start, len)
-                .loc.col += len + 2;
-                .i += 1
-                if end_char == '`' {
-                    .push(Token::new(TokenType::FormatStringLiteral, Span::make(start_loc, .loc), text))
+                    .loc.col += len
+                    .push(Token::from_ident(text, Span::make(start_loc, .loc)))
+
+                } else if c == '\'' {
+                    let start = .i + 1
+                    .i += 1
+
+                    if .source[.i] == '\\' {
+                        .i += 2
+                    } else {
+                        .i += 1
+                    }
+                    if .source[.i] != '\'' {
+                        .loc.col += .i - start + 1
+                        error_loc(.loc, "Expected ' after character literal")
+                    }
+
+                    let len = .i - start
+                    let text = substring(.source, start, len)
+
+                    .loc.col += len + 2;
+                    .i += 1
+                    .push(Token::new(TokenType::CharLiteral, Span::make(start_loc, .loc), text))
+
+                } else if c == '"' or c == '`' {
+                    let end_char = c
+                    let start = .i + 1;
+                    .i += 1
+                    while (.source[.i] != c) {
+                        if (.source[.i] == '\\') {
+                            .i += 1
+                        }
+                        .i += 1
+                    }
+
+                    let len = .i - start
+                    let text = substring(.source, start, len)
+                    .loc.col += len + 2;
+                    .i += 1
+                    if end_char == '`' {
+                        .push(Token::new(TokenType::FormatStringLiteral, Span::make(start_loc, .loc), text))
+                    } else {
+                        .push(Token::new(TokenType::StringLiteral, Span::make(start_loc, .loc), text))
+                    }
                 } else {
-                    .push(Token::new(TokenType::StringLiteral, Span::make(start_loc, .loc), text))
+                    println("%s: Unrecognized char in lexer: '%d'", .loc.str(), c)
+                    exit(1)
                 }
-            } else {
-                println("%s: Unrecognized char in lexer: '%d'", .loc.str(), c)
-                exit(1)
             }
         }
     }
