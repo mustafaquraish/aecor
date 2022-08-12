@@ -161,6 +161,7 @@ struct Function {
     params: &Vector     // Vector<&Variable>
     return_type: &Type
     body: &AST
+    exits: bool
 
     type: &Type
     span: Span

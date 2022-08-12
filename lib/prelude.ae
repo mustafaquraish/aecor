@@ -51,7 +51,7 @@ def File::puts(&this, str: string) {
     fwrite(str as untyped_ptr, 1, strlen(str), this)
 }
 
-def exit(code: i32) extern
+def exit(code: i32) exits extern
 
 def strlen(str: string): i32 extern
 def strcmp(str1: string, str2: string): i32 extern

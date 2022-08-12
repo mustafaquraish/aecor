@@ -522,42 +522,41 @@ def CodeGenerator::gen_function_name(&this, func: &Function) {
     }
 }
 
+def CodeGenerator::gen_function_decl(&this, func: &Function) {
+    if func.exits
+        .out.puts("__attribute__((noreturn)) ")
+
+    .gen_type(func.return_type)
+    .out.puts(" ")
+    .gen_function_name(func)
+    .out.puts("(")
+
+    for let i = 0; i < func.params.size; i += 1 {
+        let param = func.params.at(i) as &Variable
+        if i > 0 { .out.puts(", "); }
+        .gen_type_and_name(param.type, param.name)
+    }
+    .out.puts(")")
+}
+
 def CodeGenerator::gen_function_decls(&this, program: &Program) {
     .out.puts("/* function declarations */\n")
     for let i = 0; i < program.functions.size; i += 1 {
         let func = program.functions.at(i) as &Function
         if not func.is_extern {
-            .gen_type(func.return_type)
-            .out.puts(" ")
-            .gen_function_name(func)
-            .out.puts("(")
-
-            for let i = 0; i < func.params.size; i += 1 {
-                let param = func.params.at(i) as &Variable
-                if i > 0 { .out.puts(", "); }
-                .gen_type_and_name(param.type, param.name)
-            }
-            .out.puts(");\n")
+            .gen_function_decl(func)
+            .out.puts(";\n")
         }
     }
     .out.puts("\n")
 }
 
 def CodeGenerator::gen_function(&this, func: &Function) {
-    if not func.is_extern {
-        .gen_type(func.return_type)
-        .out.puts(" ")
-        .gen_function_name(func)
-        .out.puts("(")
-        for let i = 0; i < func.params.size; i += 1 {
-            if i > 0 { .out.puts(", "); }
-            let var = func.params.at(i) as &Variable
-            .gen_type_and_name(var.type, var.name)
-        }
-        .out.puts(") ")
-        .gen_block(func.body, 0)
-        .out.puts("\n\n")
-    }
+    if func.is_extern return
+    .gen_function_decl(func)
+    .out.puts(" ")
+    .gen_block(func.body, 0)
+    .out.puts("\n\n")
 }
 
 def CodeGenerator::gen_global_vars(&this, program: &Program) {

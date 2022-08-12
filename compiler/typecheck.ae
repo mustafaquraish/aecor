@@ -127,14 +127,16 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             }
             return Type::new(BaseType::Void, node.span)
         }
-
-        if streq(name, "exit") {
-            node.returns = true
-        }
     }
 
     let func_type = .check_expression(callee);
-    node.u.call.func = func_type.func_def;
+    let func_def = func_type.func_def;
+    node.u.call.func = func_def;
+
+    if func_def != 0 as &Function and func_def.exits {
+        node.returns = true
+    }
+
     if func_type.base != BaseType::Function and func_type.base != BaseType::Method {
         error_span(callee.span, "Cannot call a non-function type")
     }

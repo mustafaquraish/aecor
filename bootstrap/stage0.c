@@ -275,6 +275,7 @@ struct Function {
   Vector* params;
   Type* return_type;
   AST* body;
+  bool exits;
   Type* type;
   Span span;
   bool is_extern;
@@ -578,6 +579,7 @@ void CodeGenerator__gen_block(CodeGenerator* this, AST* node, int indent);
 void CodeGenerator__gen_struct_decls(CodeGenerator* this, Program* program);
 void CodeGenerator__gen_type_and_name(CodeGenerator* this, Type* type, char* name);
 void CodeGenerator__gen_function_name(CodeGenerator* this, Function* func);
+void CodeGenerator__gen_function_decl(CodeGenerator* this, Function* func);
 void CodeGenerator__gen_function_decls(CodeGenerator* this, Program* program);
 void CodeGenerator__gen_function(CodeGenerator* this, Function* func);
 void CodeGenerator__gen_global_vars(CodeGenerator* this, Program* program);
@@ -2601,6 +2603,10 @@ Function* Parser__parse_function(Parser* this) {
     func->return_type = Type__new(BaseType__I32, name->span);
   }  else {
     func->return_type = Type__new(BaseType__Void, name->span);
+    if ((Parser__token_is(this, TokenType__Identifier) && streq(Parser__token(this)->text, "exits"))){
+      Parser__consume(this, TokenType__Identifier);
+      func->exits = true;
+    } 
   } 
   
   if (Parser__consume_if(this, TokenType__Extern)){
@@ -2917,12 +2923,13 @@ Type* TypeChecker__check_call(TypeChecker* this, AST* node) {
       } 
       return Type__new(BaseType__Void, node->span);
     } 
-    if (streq(name, "exit")){
-      node->returns = true;
-    } 
   } 
   Type* func_type = TypeChecker__check_expression(this, callee);
-  node->u.call.func = func_type->func_def;
+  Function* func_def = func_type->func_def;
+  node->u.call.func = func_def;
+  if (((func_def != ((Function*)0)) && func_def->exits)){
+    node->returns = true;
+  } 
   if (((func_type->base != BaseType__Function) && (func_type->base != BaseType__Method))){
     error_span(callee->span, "Cannot call a non-function type");
   } 
@@ -3367,10 +3374,10 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
           error_span(node->span, "Cannot have empty return in non-void function");
         } 
       }  else {
+        Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
         if (this->cur_func->return_type->base == BaseType__Void){
           error_span(node->span, "Cannot return value in void function");
         } 
-        Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
         if ((!Type__eq(ret_type, this->cur_func->return_type))){
           error_span(node->span, "Return type does not match function return type");
         } 
@@ -4188,45 +4195,44 @@ void CodeGenerator__gen_function_name(CodeGenerator* this, Function* func) {
   
 }
 
+void CodeGenerator__gen_function_decl(CodeGenerator* this, Function* func) {
+  if (func->exits)
+  File__puts(this->out, "__attribute__((noreturn)) ");
+  
+  CodeGenerator__gen_type(this, func->return_type);
+  File__puts(this->out, " ");
+  CodeGenerator__gen_function_name(this, func);
+  File__puts(this->out, "(");
+  for (int i = 0; (i < func->params->size); i += 1) {
+    Variable* param = ((Variable*)Vector__at(func->params, i));
+    if ((i > 0)){
+      File__puts(this->out, ", ");
+    } 
+    CodeGenerator__gen_type_and_name(this, param->type, param->name);
+  } 
+  File__puts(this->out, ")");
+}
+
 void CodeGenerator__gen_function_decls(CodeGenerator* this, Program* program) {
   File__puts(this->out, "/* function declarations */\n");
   for (int i = 0; (i < program->functions->size); i += 1) {
     Function* func = ((Function*)Vector__at(program->functions, i));
     if ((!func->is_extern)){
-      CodeGenerator__gen_type(this, func->return_type);
-      File__puts(this->out, " ");
-      CodeGenerator__gen_function_name(this, func);
-      File__puts(this->out, "(");
-      for (int i = 0; (i < func->params->size); i += 1) {
-        Variable* param = ((Variable*)Vector__at(func->params, i));
-        if ((i > 0)){
-          File__puts(this->out, ", ");
-        } 
-        CodeGenerator__gen_type_and_name(this, param->type, param->name);
-      } 
-      File__puts(this->out, ");\n");
+      CodeGenerator__gen_function_decl(this, func);
+      File__puts(this->out, ";\n");
     } 
   } 
   File__puts(this->out, "\n");
 }
 
 void CodeGenerator__gen_function(CodeGenerator* this, Function* func) {
-  if ((!func->is_extern)){
-    CodeGenerator__gen_type(this, func->return_type);
-    File__puts(this->out, " ");
-    CodeGenerator__gen_function_name(this, func);
-    File__puts(this->out, "(");
-    for (int i = 0; (i < func->params->size); i += 1) {
-      if ((i > 0)){
-        File__puts(this->out, ", ");
-      } 
-      Variable* var = ((Variable*)Vector__at(func->params, i));
-      CodeGenerator__gen_type_and_name(this, var->type, var->name);
-    } 
-    File__puts(this->out, ") ");
-    CodeGenerator__gen_block(this, func->body, 0);
-    File__puts(this->out, "\n\n");
-  } 
+  if (func->is_extern)
+  return;
+  
+  CodeGenerator__gen_function_decl(this, func);
+  File__puts(this->out, " ");
+  CodeGenerator__gen_block(this, func->body, 0);
+  File__puts(this->out, "\n\n");
 }
 
 void CodeGenerator__gen_global_vars(CodeGenerator* this, Program* program) {

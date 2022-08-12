@@ -675,6 +675,10 @@ def Parser::parse_function(&this): &Function {
         func.return_type = Type::new(BaseType::I32, name.span)
     } else {
         func.return_type = Type::new(BaseType::Void, name.span)
+        if .token_is(TokenType::Identifier) and streq(.token().text, "exits") {
+            .consume(TokenType::Identifier)
+            func.exits = true
+        }
     }
 
     if (.consume_if(TokenType::Extern)) {
