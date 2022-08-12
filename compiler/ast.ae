@@ -137,7 +137,6 @@ def ASTType::from_token(type: TokenType): ASTType {
             exit(1)
         }
     }
-
 }
 
 struct Variable {
@@ -363,6 +362,7 @@ struct AST {
     span: Span
     u: ASTUnion
     etype: &Type
+    returns: bool
 }
 
 def AST::new(type: ASTType, span: Span): &AST {

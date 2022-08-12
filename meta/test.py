@@ -1,3 +1,4 @@
+#!/bin/env python3
 import subprocess
 import argparse
 from ast import literal_eval

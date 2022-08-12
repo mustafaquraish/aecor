@@ -408,6 +408,7 @@ struct AST {
   Span span;
   ASTUnion u;
   Type* etype;
+  bool returns;
 };
 
 struct Parser {
@@ -2916,6 +2917,9 @@ Type* TypeChecker__check_call(TypeChecker* this, AST* node) {
       } 
       return Type__new(BaseType__Void, node->span);
     } 
+    if (streq(name, "exit")){
+      node->returns = true;
+    } 
   } 
   Type* func_type = TypeChecker__check_expression(this, callee);
   node->u.call.func = func_type->func_def;
@@ -3256,6 +3260,7 @@ void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST*
   Map* mapping = Map__new();
   ;
   Vector* cases = node->u.match_stmt.cases;
+  bool always_returns = true;
   for (int i = 0; (i < cases->size); i += 1) {
     MatchCase* _case = ((MatchCase*)Vector__at(cases, i));
     AST* cond = _case->cond;
@@ -3282,6 +3287,7 @@ void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST*
     Map__insert(mapping, name, ((void*)_case));
     if ((_case->body != ((AST*)0))){
       TypeChecker__check_statement(this, _case->body);
+      always_returns = (always_returns && _case->body->returns);
     } 
   } 
   AST* defolt = node->u.match_stmt.defolt;
@@ -3290,11 +3296,13 @@ void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST*
       error_span(node->span, "Match does not cover all cases");
     } 
     TypeChecker__check_statement(this, node->u.match_stmt.defolt);
+    always_returns = (always_returns && defolt->returns);
   }  else {
     if ((defolt != ((AST*)0))){
       error_span(node->u.match_stmt.defolt_span, "`else` case is not needed for this match");
     } 
   } 
+  node->returns = always_returns;
 
 /* defers */
   Map__free(mapping);
@@ -3315,6 +3323,7 @@ void TypeChecker__check_match(TypeChecker* this, AST* node) {
     error_span(expr->span, "Match expression must be enum/integer/char/string");
   } 
   Vector* cases = node->u.match_stmt.cases;
+  bool always_returns = true;
   for (int i = 0; (i < cases->size); i += 1) {
     MatchCase* _case = ((MatchCase*)Vector__at(cases, i));
     Type* cond_type = TypeChecker__check_expression(this, _case->cond);
@@ -3326,6 +3335,7 @@ void TypeChecker__check_match(TypeChecker* this, AST* node) {
     } 
     if ((_case->body != ((AST*)0))){
       TypeChecker__check_statement(this, _case->body);
+      always_returns = (always_returns && _case->body->returns);
     } 
   } 
   AST* defolt = node->u.match_stmt.defolt;
@@ -3333,6 +3343,8 @@ void TypeChecker__check_match(TypeChecker* this, AST* node) {
     error_span(node->span, "`else` case is missing");
   } 
   TypeChecker__check_statement(this, defolt);
+  always_returns = (always_returns && defolt->returns);
+  node->returns = always_returns;
 }
 
 void TypeChecker__check_statement(TypeChecker* this, AST* node) {
@@ -3363,6 +3375,7 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
           error_span(node->span, "Return type does not match function return type");
         } 
       } 
+      node->returns = true;
     } break;
     case ASTType__Break:
     case ASTType__Continue: {
@@ -3430,7 +3443,11 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
       } 
       TypeChecker__check_statement(this, node->u.if_stmt.then);
       if ((node->u.if_stmt.els != ((AST*)0))){
-        TypeChecker__check_statement(this, node->u.if_stmt.els);
+        AST* else_stmt = node->u.if_stmt.els;
+        TypeChecker__check_statement(this, else_stmt);
+        if ((node->u.if_stmt.then->returns && else_stmt->returns)){
+          node->returns = true;
+        } 
       } 
     } break;
     default: {
@@ -3443,7 +3460,11 @@ void TypeChecker__check_block(TypeChecker* this, AST* node) {
   TypeChecker__push_scope(this);
   Vector* statements = node->u.block.statements;
   for (int i = 0; (i < statements->size); i += 1) {
-    TypeChecker__check_statement(this, ((AST*)Vector__at(statements, i)));
+    AST* statement = ((AST*)Vector__at(statements, i));
+    TypeChecker__check_statement(this, statement);
+    if (statement->returns){
+      node->returns = true;
+    } 
   } 
   TypeChecker__pop_scope(this);
 }
@@ -3458,6 +3479,11 @@ void TypeChecker__check_function(TypeChecker* this, Function* func) {
   } 
   if ((func->body != ((AST*)0))){
     TypeChecker__check_block(this, func->body);
+    if (((!func->body->returns) && (func->return_type->base != BaseType__Void))){
+      if ((!streq(func->name, "main"))){
+        error_span(func->span, __format_string("function %s does not always return", func->name));
+      } 
+    } 
   } 
   TypeChecker__pop_scope(this);
   this->cur_func = prev_func;

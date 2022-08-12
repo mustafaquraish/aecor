@@ -2,7 +2,7 @@
 
 struct Foo {}
 
-def Foo::get(this): i32 {}
+def Foo::get(this) {}
 
 def main() {
     let f: Foo
