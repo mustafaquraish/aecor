@@ -3481,7 +3481,7 @@ void TypeChecker__check_function(TypeChecker* this, Function* func) {
     TypeChecker__check_block(this, func->body);
     if (((!func->body->returns) && (func->return_type->base != BaseType__Void))){
       if ((!streq(func->name, "main"))){
-        error_span(func->span, __format_string("function %s does not always return", func->name));
+        error_span(func->span, "Function does not always return");
       } 
     } 
   } 

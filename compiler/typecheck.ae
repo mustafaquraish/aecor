@@ -676,7 +676,7 @@ def TypeChecker::check_function(&this, func: &Function) {
         .check_block(func.body);
         if not func.body.returns and func.return_type.base != BaseType::Void {
             if not streq(func.name, "main") {
-              error_span(func.span, `function {func.name} does not always return`)
+              error_span(func.span, "Function does not always return")
             }
         }
     }
