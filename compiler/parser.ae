@@ -1,16 +1,25 @@
-use "./compiler/ast.ae"
-use "./compiler/utils.ae"
+use "compiler/ast.ae"
+use "compiler/utils.ae"
 
 struct Parser {
     tokens: &Vector
     curr: i32
+    include_dirs: &Vector
 }
 
-def Parser::make(tokens: &Vector): &Parser {
+def Parser::new(tokens: &Vector): &Parser {
     let parser = calloc(1, sizeof(Parser)) as &Parser
     parser.tokens = tokens
     parser.curr = 0
+
+    parser.include_dirs = Vector::new()
+    parser.add_include_dir(".")
+
     return parser
+}
+
+def Parser::add_include_dir(&this, dir: string) {
+    .include_dirs.push(dir as untyped_ptr)
 }
 
 def Parser::error(&this, msg: string) {
@@ -181,7 +190,10 @@ def Parser::parse_format_string(&this): &AST {
         lexer.loc.col += start
 
         let tokens = lexer.lex()
-        let parser = Parser::make(tokens)
+
+        // It's fine to make a new parser here, we don't need the
+        // include paths for an expression
+        let parser = Parser::new(tokens)
         let expr = parser.parse_expression(false)
 
         expr_nodes.push(expr as untyped_ptr)
@@ -811,7 +823,24 @@ def Parser::parse_global_var(&this): &AST {
     return node;
 }
 
+def Parser::find_file_path(&this, filename: string): string {
+    if strstartswith(filename, "/") return filename
+
+    for let i = 0; i < .include_dirs.size; i += 1 {
+        let dir = .include_dirs.at(i) as string
+    
+        let file_path = `{dir}/{filename}`
+        if File::exists(file_path)
+            return file_path
+        free(file_path as untyped_ptr)
+    }
+
+    .curr -= 1
+    error_span(.token().span, `Could not find file: {filename}`)
+}
+
 def Parser::include_file(&this, program: &Program, filename: string) {
+    filename = .find_file_path(filename)
     if program.is_file_included(filename)
         return
     program.add_included_file(filename)
@@ -822,8 +851,19 @@ def Parser::include_file(&this, program: &Program, filename: string) {
     let lexer = Lexer::make(contents, filename)
     let tokens = lexer.lex()
 
-    let parser = Parser::make(tokens)
-    parser.parse_into_program(program)
+    // Backup old parser state
+    let prev_tokens = .tokens
+    let prev_curr = .curr
+
+    // Set new parser state
+    .tokens = tokens
+    .curr = 0
+
+    .parse_into_program(program)
+
+    // Restore old parser state
+    .tokens = prev_tokens
+    .curr = prev_curr
 }
 
 def Parser::parse_use(&this, program: &Program) {
@@ -853,7 +893,8 @@ def Parser::parse_compiler_option(&this, program: &Program) {
         }
         "c_embed_header" => {
             let filename = .consume(TokenType::StringLiteral)
-            program.c_embed_headers.push(filename.text as untyped_ptr)
+            let resolved = .find_file_path(filename.text)
+            program.c_embed_headers.push(resolved as untyped_ptr)
         }
         else => error_span(name.span, "Unknown compiler option")
     }
@@ -888,7 +929,6 @@ def Parser::parse_into_program(&this, program: &Program) {
 def Parser::parse_program(&this): &Program {
     let program = Program::new()
     .include_file(program, "./lib/prelude.ae")
-    program.add_included_file(.token().span.start.filename)
     .parse_into_program(program)
     return program
 }

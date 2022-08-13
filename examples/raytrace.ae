@@ -1,9 +1,9 @@
 // Make raytracer go brrr
 @compiler c_flag "-O3"
 
-use "./lib/vec.ae"
-use "./lib/vector.ae"
-use "./lib/image.ae"
+use "lib/vec.ae"
+use "lib/vector.ae"
+use "lib/image.ae"
 
 let TOL = 0.00001;
 

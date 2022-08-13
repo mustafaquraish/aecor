@@ -415,6 +415,7 @@ struct AST {
 struct Parser {
   Vector* tokens;
   int curr;
+  Vector* include_dirs;
 };
 
 struct TypeChecker {
@@ -433,8 +434,10 @@ struct CodeGenerator {
 
 /* function declarations */
 FILE* File__open(char* path, char* mode);
+bool File__exists(char* path);
 char* File__slurp(FILE* this);
 void File__puts(FILE* this, char* str);
+bool strstartswith(char* str, char* prefix);
 bool streq(char* str1, char* str2);
 char* substring(char* str, int start, int len);
 Vector* Vector__new();
@@ -502,9 +505,10 @@ int max(int a, int b);
 float maxf(float a, float b);
 float clampf(float x, float min, float max);
 float clamp01(float x);
-void error_loc(Location loc, char* msg);
-void error_span(Span span, char* msg);
-Parser* Parser__make(Vector* tokens);
+__attribute__((noreturn)) void error_loc(Location loc, char* msg);
+__attribute__((noreturn)) void error_span(Span span, char* msg);
+Parser* Parser__new(Vector* tokens);
+void Parser__add_include_dir(Parser* this, char* dir);
 void Parser__error(Parser* this, char* msg);
 void Parser__unhandled_type(Parser* this, char* func);
 Token* Parser__token(Parser* this);
@@ -531,6 +535,7 @@ Function* Parser__parse_function(Parser* this);
 Structure* Parser__parse_enum(Parser* this);
 Structure* Parser__parse_struct(Parser* this);
 AST* Parser__parse_global_var(Parser* this);
+char* Parser__find_file_path(Parser* this, char* filename);
 void Parser__include_file(Parser* this, Program* program, char* filename);
 void Parser__parse_use(Parser* this, Program* program);
 void Parser__parse_compiler_option(Parser* this, Program* program);
@@ -599,6 +604,15 @@ FILE* File__open(char* path, char* mode) {
   return file;
 }
 
+bool File__exists(char* path) {
+  FILE* file = fopen(path, "r");
+  if (file == ((FILE*)0)){
+    return false;
+  } 
+  fclose(file);
+  return true;
+}
+
 char* File__slurp(FILE* this) {
   int pos = ftell(this);
   fseek(this, 0, SEEK_END);
@@ -612,6 +626,15 @@ char* File__slurp(FILE* this) {
 
 void File__puts(FILE* this, char* str) {
   fwrite(((void*)str), 1, strlen(str), this);
+}
+
+bool strstartswith(char* str, char* prefix) {
+  int prefix_len = strlen(prefix);
+  int str_len = strlen(str);
+  if ((str_len < prefix_len)){
+    return false;
+  } 
+  return strncmp(str, prefix, prefix_len) == 0;
 }
 
 bool streq(char* str1, char* str2) {
@@ -1889,11 +1912,11 @@ float clamp01(float x) {
   return clampf(x, 0.0, 1.0);
 }
 
-void error_loc(Location loc, char* msg) {
+__attribute__((noreturn)) void error_loc(Location loc, char* msg) {
   error_span(Span__make(loc, loc), msg);
 }
 
-void error_span(Span span, char* msg) {
+__attribute__((noreturn)) void error_span(Span span, char* msg) {
   char* filename = span.start.filename;
   FILE* file = File__open(filename, "r");
   ;
@@ -1940,11 +1963,17 @@ void error_span(Span span, char* msg) {
   fclose(file);
 }
 
-Parser* Parser__make(Vector* tokens) {
+Parser* Parser__new(Vector* tokens) {
   Parser* parser = ((Parser*)calloc(1, sizeof(Parser)));
   parser->tokens = tokens;
   parser->curr = 0;
+  parser->include_dirs = Vector__new();
+  Parser__add_include_dir(parser, ".");
   return parser;
+}
+
+void Parser__add_include_dir(Parser* this, char* dir) {
+  Vector__push(this->include_dirs, ((void*)dir));
 }
 
 void Parser__error(Parser* this, char* msg) {
@@ -2109,7 +2138,7 @@ AST* Parser__parse_format_string(Parser* this) {
     lexer.loc = fstr_start;
     lexer.loc.col += start;
     Vector* tokens = Lexer__lex((&lexer));
-    Parser* parser = Parser__make(tokens);
+    Parser* parser = Parser__new(tokens);
     AST* expr = Parser__parse_expression(parser, false);
     Vector__push(expr_nodes, ((void*)expr));
   } 
@@ -2722,7 +2751,24 @@ AST* Parser__parse_global_var(Parser* this) {
   return node;
 }
 
+char* Parser__find_file_path(Parser* this, char* filename) {
+  if (strstartswith(filename, "/"))
+  return filename;
+  
+  for (int i = 0; (i < this->include_dirs->size); i += 1) {
+    char* dir = ((char*)Vector__at(this->include_dirs, i));
+    char* file_path = __format_string("%s/%s", dir, filename);
+    if (File__exists(file_path))
+    return file_path;
+    
+    free(((void*)file_path));
+  } 
+  this->curr -= 1;
+  error_span(Parser__token(this)->span, __format_string("Could not find file: %s", filename));
+}
+
 void Parser__include_file(Parser* this, Program* program, char* filename) {
+  filename = Parser__find_file_path(this, filename);
   if (Program__is_file_included(program, filename))
   return;
   
@@ -2731,8 +2777,13 @@ void Parser__include_file(Parser* this, Program* program, char* filename) {
   char* contents = File__slurp(file);
   Lexer lexer = Lexer__make(contents, filename);
   Vector* tokens = Lexer__lex((&lexer));
-  Parser* parser = Parser__make(tokens);
-  Parser__parse_into_program(parser, program);
+  Vector* prev_tokens = this->tokens;
+  int prev_curr = this->curr;
+  this->tokens = tokens;
+  this->curr = 0;
+  Parser__parse_into_program(this, program);
+  this->tokens = prev_tokens;
+  this->curr = prev_curr;
 }
 
 void Parser__parse_use(Parser* this, Program* program) {
@@ -2759,7 +2810,8 @@ void Parser__parse_compiler_option(Parser* this, Program* program) {
       Vector__push(program->c_flags, ((void*)flag->text));
     } else if (streq(__match_str, "c_embed_header")) {
       Token* filename = Parser__consume(this, TokenType__StringLiteral);
-      Vector__push(program->c_embed_headers, ((void*)filename->text));
+      char* resolved = Parser__find_file_path(this, filename->text);
+      Vector__push(program->c_embed_headers, ((void*)resolved));
     } else  {
       error_span(name->span, "Unknown compiler option");
     }
@@ -2802,7 +2854,6 @@ void Parser__parse_into_program(Parser* this, Program* program) {
 Program* Parser__parse_program(Parser* this) {
   Program* program = Program__new();
   Parser__include_file(this, program, "./lib/prelude.ae");
-  Program__add_included_file(program, Parser__token(this)->span.start.filename);
   Parser__parse_into_program(this, program);
   return program;
 }
@@ -3374,10 +3425,10 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
           error_span(node->span, "Cannot have empty return in non-void function");
         } 
       }  else {
-        Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
         if (this->cur_func->return_type->base == BaseType__Void){
           error_span(node->span, "Cannot return value in void function");
         } 
+        Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
         if ((!Type__eq(ret_type, this->cur_func->return_type))){
           error_span(node->span, "Return type does not match function return type");
         } 
@@ -4291,23 +4342,26 @@ void CodeGenerator__gen_program(CodeGenerator* this, Program* program) {
 }
 
 void usage(int code) {
-  printf("--------------------------------------------------------\n");
-  printf("Usage: ./aecor [options] <file>\n");
-  printf("Options:\n");
-  printf("    -o path   Output executable (default: ./build/out)\n");
-  printf("    -c path   Output C code (default: {out}.c)\n");
-  printf("    -s        Silent mode (no debug output)\n");
-  printf("    -n        Don't compile C code (default: false)\n");
+  printf("--------------------------------------------------------" "\n");
+  printf("Usage: ./aecor [options] <file>" "\n");
+  printf("Options:" "\n");
+  printf("    -o path   Output executable (default: ./out)" "\n");
+  printf("    -c path   Output C code (default: {out}.c)" "\n");
+  printf("    -s        Silent mode (no debug output)" "\n");
+  printf("    -n        Don't compile C code (default: false)" "\n");
+  printf("    -l        Library path (root of aecor repo)" "\n");
+  printf("                   (Default: working directory)" "\n");
   printf("--------------------------------------------------------\n");
   exit(code);
 }
 
 int main(int argc, char** argv) {
-  char* exec_path = "./build/out";
+  char* exec_path = "./out";
   char* c_path = ((char*)0);
   char* filename = ((char*)0);
   bool compile_c = true;
   bool silent = false;
+  char* lib_path = ((char*)0);
   for (int i = 1; (i < argc); i += 1) {
     if (streq(argv[i], "-o")){
       i += 1;
@@ -4318,6 +4372,9 @@ int main(int argc, char** argv) {
       silent = true;
     }  else     if (streq(argv[i], "-n")){
       compile_c = false;
+    }  else     if (streq(argv[i], "-l")){
+      i += 1;
+      lib_path = argv[i];
     }  else     if (streq(argv[i], "-c")){
       i += 1;
       c_path = argv[i];
@@ -4336,6 +4393,7 @@ int main(int argc, char** argv) {
     
     
     
+    
   } 
   if (filename == ((char*)0)){
     printf("No file specified" "\n");
@@ -4348,7 +4406,10 @@ int main(int argc, char** argv) {
   char* contents = File__slurp(file);
   Lexer lexer = Lexer__make(contents, filename);
   Vector* tokens = Lexer__lex((&lexer));
-  Parser* parser = Parser__make(tokens);
+  Parser* parser = Parser__new(tokens);
+  if ((lib_path != ((char*)0))){
+    Parser__add_include_dir(parser, lib_path);
+  } 
   Program* program = Parser__parse_program(parser);
   TypeChecker* checker = TypeChecker__new();
   TypeChecker__check_program(checker, program);

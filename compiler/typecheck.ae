@@ -1,5 +1,5 @@
-use "./compiler/ast.ae"
-use "./lib/map.ae"
+use "compiler/ast.ae"
+use "lib/map.ae"
 
 struct TypeChecker {
     scopes: &Vector   // &Vector<&Map<string, &Variable>>

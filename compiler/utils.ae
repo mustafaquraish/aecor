@@ -1,13 +1,13 @@
-use "./lib/math.ae"
-use "./compiler/tokens.ae"
+use "lib/math.ae"
+use "compiler/tokens.ae"
 
 def strsep(s: &string, delim: string): string extern
 
-def error_loc(loc: Location, msg: string) {
+def error_loc(loc: Location, msg: string) exits {
     error_span(Span::make(loc, loc), msg)
 }
 
-def error_span(span: Span, msg: string) {
+def error_span(span: Span, msg: string) exits {
     let filename = span.start.filename;
     let file = File::open(filename, "r")
     defer file.close()
@@ -50,6 +50,5 @@ def error_span(span: Span, msg: string) {
         cur = strsep(&lines, "\n")
     }
     println("---------------------------------------------------------------")
-
     exit(1)
 }

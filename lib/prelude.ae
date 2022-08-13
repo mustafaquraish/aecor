@@ -4,7 +4,7 @@
 @compiler c_include "stdint.h"
 @compiler c_include "string.h"
 @compiler c_include "errno.h"
-@compiler c_embed_header "./lib/prelude.h"
+@compiler c_embed_header "lib/prelude.h"
 
 def malloc(size: i32): untyped_ptr extern
 def realloc(old: untyped_ptr, size: i32): untyped_ptr extern
@@ -36,6 +36,15 @@ def File::open(path: string, mode: string): &File {
     return file
 }
 
+def File::exists(path: string): bool {
+    let file = fopen(path, "r")
+    if file == 0 as &File {
+        return false
+    }
+    file.close()
+    return true
+}
+
 def File::slurp(&this): string {
     let pos = .tell()
     .seek(0, SEEK_END)
@@ -55,11 +64,21 @@ def exit(code: i32) exits extern
 
 def strlen(str: string): i32 extern
 def strcmp(str1: string, str2: string): i32 extern
+def strncmp(str1: string, str2: string, n: i32): i32 extern
 def strcpy(dest: string, src: string): string extern
 def strncpy(dest: string, src: string, n: i32): string extern
 def strdup(str: string): string extern
 def strcat(dest: string, src: string): string extern
 def strerror(errno: i32): string extern
+
+def strstartswith(str: string, prefix: string): bool {
+    let prefix_len = strlen(prefix)
+    let str_len = strlen(str)
+    if str_len < prefix_len {
+        return false
+    }
+    return strncmp(str, prefix, prefix_len) == 0
+}
 
 def streq(str1: string, str2: string): bool {
     return strcmp(str1, str2) == 0

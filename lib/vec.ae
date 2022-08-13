@@ -1,6 +1,6 @@
 // A type that represents a vector in 3D space
 
-use "./lib/math.ae"
+use "lib/math.ae"
 
 struct Vec {
     x: f32

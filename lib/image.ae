@@ -2,7 +2,7 @@
 // Each of the RGB values are supposed to be in the range [0,1].
 // The `Vec` type is used to represent the pixel colors as well.
 
-use "./lib/vec.ae"
+use "lib/vec.ae"
 
 struct Image {
     width: i32

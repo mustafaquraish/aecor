@@ -1,4 +1,4 @@
-use "./lib/sdl.ae"
+use "lib/sdl.ae"
 
 def main() {
     let win: &SDL_Window
