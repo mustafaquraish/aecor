@@ -69,7 +69,9 @@ def handle_test(compiler: str, path: Path, expected: Expected) -> Tuple[bool, st
         error = process.stdout.decode("utf-8").strip()
         expected_error = expected.value
 
-        if expected_error in error:
+        # The error message from the compiler should be on the second line
+        error_line = error.splitlines()[1]
+        if expected_error in error_line:
             return True, "(Success)"
         else:
             return False, f"Did not find expected error message: {expected_error}"
@@ -108,7 +110,8 @@ def main():
         help="Files / folders to run"
     )
     args = parser.parse_args()
-    test_paths = [Path(pth) for pth in args.files]
+    arg_files = args.files if isinstance(args.files, list) else [args.files]
+    test_paths = [Path(pth) for pth in arg_files]
 
     tests_to_run = []
     for path in test_paths:

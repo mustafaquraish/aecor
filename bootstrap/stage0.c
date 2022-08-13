@@ -1988,7 +1988,9 @@ Parser* Parser__new(Vector* tokens, char* filename) {
   parser->curr = 0;
   parser->include_dirs = Vector__new();
   Parser__add_include_dir(parser, ".");
-  parser->project_root = strdup(dirname(filename));
+  char* tmp_filename = strdup(filename);
+  parser->project_root = strdup(dirname(tmp_filename));
+  free(((void*)tmp_filename));
   parser->context_stack = Vector__new();
   return parser;
 }
@@ -2796,6 +2798,7 @@ char* Parser__find_file_path(Parser* this, char* filename) {
     if (File__exists(file_path))
     return file_path;
     
+    free(((void*)file_path));
   }  else {
     for (int i = 0; (i < this->include_dirs->size); i += 1) {
       char* dir = ((char*)Vector__at(this->include_dirs, i));

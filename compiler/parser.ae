@@ -35,7 +35,12 @@ def Parser::new(tokens: &Vector, filename: string): &Parser {
 
     parser.include_dirs = Vector::new()
     parser.add_include_dir(".")
-    parser.project_root = strdup(dirname(filename))
+
+    // This is because different `dirname` implementations have different
+    // memory semantics, and we don't want to ever mutate the filename.
+    let tmp_filename = strdup(filename)
+    parser.project_root = strdup(dirname(tmp_filename))
+    free(tmp_filename as untyped_ptr)
 
     parser.context_stack = Vector::new()
     return parser
@@ -870,6 +875,7 @@ def Parser::find_file_path(&this, filename: string): string {
         let file_path = `{.project_root}/{filename + 2}` // Remove @/
         if File::exists(file_path)
             return file_path
+        free(file_path as untyped_ptr)
 
     // If unspecified, check include paths (which also includes working directory)
     } else {
