@@ -10,9 +10,12 @@ from sys import argv
 from typing import Union, Optional, Tuple
 
 class ExpectedOutputType(Enum):
-    FAIL = 1
-    EXIT_WITH_CODE = 2
-    EXIT_WITH_OUTPUT = 3
+    EXIT_WITH_CODE = 1
+    EXIT_WITH_OUTPUT = 2
+    COMPILE_FAIL = 3
+    COMPILE_SUCCESS = 4
+    SKIP_SILENTLY = 5
+    SKIP_REPORT = 6
 
 
 @dataclass(frozen=True)
@@ -22,7 +25,6 @@ class Expected:
 
 
 def get_expected(filename) -> Optional[Expected]:
-    expected = None
     with open(filename) as file:
         for line in file:
             if not line.startswith("///"):
@@ -30,6 +32,11 @@ def get_expected(filename) -> Optional[Expected]:
 
             line = line[3:].strip()
 
+            # Commands with no arguments
+            if line == "skip":
+                return Expected(ExpectedOutputType.SKIP_SILENTLY, None)
+            if line == "compile":
+                return Expected(ExpectedOutputType.COMPILE_SUCCESS, None)
             if line == "":
                 continue
 
@@ -37,34 +44,25 @@ def get_expected(filename) -> Optional[Expected]:
                 print(f'[-] Invalid parameters in {filename}: "{line}"')
                 break
 
-            name, value = map(str.strip, line.split(":"))
-            if name == "exit":
-                expected = Expected(
-                    type=ExpectedOutputType.EXIT_WITH_CODE,
-                    value=int(value),
-                )
-                break
-            elif name == "out":
-                expected = Expected(
-                    type=ExpectedOutputType.EXIT_WITH_OUTPUT,
-                    value=value,
-                )
-                break
-            elif name == "fail":
-                expected = Expected(
-                    type=ExpectedOutputType.FAIL,
-                    value=value,
-                )
-            else:
-                print(f'[-] Invalid parameter in {filename}: {line}')
-                break
+            # Commands with arguments
+            name, value = map(str.strip, line.split(":", 1))
 
-    return expected
+            if name == "exit":
+                return Expected(ExpectedOutputType.EXIT_WITH_CODE, int(value))
+            if name == "out":
+                return Expected(ExpectedOutputType.EXIT_WITH_OUTPUT, value)
+            if name == "fail":
+                return Expected(ExpectedOutputType.COMPILE_FAIL, value)
+
+            print(f'[-] Invalid parameter in {filename}: {line}')
+            break
+
+    return Expected(ExpectedOutputType.SKIP_REPORT, None)
 
 
 def handle_test(compiler: str, path: Path, expected: Expected) -> Tuple[bool, str]:
     process = subprocess.run([compiler, str(path), '-o', 'build/test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if expected.type == ExpectedOutputType.FAIL:
+    if expected.type == ExpectedOutputType.COMPILE_FAIL:
         if process.returncode == 0:
             return False, "Expected compilation failure, but succeeded"
 
@@ -77,6 +75,8 @@ def handle_test(compiler: str, path: Path, expected: Expected) -> Tuple[bool, st
             return False, f"Did not find expected error message: {expected_error}"
     elif process.returncode != 0:
         return False, "Compilation failed"
+    elif expected.type == ExpectedOutputType.COMPILE_SUCCESS:
+        return True, "(Success)"
 
     process = subprocess.run(['./build/test'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -122,10 +122,13 @@ def main():
             files.append(path)
 
         for file in files:
-            if expected := get_expected(file):
-                tests_to_run.append((file, expected))
-            else:
-                print(f"[-] Skipping test: {file}")
+            expected = get_expected(file)
+            if expected.type == ExpectedOutputType.SKIP_SILENTLY:
+                continue
+            if expected.type == ExpectedOutputType.SKIP_REPORT:
+                print(f'[-] Skipping {file}')
+                continue
+            tests_to_run.append((file, expected))
 
     num_passed = 0
     num_failed = 0
