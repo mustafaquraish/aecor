@@ -1,29 +1,76 @@
 @compiler c_include "SDL2/SDL.h"
-@compiler c_flag "-lSDL2"
+@compiler c_include "SDL2/SDL_image.h"
+@compiler c_flag "-lSDL2 -lSDL2_image"
 
-struct SDL_Window extern
-struct SDL_Renderer extern
-struct SDL_Event extern {
+struct SDLWindow extern("SDL_Window")
+struct SDLRenderer extern("SDL_Renderer")
+struct SDLTexture extern("SDL_Texture")
+struct SDLRect extern("SDL_Rect") {
+    x: i32
+    y: i32
+    w: i32
+    h: i32
+}
+
+def SDLRect::make(x: i32, y: i32, w: i32, h: i32): SDLRect {
+    let rect: SDLRect
+    rect.x = x
+    rect.y = y
+    rect.w = w
+    rect.h = h
+    return rect
+}
+
+let SDLKey_Q: i32 extern("SDLK_q")
+let SDLKey_Esc: i32 extern("SDLK_ESCAPE")
+
+struct SDLKeysym extern("SDL_Keysym") {
+    scancode: i32
+    sym: i32
+    mod: i32
+}
+
+struct SDLKeyboardEvent extern("SDL_KeyboardEvent") {
     type: i32
+    keysym: SDLKeysym
+}
+
+struct SDLEvent extern("SDL_Event") {
+    type: i32
+    key: SDLKeyboardEvent
 }
 
 let SDL_INIT_EVERYTHING: i32 extern
-let SDL_QUIT: i32 extern
+let SDL_Quit: i32 extern("SDL_QUIT")
+let SDL_KeyDown: i32 extern("SDL_KEYDOWN")
+let SDL_KeyUp: i32 extern("SDL_KEYUP")
 
-def SDL_Init(flags: i32) extern
-def SDL_Quit() extern
-def SDL_CreateWindowAndRenderer(
+// Just a namespace
+struct SDL {}
+
+def SDL::init(flags: i32) extern("SDL_Init")
+def SDL::quit() extern("SDL_Quit")
+def SDL::create_window_renderer(
     width: i32,
     height: i32,
-    flags: i32, window: &&SDL_Window,
-    renderer: &&SDL_Renderer) extern
+    flags: i32, window: &&SDLWindow,
+    renderer: &&SDLRenderer) extern("SDL_CreateWindowAndRenderer")
+def SDL::delay(ms: i32) extern("SDL_Delay")
+def SDL::get_mouse_state(x: &i32, y: &i32): i32 extern("SDL_GetMouseState")
+def SDL::show_cursor(toggle: bool) extern("SDL_ShowCursor")
 
-def SDL_RenderClear(renderer: &SDL_Renderer) extern
-def SDL_RenderPresent(renderer: &SDL_Renderer) extern
-def SDL_SetRenderDrawColor(
-    renderer: &SDL_Renderer,
-    r: i32, g: i32, b: i32, a: i32) extern
+def SDLRenderer::clear(&this) extern("SDL_RenderClear")
+def SDLRenderer::present(&this) extern("SDL_RenderPresent")
+def SDLRenderer::copy(&this, texture: &SDLTexture, src: &SDLRect, dst: &SDLRect) extern("SDL_RenderCopy")
+def SDLRenderer::copy_ex(&this, texture: &SDLTexture, src: &SDLRect, dst: &SDLRect, angle: f32, center: untyped_ptr, flip: i32) extern("SDL_RenderCopyEx")
+def SDLRenderer::set_draw_color(&this, r: i32, g: i32, b: i32, a: i32) extern("SDL_SetRenderDrawColor")
+def SDLRenderer::destroy(&this) extern("SDL_DestroyRenderer")
+def SDLRenderer::load_image(&this, path: string): &SDLTexture extern("IMG_LoadTexture")
 
-def SDL_PollEvent(event: &SDL_Event): i32 extern
-def SDL_DestroyRenderer(renderer: &SDL_Renderer) extern
-def SDL_DestroyWindow(window: &SDL_Window) extern
+def SDLWindow::destroy(&this) extern("SDL_DestroyWindow")
+
+// FIXME: what's a and b?
+def SDLTexture::query(&this, a: untyped_ptr, b: untyped_ptr, w: &i32, h: &i32) extern("SDL_QueryTexture")
+
+
+def SDL::poll_event(event: &SDLEvent): bool extern("SDL_PollEvent")
