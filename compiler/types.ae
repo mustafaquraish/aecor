@@ -55,8 +55,8 @@ def Type::is_numeric(&this): bool {
 }
 
 def Type::eq(&this, other: &Type): bool {
-    if (this == 0 as &Type and other == 0 as &Type) return true
-    if (this == 0 as &Type or other == 0 as &Type) return false
+    if (this == null and other == null) return true
+    if (this == null or other == null) return false
 
     if .base != other.base return false
     if .base == BaseType::Method return false
@@ -73,7 +73,13 @@ def Type::eq(&this, other: &Type): bool {
     }
 
     if .base == BaseType::Structure return streq(.name, other.name)
-    if .base == BaseType::Pointer return .ptr.eq(other.ptr)
+    if .base == BaseType::Pointer {
+        // EXPERIMENTAL: `untyped_ptr` is equivalent to any pointer type.
+        if .ptr.base == BaseType::Void or other.ptr.base == BaseType::Void {
+            return true
+        }
+        return .ptr.eq(other.ptr)
+    }
     return true
 }
 
@@ -93,9 +99,9 @@ def Type::str(&this): string {
 }
 
 def Type::reverse(&this): &Type {
-    let rev = 0 as &Type
+    let rev = null as &Type
     let cur = this
-    while cur != 0 as &Type {
+    while cur != null as &Type {
         let tmp = cur.ptr
         cur.ptr = rev
         rev = cur

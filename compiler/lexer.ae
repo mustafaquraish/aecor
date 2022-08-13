@@ -29,7 +29,7 @@ def Lexer::make(source: string, filename: string): Lexer {
 
 def Lexer::push(&this, token: &Token) {
     token.seen_newline = .seen_newline
-    .tokens.push(token as untyped_ptr)
+    .tokens.push(token)
     .seen_newline = false
 }
 

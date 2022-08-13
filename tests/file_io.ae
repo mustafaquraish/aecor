@@ -5,7 +5,7 @@ def main() {
         let file = File::open("test.txt", "w")
         defer file.close()
 
-        fwrite("Hello, world!" as untyped_ptr, 1, 13, file)
+        fwrite("Hello, world!" , 1, 13, file)
     }
     {
         let file = File::open("test.txt", "r")

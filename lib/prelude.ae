@@ -29,7 +29,7 @@ def File::seek(&this, offset: i32, whence: i32): i32 extern("fseek")
 
 def File::open(path: string, mode: string): &File {
     let file = fopen(path, mode)
-    if file == 0 as &File {
+    if file == null {
         println("Error opening file '%s': %s", path, strerror(errno))
         exit(1)
     }
@@ -38,7 +38,7 @@ def File::open(path: string, mode: string): &File {
 
 def File::exists(path: string): bool {
     let file = fopen(path, "r")
-    if file == 0 as &File {
+    if file == null {
         return false
     }
     file.close()
@@ -57,7 +57,7 @@ def File::slurp(&this): string {
 }
 
 def File::puts(&this, str: string) {
-    fwrite(str as untyped_ptr, 1, strlen(str), this)
+    fwrite(str , 1, strlen(str), this)
 }
 
 def exit(code: i32) exits extern

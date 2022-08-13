@@ -40,7 +40,7 @@ def Parser::new(tokens: &Vector, filename: string): &Parser {
     // memory semantics, and we don't want to ever mutate the filename.
     let tmp_filename = strdup(filename)
     parser.project_root = strdup(dirname(tmp_filename))
-    free(tmp_filename as untyped_ptr)
+    free(tmp_filename)
 
     parser.context_stack = Vector::new()
     return parser
@@ -48,7 +48,7 @@ def Parser::new(tokens: &Vector, filename: string): &Parser {
 
 def Parser::push_context(&this, tokens: &Vector) {
     let cur_context = ParserContext::new(.tokens, .curr)
-    .context_stack.push(cur_context as untyped_ptr)
+    .context_stack.push(cur_context)
 
     .tokens = tokens
     .curr = 0
@@ -58,12 +58,12 @@ def Parser::pop_context(&this) {
     let cur_context = .context_stack.pop() as &ParserContext
     .tokens = cur_context.tokens
     .curr = cur_context.offset
-    free(cur_context as untyped_ptr)
+    free(cur_context)
 }
 
 
 def Parser::add_include_dir(&this, dir: string) {
-    .include_dirs.push(dir as untyped_ptr)
+    .include_dirs.push(dir)
 }
 
 def Parser::error(&this, msg: string) {
@@ -107,7 +107,7 @@ def Parser::consume(&this, type: TokenType): &Token {
 
 
 def Parser::parse_type(&this): &Type {
-    let type = 0 as &Type
+    let type = null as &Type
     let start_span = .token().span
 
     while true {
@@ -159,7 +159,7 @@ def Parser::parse_type(&this): &Type {
             .consume(TokenType::OpenParen)
             let params = Vector::new()
             while not .token_is(TokenType::CloseParen) {
-                params.push(.parse_type() as untyped_ptr)
+                params.push(.parse_type())
                 if not .token_is(TokenType::CloseParen) {
                     .consume(TokenType::Comma)
                 }
@@ -197,7 +197,7 @@ def Parser::parse_format_string(&this): &AST {
         if fstr.text[i] == '{' {
             if count == 0 {
                 let part = substring(fstr.text, cur_start, i - cur_start)
-                format_parts.push(part as untyped_ptr)
+                format_parts.push(part)
                 cur_start = i + 1
             }
             count += 1
@@ -205,8 +205,8 @@ def Parser::parse_format_string(&this): &AST {
             count -= 1
             if count == 0 {
                 let part = substring(fstr.text, cur_start, i - cur_start)
-                expr_parts.push(part as untyped_ptr)
-                expr_start.push((fstr.text + cur_start) as untyped_ptr)
+                expr_parts.push(part)
+                expr_start.push((fstr.text + cur_start))
                 cur_start = i + 1
 
             } else if count < 0 {
@@ -218,7 +218,7 @@ def Parser::parse_format_string(&this): &AST {
         error_span(fstr.span, "Unmatched '{' in format string")
     }
     let part = substring(fstr.text, cur_start, fstr_len - cur_start)
-    format_parts.push(part as untyped_ptr)
+    format_parts.push(part)
 
     let node = AST::new(ASTType::FormatStringLiteral, fstr.span)
     node.u.fmt_str.parts = format_parts
@@ -239,14 +239,14 @@ def Parser::parse_format_string(&this): &AST {
         let expr = .parse_expression(false)
         .pop_context()
 
-        expr_nodes.push(expr as untyped_ptr)
+        expr_nodes.push(expr)
     }
     node.u.fmt_str.exprs = expr_nodes
     return node
 }
 
 def Parser::parse_factor(&this, in_parens: bool): &AST {
-    let node = 0 as &AST
+    let node = null as &AST
 
     match .token().type {
         TokenType::FormatStringLiteral => node = .parse_format_string()
@@ -274,6 +274,10 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
             let tok = .consume(.token().type)
             node = AST::new(ASTType::BoolLiteral, tok.span)
             node.u.bool_literal = (tok.type == TokenType::True)
+        }
+        TokenType::Null => {
+            node = AST::new(ASTType::Null, .token().span)
+            .consume(TokenType::Null)
         }
         TokenType::Dot => {
             let op = .consume(TokenType::Dot)
@@ -338,7 +342,7 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
                 let args = Vector::new()
                 while not .token_is(TokenType::CloseParen) {
                     let expr = .parse_expression(false)
-                    args.push(expr as untyped_ptr)
+                    args.push(expr)
                     if not .token_is(TokenType::CloseParen) {
                         .consume(TokenType::Comma)
                     }
@@ -524,7 +528,7 @@ def Parser::parse_match(&this): &AST {
 
         } else {
             let cond = .parse_factor(false)
-            let body = 0 as &AST
+            let body = null as &AST
             if not .consume_if(TokenType::Line) {
                 .consume(TokenType::FatArrow)
                 body = .parse_statement()
@@ -533,7 +537,7 @@ def Parser::parse_match(&this): &AST {
                 }
             }
             let _case = MatchCase::new(cond, body)
-            cases.push(_case as untyped_ptr)
+            cases.push(_case)
         }
     }
     .consume(TokenType::CloseCurly)
@@ -543,7 +547,7 @@ def Parser::parse_match(&this): &AST {
 }
 
 def Parser::parse_statement(&this): &AST {
-    let node = 0 as &AST
+    let node = null as &AST
     let start_span = .token().span
 
     match .token().type {
@@ -551,7 +555,7 @@ def Parser::parse_statement(&this): &AST {
         TokenType::OpenCurly => node = .parse_block()
         TokenType::Return => {
             .consume(TokenType::Return)
-            let expr = 0 as &AST
+            let expr = null as &AST
             if not .token().seen_newline {
                 expr = .parse_expression(false)
             }
@@ -579,7 +583,7 @@ def Parser::parse_statement(&this): &AST {
             let then = .parse_statement()
 
             let end_span = then.span
-            let els = 0 as &AST
+            let els = null as &AST
             if .consume_if(TokenType::Else) {
                 els = .parse_statement()
                 end_span = els.span
@@ -631,12 +635,12 @@ def Parser::parse_statement(&this): &AST {
             let name = .consume(TokenType::Identifier)
             let end_span = name.span
 
-            let type = 0 as &Type
+            let type = null as &Type
             if .consume_if(TokenType::Colon) {
                 type = .parse_type()
                 end_span = type.span
             }
-            let init = 0 as &AST
+            let init = null as &AST
             if .consume_if(TokenType::Equals) {
                 init = .parse_expression(false)
                 end_span = init.span
@@ -663,7 +667,7 @@ def Parser::parse_block(&this): &AST {
     let statements = Vector::new()
     while not .token_is(TokenType::CloseCurly) {
         let statement = .parse_statement()
-        statements.push(statement as untyped_ptr)
+        statements.push(statement)
     }
     node.u.block.statements = statements
 
@@ -693,7 +697,7 @@ def Parser::parse_function(&this): &Function {
     while not .token_is(TokenType::CloseParen) {
         let found_amp = .consume_if(TokenType::Ampersand)
         let var_name = .consume(TokenType::Identifier)
-        let type = 0 as &Type
+        let type = null as &Type
         if func.params.empty() and is_method {
             if streq(var_name.text, "this") {
                 type = Type::new(BaseType::Structure, name.span)
@@ -707,12 +711,12 @@ def Parser::parse_function(&this): &Function {
                 is_static = true
             }
         }
-        if type == 0 as &Type {
+        if type == null {
             .consume(TokenType::Colon)
             type = .parse_type()
         }
         let var = Variable::new(var_name.text, type, var_name.span)
-        func.params.push(var as untyped_ptr)
+        func.params.push(var)
 
         if not .token_is(TokenType::CloseParen) {
             .consume(TokenType::Comma)
@@ -771,7 +775,7 @@ def Parser::parse_enum(&this): &Structure {
         let type = Type::new(BaseType::I32, name.span)
 
         let var = Variable::new(name.text, type, name.span)
-        enum_def.fields.push(var as untyped_ptr)
+        enum_def.fields.push(var)
         if not .token_is(TokenType::CloseCurly) {
             .consume_newline_or(TokenType::Comma)
         }
@@ -814,7 +818,7 @@ def Parser::parse_struct(&this): &Structure {
             let type = .parse_type()
 
             let var = Variable::new(name.text, type, name.span.join(type.span))
-            struc.fields.push(var as untyped_ptr)
+            struc.fields.push(var)
             if not .token_is(TokenType::CloseCurly) {
                 .consume_newline_or(TokenType::Comma)
             }
@@ -837,7 +841,7 @@ def Parser::parse_global_var(&this): &AST {
     let node = AST::new(ASTType::VarDeclaration, .token().span)
     let name = .consume(TokenType::Identifier)
 
-    let type = 0 as &Type
+    let type = null as &Type
     if .consume_if(TokenType::Colon) { type = .parse_type(); }
 
     let var = Variable::new(name.text, type, start_span.join(.token().span))
@@ -853,7 +857,7 @@ def Parser::parse_global_var(&this): &AST {
             var.extern_name = var.name
         }
 
-        if type == 0 as &Type {
+        if type == null {
             error_span(name.span, "Extern variables must have a type");
         }
     } else {
@@ -875,7 +879,7 @@ def Parser::find_file_path(&this, filename: string): string {
         let file_path = `{.project_root}/{filename + 2}` // Remove @/
         if File::exists(file_path)
             return file_path
-        free(file_path as untyped_ptr)
+        free(file_path)
 
     // If unspecified, check include paths (which also includes working directory)
     } else {
@@ -885,7 +889,7 @@ def Parser::find_file_path(&this, filename: string): string {
             let file_path = `{dir}/{filename}`
             if File::exists(file_path)
                 return file_path
-            free(file_path as untyped_ptr)
+            free(file_path)
         }
     }
 
@@ -929,16 +933,16 @@ def Parser::parse_compiler_option(&this, program: &Program) {
     match name.text {
         "c_include" => {
             let filename = .consume(TokenType::StringLiteral)
-            program.c_includes.push(filename.text as untyped_ptr)
+            program.c_includes.push(filename.text)
         }
         "c_flag" => {
             let flag = .consume(TokenType::StringLiteral)
-            program.c_flags.push(flag.text as untyped_ptr)
+            program.c_flags.push(flag.text)
         }
         "c_embed_header" => {
             let filename = .consume(TokenType::StringLiteral)
             let resolved = .find_file_path(filename.text)
-            program.c_embed_headers.push(resolved as untyped_ptr)
+            program.c_embed_headers.push(resolved)
         }
         else => error_span(name.span, "Unknown compiler option")
     }
@@ -951,19 +955,19 @@ def Parser::parse_into_program(&this, program: &Program) {
             TokenType::AtSign => .parse_compiler_option(program)
             TokenType::Def => {
                 let func = .parse_function()
-                program.functions.push(func as untyped_ptr)
+                program.functions.push(func)
             }
             TokenType::Let => {
                 let node = .parse_global_var()
-                program.global_vars.push(node as untyped_ptr)
+                program.global_vars.push(node)
             }
             TokenType::Struct | TokenType::Union => {
                 let structure = .parse_struct()
-                program.structures.push(structure as untyped_ptr)
+                program.structures.push(structure)
             }
             TokenType::Enum => {
                 let structure = .parse_enum()
-                program.structures.push(structure as untyped_ptr)
+                program.structures.push(structure)
             }
             else =>.unhandled_type("parse_program")
         }

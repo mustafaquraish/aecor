@@ -13,7 +13,7 @@ def error_span(span: Span, msg: string) exits {
     defer file.close()
 
     let contents = file.slurp()
-    defer free(contents as untyped_ptr)
+    defer free(contents)
 
     let min_line = max(span.start.line - 2, 1)
     let max_line = span.end.line + 2

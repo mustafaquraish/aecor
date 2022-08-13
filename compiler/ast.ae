@@ -42,6 +42,7 @@ enum ASTType {
   MultiplyEquals
   Not
   NotEquals
+  Null
   Or
   Plus
   PlusEquals
@@ -95,6 +96,7 @@ def ASTType::str(this): string {
         MultiplyEquals => return "MultiplyEquals"
         Not => return "Not"
         NotEquals => return "NotEquals"
+        Null => return "Null"
         Or => return "Or"
         Plus => return "Plus"
         PlusEquals => return "PlusEquals"
@@ -208,7 +210,7 @@ def Structure::find_field(&this, name: string): &Variable {
             return field
         }
     }
-    return 0 as &Variable
+    return null
 }
 
 struct Program {
@@ -251,7 +253,7 @@ def Program::add_included_file(&this, filename: string) {
     if len > 2 and filename[0] == '.' and filename[1] == '/' {
         filename = &filename[2]
     }
-    .included_files.insert(filename, filename as untyped_ptr)
+    .included_files.insert(filename, filename)
 }
 
 struct Block {
@@ -387,7 +389,7 @@ def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
 }
 
 def AST::callee_is(&this, expected: string): bool {
-    if this == 0 as &AST return false
+    if this == null return false
     if .type != ASTType::Call return false
     if .u.call.callee.type != ASTType::Identifier return false
     let name = .u.call.callee.u.ident.name

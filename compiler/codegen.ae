@@ -19,7 +19,7 @@ def CodeGenerator::indent(&this, num: i32) {
 }
 
 def CodeGenerator::push_scope(&this) {
-    .scopes.push(Vector::new() as untyped_ptr)
+    .scopes.push(Vector::new())
 }
 
 def CodeGenerator::scope(&this): &Vector {
@@ -148,6 +148,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         FloatLiteral => .out.puts(node.u.num_literal)
         StringLiteral => .out.puts(`\"{node.u.string_literal}\"`)
         CharLiteral => .out.puts(`'{node.u.char_literal}'`)
+        Null => .out.puts("NULL")
         BoolLiteral => {
             if node.u.bool_literal {
                 .out.puts("true")
@@ -172,7 +173,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             } else if node.callee_is("println") {
                 .out.puts("printf")
                 newline_after_first = true;
-            } else if node.u.call.func == 0 as &Function {
+            } else if node.u.call.func == null {
                 .gen_expression(node.u.call.callee);
             } else {
                 .gen_function_name(node.u.call.func);
@@ -210,8 +211,9 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Address | Dereference | Not | UnaryMinus => {
             .out.puts("(")
             .out.puts(CodeGenerator::get_op(node.type))
+            .out.puts("(")
             .gen_expression(node.u.unary)
-            .out.puts(")")
+            .out.puts("))")
         }
         Index => {
             .gen_expression(node.u.binary.lhs)
@@ -251,7 +253,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
             .out.puts(")")
         }
-        Defer => .scope().push(node.u.unary as untyped_ptr)
+        Defer => .scope().push(node.u.unary)
         SizeOf => {
             .out.puts("sizeof(")
             .gen_type(node.u.size_of_type)
@@ -266,7 +268,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_expression(node.u.binary.lhs)
             .out.puts(CodeGenerator::get_op(node.type))
             .gen_expression(node.u.binary.rhs)
-
         }
         else => {
             println("unknown type in gen_expression: %s", node.type.str())
@@ -279,7 +280,7 @@ def CodeGenerator::gen_var_decl(&this, node: &AST) {
     let var = node.u.var_decl.var
     if var.is_extern return
     .gen_type_and_name(var.type, var.name)
-    if node.u.var_decl.init != 0 as &AST {
+    if node.u.var_decl.init != null {
         .out.puts(" = ")
         .gen_expression(node.u.var_decl.init)
     }
@@ -303,7 +304,7 @@ def CodeGenerator::gen_match_string(&this, node: &AST, indent: i32) {
         .gen_expression(_case.cond)
         .out.puts(")")
 
-        if _case.body != 0 as &AST {
+        if _case.body != null {
             .out.puts(")")
             .gen_match_case_body(_case.body, indent)
             .out.puts(" else ")
@@ -314,7 +315,7 @@ def CodeGenerator::gen_match_string(&this, node: &AST, indent: i32) {
             .out.puts(" || ")
         }
     }
-    if stmt.defolt != 0 as &AST {
+    if stmt.defolt != null {
         .gen_match_case_body(stmt.defolt, indent)
     }
     .out.puts("\n")
@@ -353,7 +354,7 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
         .out.puts("case ")
         .gen_expression(_case.cond)
         .out.puts(":")
-        if _case.body != 0 as &AST {
+        if _case.body != null {
             .gen_match_case_body(_case.body, indent)
             .out.puts(" break;\n")
 
@@ -361,7 +362,7 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
             .out.puts("\n")
         }
     }
-    if stmt.defolt != 0 as &AST {
+    if stmt.defolt != null {
         .indent(indent + 1)
         .out.puts("default:")
         .gen_match_case_body(stmt.defolt, indent)
@@ -375,7 +376,7 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
     if node.type == ASTType::Return {
         .indent(indent)
         .out.puts("return")
-        if node.u.unary != 0 as &AST {
+        if node.u.unary != null {
             .out.puts(" ")
             .gen_expression(node.u.unary)
         }
@@ -403,7 +404,7 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
         .gen_expression(node.u.if_stmt.cond)
         .out.puts(")")
         .gen_control_body(node.u.if_stmt.then, indent)
-        if node.u.if_stmt.els != 0 as &AST {
+        if node.u.if_stmt.els != null {
             .out.puts(" else ")
             .gen_control_body(node.u.if_stmt.els, indent)
         }
@@ -420,7 +421,7 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
     } else if node.type == ASTType::For {
         .indent(indent)
         .out.puts("for (")
-        if node.u.loop.init != 0 as &AST {
+        if node.u.loop.init != null {
             if node.u.loop.init.type == ASTType::VarDeclaration {
                 .gen_var_decl(node.u.loop.init)
             } else {
@@ -428,11 +429,11 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
             }
         }
         .out.puts("; ")
-        if node.u.loop.cond != 0 as &AST {
+        if node.u.loop.cond != null {
             .gen_expression(node.u.loop.cond)
         }
         .out.puts("; ")
-        if node.u.loop.incr != 0 as &AST {
+        if node.u.loop.incr != null {
             .gen_expression(node.u.loop.incr)
         }
         .out.puts(") ")
@@ -580,7 +581,7 @@ def CodeGenerator::gen_embed_headers(&this, program: &Program) {
             defer file.close()
 
             let contents = file.slurp()
-            defer free(contents as untyped_ptr)
+            defer free(contents)
 
             .out.puts(contents)
             .out.puts("\n\n")

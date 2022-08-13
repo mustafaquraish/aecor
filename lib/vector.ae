@@ -20,7 +20,7 @@ def Vector::new(): &Vector {
 
 def Vector::resize(&this, new_capacity: i32) {
     .capacity = new_capacity
-    .data = realloc(.data as untyped_ptr,
+    .data = realloc(.data ,
                     .capacity * sizeof(untyped_ptr)) as &untyped_ptr
 }
 
@@ -73,6 +73,6 @@ def Vector::empty(&this): bool {
 }
 
 def Vector::free(&this) {
-    free(.data as untyped_ptr)
-    free(this as untyped_ptr)
+    free(.data)
+    free(this)
 }

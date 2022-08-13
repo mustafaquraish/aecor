@@ -118,8 +118,8 @@ def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
 
 def main() {
     let objs = Vector::new()
-    objs.push(Sphere::new(0.0,    0.0, -1.0,   0.5, 1.0, 0.6, 0.3) as untyped_ptr)
-    objs.push(Sphere::new(0.0, -100.5, -1.0, 100.0, 0.5, 0.5, 0.5) as untyped_ptr)
+    objs.push(Sphere::new(0.0,    0.0, -1.0,   0.5, 1.0, 0.6, 0.3))
+    objs.push(Sphere::new(0.0, -100.5, -1.0, 100.0, 0.5, 0.5, 0.5))
 
     // Image
     let aspect_ratio = 16.0 / 9.0

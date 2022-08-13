@@ -19,8 +19,8 @@ def Image::new(width: i32, height: i32): &Image {
 }
 
 def Image::free(&this) {
-    free(.data as untyped_ptr)
-    free(this as untyped_ptr)
+    free(.data)
+    free(this)
 }
 
 def Image::get(&this, x: i32, y: i32): Vec {
@@ -38,7 +38,7 @@ def Image::save(&this, filename: string) {
     defer f.close()
 
     let u8buf = calloc(1, .width * .height * 3 * sizeof(u8)) as &u8
-    defer free(u8buf as untyped_ptr)
+    defer free(u8buf)
 
     for let i = 0; i < .width * .height; i += 1 {
         let col = *(.data + i)
@@ -49,6 +49,6 @@ def Image::save(&this, filename: string) {
     }
 
     let header = `P6 {.width} {.height} 255\n`
-    fwrite(header as untyped_ptr, strlen(header), 1, f)
-    fwrite(u8buf as untyped_ptr, sizeof(u8), 3 * .width * .height, f)
+    fwrite(header , strlen(header), 1, f)
+    fwrite(u8buf , sizeof(u8), 3 * .width * .height, f)
 }

@@ -91,6 +91,7 @@ enum TokenType {
   If
   Let
   Match
+  Null
   Not
   Or
   Return
@@ -171,6 +172,7 @@ def TokenType::from_text(text: string): TokenType {
         "let" => return TokenType::Let
         "match" => return TokenType::Match
         "not" => return TokenType::Not
+        "null" => return TokenType::Null
         "or" => return TokenType::Or
         "return" => return TokenType::Return
         "sizeof" => return TokenType::SizeOf
@@ -210,6 +212,7 @@ def TokenType::str(this): string {
         TokenType::Let => return "let"
         TokenType::Match => return "match"
         TokenType::Not => return "not"
+        TokenType::Null => return "null"
         TokenType::Or => return "or"
         TokenType::Return => return "return"
         TokenType::SizeOf => return "sizeof"

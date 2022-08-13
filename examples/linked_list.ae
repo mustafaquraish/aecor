@@ -8,7 +8,7 @@ struct Node {
 def Node::new(val: i32): &Node {
     let node = malloc(sizeof(Node)) as &Node;
     node.val = val;
-    node.next = 0 as &Node;
+    node.next = null;
     return node;
 }
 
@@ -20,7 +20,7 @@ def Node::add_front(&this, val: i32): &Node {
 
 def Node::print_list(&this) {
     let node = this;
-    while node != (0 as &Node) {
+    while node != (null) {
         print("%d -> ", node.val);
         node = node.next;
     }
@@ -28,7 +28,7 @@ def Node::print_list(&this) {
 }
 
 def main() {
-    let head = 0 as &Node
+    let head = null
     head = head.add_front(1)
     head = head.add_front(2)
     head = head.add_front(4)
