@@ -893,6 +893,15 @@ def Parser::find_file_path(&this, filename: string): string {
         }
     }
 
+    // This only happens if lib/prelude.ae is not found
+    if .curr == 0 {
+        println("---------------------------------------------------------------")
+        println("[-] Error: Could not find file '%s'", filename)
+        println("[+] Hint: Specify the aecor root directory with the -l option")
+        println("---------------------------------------------------------------")
+        exit(1)
+    }
+
     .curr -= 1
     error_span(.token().span, `Could not find file: {filename}`)
 }
