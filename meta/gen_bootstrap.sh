@@ -35,6 +35,8 @@ read -p "Are you sure you want to replace bootstrap/stage0.c? [y/N] " confirm
 if [[ $confirm =~ ^[Yy]$ ]]; then
     echo "[+] cp build/stage3.c bootstrap/stage0.c"
     cp build/stage3.c bootstrap/stage0.c
+    echo "[+] cp build/stage3 bootstrap/aecor"
+    cp build/stage3 bootstrap/aecor
     echo "Done."
 else
     echo "[-] Aborting"
