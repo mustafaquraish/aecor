@@ -6,6 +6,7 @@
 #include "errno.h"
 #include "ctype.h"
 #include "math.h"
+#include "libgen.h"
 
 /***************** embed './lib/prelude.h' *****************/
 #include "stdarg.h"
@@ -60,6 +61,7 @@ typedef struct MatchCase MatchCase;
 typedef struct Match Match;
 typedef union ASTUnion ASTUnion;
 typedef struct AST AST;
+typedef struct ParserContext ParserContext;
 typedef struct Parser Parser;
 typedef struct TypeChecker TypeChecker;
 typedef struct CodeGenerator CodeGenerator;
@@ -412,9 +414,16 @@ struct AST {
   bool returns;
 };
 
+struct ParserContext {
+  Vector* tokens;
+  int offset;
+};
+
 struct Parser {
   Vector* tokens;
   int curr;
+  Vector* context_stack;
+  char* project_root;
   Vector* include_dirs;
 };
 
@@ -507,7 +516,10 @@ float clampf(float x, float min, float max);
 float clamp01(float x);
 __attribute__((noreturn)) void error_loc(Location loc, char* msg);
 __attribute__((noreturn)) void error_span(Span span, char* msg);
-Parser* Parser__new(Vector* tokens);
+ParserContext* ParserContext__new(Vector* tokens, int offset);
+Parser* Parser__new(Vector* tokens, char* filename);
+void Parser__push_context(Parser* this, Vector* tokens);
+void Parser__pop_context(Parser* this);
 void Parser__add_include_dir(Parser* this, char* dir);
 void Parser__error(Parser* this, char* msg);
 void Parser__unhandled_type(Parser* this, char* func);
@@ -1963,13 +1975,36 @@ __attribute__((noreturn)) void error_span(Span span, char* msg) {
   fclose(file);
 }
 
-Parser* Parser__new(Vector* tokens) {
+ParserContext* ParserContext__new(Vector* tokens, int offset) {
+  ParserContext* context = ((ParserContext*)calloc(1, sizeof(ParserContext)));
+  context->tokens = tokens;
+  context->offset = offset;
+  return context;
+}
+
+Parser* Parser__new(Vector* tokens, char* filename) {
   Parser* parser = ((Parser*)calloc(1, sizeof(Parser)));
   parser->tokens = tokens;
   parser->curr = 0;
   parser->include_dirs = Vector__new();
   Parser__add_include_dir(parser, ".");
+  parser->project_root = strdup(dirname(filename));
+  parser->context_stack = Vector__new();
   return parser;
+}
+
+void Parser__push_context(Parser* this, Vector* tokens) {
+  ParserContext* cur_context = ParserContext__new(this->tokens, this->curr);
+  Vector__push(this->context_stack, ((void*)cur_context));
+  this->tokens = tokens;
+  this->curr = 0;
+}
+
+void Parser__pop_context(Parser* this) {
+  ParserContext* cur_context = ((ParserContext*)Vector__pop(this->context_stack));
+  this->tokens = cur_context->tokens;
+  this->curr = cur_context->offset;
+  free(((void*)cur_context));
 }
 
 void Parser__add_include_dir(Parser* this, char* dir) {
@@ -2138,8 +2173,9 @@ AST* Parser__parse_format_string(Parser* this) {
     lexer.loc = fstr_start;
     lexer.loc.col += start;
     Vector* tokens = Lexer__lex((&lexer));
-    Parser* parser = Parser__new(tokens);
-    AST* expr = Parser__parse_expression(parser, false);
+    Parser__push_context(this, tokens);
+    AST* expr = Parser__parse_expression(this, false);
+    Parser__pop_context(this);
     Vector__push(expr_nodes, ((void*)expr));
   } 
   node->u.fmt_str.exprs = expr_nodes;
@@ -2755,13 +2791,20 @@ char* Parser__find_file_path(Parser* this, char* filename) {
   if (strstartswith(filename, "/"))
   return filename;
   
-  for (int i = 0; (i < this->include_dirs->size); i += 1) {
-    char* dir = ((char*)Vector__at(this->include_dirs, i));
-    char* file_path = __format_string("%s/%s", dir, filename);
+  if (strstartswith(filename, "@/")){
+    char* file_path = __format_string("%s/%s", this->project_root, (filename + 2));
     if (File__exists(file_path))
     return file_path;
     
-    free(((void*)file_path));
+  }  else {
+    for (int i = 0; (i < this->include_dirs->size); i += 1) {
+      char* dir = ((char*)Vector__at(this->include_dirs, i));
+      char* file_path = __format_string("%s/%s", dir, filename);
+      if (File__exists(file_path))
+      return file_path;
+      
+      free(((void*)file_path));
+    } 
   } 
   this->curr -= 1;
   error_span(Parser__token(this)->span, __format_string("Could not find file: %s", filename));
@@ -2777,13 +2820,9 @@ void Parser__include_file(Parser* this, Program* program, char* filename) {
   char* contents = File__slurp(file);
   Lexer lexer = Lexer__make(contents, filename);
   Vector* tokens = Lexer__lex((&lexer));
-  Vector* prev_tokens = this->tokens;
-  int prev_curr = this->curr;
-  this->tokens = tokens;
-  this->curr = 0;
+  Parser__push_context(this, tokens);
   Parser__parse_into_program(this, program);
-  this->tokens = prev_tokens;
-  this->curr = prev_curr;
+  Parser__pop_context(this);
 }
 
 void Parser__parse_use(Parser* this, Program* program) {
@@ -2853,7 +2892,7 @@ void Parser__parse_into_program(Parser* this, Program* program) {
 
 Program* Parser__parse_program(Parser* this) {
   Program* program = Program__new();
-  Parser__include_file(this, program, "./lib/prelude.ae");
+  Parser__include_file(this, program, "lib/prelude.ae");
   Parser__parse_into_program(this, program);
   return program;
 }
@@ -4406,7 +4445,7 @@ int main(int argc, char** argv) {
   char* contents = File__slurp(file);
   Lexer lexer = Lexer__make(contents, filename);
   Vector* tokens = Lexer__lex((&lexer));
-  Parser* parser = Parser__new(tokens);
+  Parser* parser = Parser__new(tokens, filename);
   if ((lib_path != ((char*)0))){
     Parser__add_include_dir(parser, lib_path);
   } 

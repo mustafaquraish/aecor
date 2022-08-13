@@ -1,22 +1,61 @@
-use "compiler/ast.ae"
-use "compiler/utils.ae"
+use "@/ast.ae"
+use "@/utils.ae"
+
+// Don't think this is used enough to include in the prelude.
+@compiler c_include "libgen.h"
+def dirname(path: string): string extern
+
+struct ParserContext {
+    tokens: &Vector  // &Vector<Token>
+    offset: i32
+}
+
+def ParserContext::new(tokens: &Vector, offset: i32): &ParserContext {
+    let context = calloc(1, sizeof(ParserContext)) as &ParserContext
+    context.tokens = tokens
+    context.offset = offset
+    return context
+}
 
 struct Parser {
-    tokens: &Vector
+    // Current context
+    tokens: &Vector  // &Vector<Token>
     curr: i32
+
+    // Parser context stack
+    context_stack: &Vector
+    project_root: string
     include_dirs: &Vector
 }
 
-def Parser::new(tokens: &Vector): &Parser {
+def Parser::new(tokens: &Vector, filename: string): &Parser {
     let parser = calloc(1, sizeof(Parser)) as &Parser
     parser.tokens = tokens
     parser.curr = 0
 
     parser.include_dirs = Vector::new()
     parser.add_include_dir(".")
+    parser.project_root = strdup(dirname(filename))
 
+    parser.context_stack = Vector::new()
     return parser
 }
+
+def Parser::push_context(&this, tokens: &Vector) {
+    let cur_context = ParserContext::new(.tokens, .curr)
+    .context_stack.push(cur_context as untyped_ptr)
+
+    .tokens = tokens
+    .curr = 0
+}
+
+def Parser::pop_context(&this) {
+    let cur_context = .context_stack.pop() as &ParserContext
+    .tokens = cur_context.tokens
+    .curr = cur_context.offset
+    free(cur_context as untyped_ptr)
+}
+
 
 def Parser::add_include_dir(&this, dir: string) {
     .include_dirs.push(dir as untyped_ptr)
@@ -191,10 +230,9 @@ def Parser::parse_format_string(&this): &AST {
 
         let tokens = lexer.lex()
 
-        // It's fine to make a new parser here, we don't need the
-        // include paths for an expression
-        let parser = Parser::new(tokens)
-        let expr = parser.parse_expression(false)
+        .push_context(tokens)
+        let expr = .parse_expression(false)
+        .pop_context()
 
         expr_nodes.push(expr as untyped_ptr)
     }
@@ -824,15 +862,25 @@ def Parser::parse_global_var(&this): &AST {
 }
 
 def Parser::find_file_path(&this, filename: string): string {
+    // Absolute paths
     if strstartswith(filename, "/") return filename
 
-    for let i = 0; i < .include_dirs.size; i += 1 {
-        let dir = .include_dirs.at(i) as string
-    
-        let file_path = `{dir}/{filename}`
+    // Relative to project root
+    if strstartswith(filename, "@/") {
+        let file_path = `{.project_root}/{filename + 2}` // Remove @/
         if File::exists(file_path)
             return file_path
-        free(file_path as untyped_ptr)
+
+    // If unspecified, check include paths (which also includes working directory)
+    } else {
+        for let i = 0; i < .include_dirs.size; i += 1 {
+            let dir = .include_dirs.at(i) as string
+
+            let file_path = `{dir}/{filename}`
+            if File::exists(file_path)
+                return file_path
+            free(file_path as untyped_ptr)
+        }
     }
 
     .curr -= 1
@@ -851,19 +899,9 @@ def Parser::include_file(&this, program: &Program, filename: string) {
     let lexer = Lexer::make(contents, filename)
     let tokens = lexer.lex()
 
-    // Backup old parser state
-    let prev_tokens = .tokens
-    let prev_curr = .curr
-
-    // Set new parser state
-    .tokens = tokens
-    .curr = 0
-
+    .push_context(tokens)
     .parse_into_program(program)
-
-    // Restore old parser state
-    .tokens = prev_tokens
-    .curr = prev_curr
+    .pop_context()
 }
 
 def Parser::parse_use(&this, program: &Program) {
@@ -928,7 +966,7 @@ def Parser::parse_into_program(&this, program: &Program) {
 
 def Parser::parse_program(&this): &Program {
     let program = Program::new()
-    .include_file(program, "./lib/prelude.ae")
+    .include_file(program, "lib/prelude.ae")
     .parse_into_program(program)
     return program
 }
