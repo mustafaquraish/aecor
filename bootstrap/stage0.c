@@ -448,9 +448,9 @@ FILE* File__open(char* path, char* mode);
 bool File__exists(char* path);
 char* File__slurp(FILE* this);
 void File__puts(FILE* this, char* str);
-bool strstartswith(char* str, char* prefix);
-bool streq(char* str1, char* str2);
-char* substring(char* str, int start, int len);
+bool string__starts_with(char* this, char* prefix);
+bool string__eq(char* this, char* str2);
+char* string__substring(char* this, int start, int len);
 Vector* Vector__new();
 void Vector__resize(Vector* this, int new_capacity);
 void Vector__push(Vector* this, void* val);
@@ -516,6 +516,8 @@ int max(int a, int b);
 float maxf(float a, float b);
 float clampf(float x, float min, float max);
 float clamp01(float x);
+float degrees(float radians);
+float radians(float degrees);
 __attribute__((noreturn)) void error_loc(Location loc, char* msg);
 __attribute__((noreturn)) void error_span(Span span, char* msg);
 ParserContext* ParserContext__new(Vector* tokens, int offset);
@@ -642,22 +644,21 @@ void File__puts(FILE* this, char* str) {
   fwrite(str, 1, strlen(str), this);
 }
 
-bool strstartswith(char* str, char* prefix) {
+bool string__starts_with(char* this, char* prefix) {
   int prefix_len = strlen(prefix);
-  int str_len = strlen(str);
-  if ((str_len < prefix_len)){
+  if ((strlen(this) < prefix_len)){
     return false;
   } 
-  return strncmp(str, prefix, prefix_len) == 0;
+  return strncmp(this, prefix, prefix_len) == 0;
 }
 
-bool streq(char* str1, char* str2) {
-  return strcmp(str1, str2) == 0;
+bool string__eq(char* this, char* str2) {
+  return strcmp(this, str2) == 0;
 }
 
-char* substring(char* str, int start, int len) {
+char* string__substring(char* this, int start, int len) {
   char* new_str = ((char*)calloc((len + 1), sizeof(char)));
-  strncpy(new_str, (str + start), len);
+  strncpy(new_str, (this + start), len);
   return new_str;
 }
 
@@ -782,71 +783,71 @@ char* Token__str(Token* this) {
 TokenType TokenType__from_text(char* text) {
   {
     char *__match_str = text;
-    if (streq(__match_str, "and")) {
+    if (!strcmp(__match_str, "and")) {
       return TokenType__And;
-    } else if (streq(__match_str, "as")) {
+    } else if (!strcmp(__match_str, "as")) {
       return TokenType__As;
-    } else if (streq(__match_str, "bool")) {
+    } else if (!strcmp(__match_str, "bool")) {
       return TokenType__Bool;
-    } else if (streq(__match_str, "break")) {
+    } else if (!strcmp(__match_str, "break")) {
       return TokenType__Break;
-    } else if (streq(__match_str, "char")) {
+    } else if (!strcmp(__match_str, "char")) {
       return TokenType__Char;
-    } else if (streq(__match_str, "continue")) {
+    } else if (!strcmp(__match_str, "continue")) {
       return TokenType__Continue;
-    } else if (streq(__match_str, "def")) {
+    } else if (!strcmp(__match_str, "def")) {
       return TokenType__Def;
-    } else if (streq(__match_str, "defer")) {
+    } else if (!strcmp(__match_str, "defer")) {
       return TokenType__Defer;
-    } else if (streq(__match_str, "else")) {
+    } else if (!strcmp(__match_str, "else")) {
       return TokenType__Else;
-    } else if (streq(__match_str, "enum")) {
+    } else if (!strcmp(__match_str, "enum")) {
       return TokenType__Enum;
-    } else if (streq(__match_str, "extern")) {
+    } else if (!strcmp(__match_str, "extern")) {
       return TokenType__Extern;
-    } else if (streq(__match_str, "false")) {
+    } else if (!strcmp(__match_str, "false")) {
       return TokenType__False;
-    } else if (streq(__match_str, "f32")) {
+    } else if (!strcmp(__match_str, "f32")) {
       return TokenType__F32;
-    } else if (streq(__match_str, "for")) {
+    } else if (!strcmp(__match_str, "for")) {
       return TokenType__For;
-    } else if (streq(__match_str, "fn")) {
+    } else if (!strcmp(__match_str, "fn")) {
       return TokenType__Fn;
-    } else if (streq(__match_str, "i32")) {
+    } else if (!strcmp(__match_str, "i32")) {
       return TokenType__I32;
-    } else if (streq(__match_str, "if")) {
+    } else if (!strcmp(__match_str, "if")) {
       return TokenType__If;
-    } else if (streq(__match_str, "let")) {
+    } else if (!strcmp(__match_str, "let")) {
       return TokenType__Let;
-    } else if (streq(__match_str, "match")) {
+    } else if (!strcmp(__match_str, "match")) {
       return TokenType__Match;
-    } else if (streq(__match_str, "not")) {
+    } else if (!strcmp(__match_str, "not")) {
       return TokenType__Not;
-    } else if (streq(__match_str, "null")) {
+    } else if (!strcmp(__match_str, "null")) {
       return TokenType__Null;
-    } else if (streq(__match_str, "or")) {
+    } else if (!strcmp(__match_str, "or")) {
       return TokenType__Or;
-    } else if (streq(__match_str, "return")) {
+    } else if (!strcmp(__match_str, "return")) {
       return TokenType__Return;
-    } else if (streq(__match_str, "sizeof")) {
+    } else if (!strcmp(__match_str, "sizeof")) {
       return TokenType__SizeOf;
-    } else if (streq(__match_str, "string")) {
+    } else if (!strcmp(__match_str, "string")) {
       return TokenType__String;
-    } else if (streq(__match_str, "struct")) {
+    } else if (!strcmp(__match_str, "struct")) {
       return TokenType__Struct;
-    } else if (streq(__match_str, "true")) {
+    } else if (!strcmp(__match_str, "true")) {
       return TokenType__True;
-    } else if (streq(__match_str, "u8")) {
+    } else if (!strcmp(__match_str, "u8")) {
       return TokenType__U8;
-    } else if (streq(__match_str, "untyped_ptr")) {
+    } else if (!strcmp(__match_str, "untyped_ptr")) {
       return TokenType__UntypedPtr;
-    } else if (streq(__match_str, "union")) {
+    } else if (!strcmp(__match_str, "union")) {
       return TokenType__Union;
-    } else if (streq(__match_str, "use")) {
+    } else if (!strcmp(__match_str, "use")) {
       return TokenType__Use;
-    } else if (streq(__match_str, "void")) {
+    } else if (!strcmp(__match_str, "void")) {
       return TokenType__Void;
-    } else if (streq(__match_str, "while")) {
+    } else if (!strcmp(__match_str, "while")) {
       return TokenType__While;
     } else  {
       return TokenType__Identifier;
@@ -1262,7 +1263,7 @@ Vector* Lexer__lex(Lexer* this) {
             token_type = TokenType__IntLiteral;
           } 
           int len = (this->i - start);
-          char* text = substring(this->source, start, len);
+          char* text = string__substring(this->source, start, len);
           this->loc.col += len;
           Lexer__push(this, Token__new(token_type, Span__make(start_loc, this->loc), text));
         }  else         if ((isalpha(c) || c == '_')){
@@ -1271,7 +1272,7 @@ Vector* Lexer__lex(Lexer* this) {
             this->i += 1;
           } 
           int len = (this->i - start);
-          char* text = substring(this->source, start, len);
+          char* text = string__substring(this->source, start, len);
           this->loc.col += len;
           Lexer__push(this, Token__from_ident(text, Span__make(start_loc, this->loc)));
         }  else         if (c == '\''){
@@ -1287,7 +1288,7 @@ Vector* Lexer__lex(Lexer* this) {
             error_loc(this->loc, "Expected ' after character literal");
           } 
           int len = (this->i - start);
-          char* text = substring(this->source, start, len);
+          char* text = string__substring(this->source, start, len);
           this->loc.col += (len + 2);
           this->i += 1;
           Lexer__push(this, Token__new(TokenType__CharLiteral, Span__make(start_loc, this->loc), text));
@@ -1302,7 +1303,7 @@ Vector* Lexer__lex(Lexer* this) {
             this->i += 1;
           } 
           int len = (this->i - start);
-          char* text = substring(this->source, start, len);
+          char* text = string__substring(this->source, start, len);
           this->loc.col += (len + 2);
           this->i += 1;
           if (end_char == '`'){
@@ -1365,7 +1366,7 @@ MapNode* Map__get_node(Map* this, char* key) {
   int hash = Map__hash(this, key);
   MapNode* node = this->buckets[hash];
   while ((node != NULL)) {
-    if (streq(node->key, key)){
+    if (string__eq(node->key, key)){
       return node;
     } 
     node = node->next;
@@ -1455,6 +1456,9 @@ Type* Type__new(BaseType base, Span span) {
 Type* Type__new_link(BaseType base, Type* next, Span span) {
   Type* type = Type__new(base, span);
   type->ptr = next;
+  if (((base == BaseType__Pointer && (next != NULL)) && next->base == BaseType__Char)){
+    type->name = "string";
+  } 
   return type;
 }
 
@@ -1507,7 +1511,7 @@ bool Type__eq(Type* this, Type* other) {
     return true;
   } 
   if (this->base == BaseType__Structure)
-  return streq(this->name, other->name);
+  return string__eq(this->name, other->name);
   
   if (this->base == BaseType__Pointer){
     if ((this->ptr->base == BaseType__Void || other->ptr->base == BaseType__Void)){
@@ -1821,7 +1825,7 @@ Structure* Structure__new(Span span) {
 Variable* Structure__find_field(Structure* this, char* name) {
   for (int i = 0; (i < this->fields->size); i += 1) {
     Variable* field = ((Variable*)Vector__at(this->fields, i));
-    if (streq(field->name, name)){
+    if (string__eq(field->name, name)){
       return field;
     } 
   } 
@@ -1894,7 +1898,7 @@ bool AST__callee_is(AST* this, char* expected) {
   return false;
   
   char* name = this->u.call.callee->u.ident.name;
-  return streq(name, expected);
+  return string__eq(name, expected);
 }
 
 int min(int a, int b) {
@@ -1935,6 +1939,14 @@ float clampf(float x, float min, float max) {
 
 float clamp01(float x) {
   return clampf(x, 0.0, 1.0);
+}
+
+float degrees(float radians) {
+  return ((radians * 180.0) / M_PI);
+}
+
+float radians(float degrees) {
+  return ((degrees * M_PI) / 180.0);
 }
 
 __attribute__((noreturn)) void error_loc(Location loc, char* msg) {
@@ -2101,6 +2113,7 @@ Type* Parser__parse_type(Parser* this) {
     case TokenType__String: {
       Span span = Span__join(start_span, Parser__token(this)->span);
       type = Type__new_link(BaseType__Char, Type__new_link(BaseType__Pointer, type, span), span);
+      type->ptr->name = "string";
       this->curr += 1;
     } break;
     case TokenType__UntypedPtr: {
@@ -2153,7 +2166,7 @@ AST* Parser__parse_format_string(Parser* this) {
   for (int i = 0; (i < fstr_len); i += 1) {
     if (fstr->text[i] == '{'){
       if (count == 0){
-        char* part = substring(fstr->text, cur_start, (i - cur_start));
+        char* part = string__substring(fstr->text, cur_start, (i - cur_start));
         Vector__push(format_parts, part);
         cur_start = (i + 1);
       } 
@@ -2161,7 +2174,7 @@ AST* Parser__parse_format_string(Parser* this) {
     }  else     if (fstr->text[i] == '}'){
       count -= 1;
       if (count == 0){
-        char* part = substring(fstr->text, cur_start, (i - cur_start));
+        char* part = string__substring(fstr->text, cur_start, (i - cur_start));
         Vector__push(expr_parts, part);
         Vector__push(expr_start, (fstr->text + cur_start));
         cur_start = (i + 1);
@@ -2175,7 +2188,7 @@ AST* Parser__parse_format_string(Parser* this) {
   if ((count != 0)){
     error_span(fstr->span, "Unmatched '{' in format string");
   } 
-  char* part = substring(fstr->text, cur_start, (fstr_len - cur_start));
+  char* part = string__substring(fstr->text, cur_start, (fstr_len - cur_start));
   Vector__push(format_parts, part);
   AST* node = AST__new(ASTType__FormatStringLiteral, fstr->span);
   node->u.fmt_str.parts = format_parts;
@@ -2634,15 +2647,21 @@ AST* Parser__parse_block(Parser* this) {
 
 Function* Parser__parse_function(Parser* this) {
   Parser__consume(this, TokenType__Def);
-  char* struct_name = ((char*)0);
+  Type* struct_type = ((Type*)NULL);
+  char* struct_name = ((char*)NULL);
   bool is_method = false;
   bool is_static = false;
-  Token* name = Parser__consume(this, TokenType__Identifier);
-  if (Parser__consume_if(this, TokenType__ColonColon)){
+  Token* next_token = ((Token*)Vector__at(this->tokens, (this->curr + 1)));
+  if (next_token->type == TokenType__ColonColon){
+    struct_type = Parser__parse_type(this);
+    if (struct_type->name == NULL){
+      error_span(struct_type->span, "Invalid type in method declaration");
+    } 
+    struct_name = struct_type->name;
     is_method = true;
-    struct_name = name->text;
-    name = Parser__consume(this, TokenType__Identifier);
+    Parser__consume(this, TokenType__ColonColon);
   } 
+  Token* name = Parser__consume(this, TokenType__Identifier);
   Function* func = Function__new(name->span);
   func->name = name->text;
   func->is_method = is_method;
@@ -2653,9 +2672,8 @@ Function* Parser__parse_function(Parser* this) {
     Token* var_name = Parser__consume(this, TokenType__Identifier);
     Type* type = ((Type*)NULL);
     if ((Vector__empty(func->params) && is_method)){
-      if (streq(var_name->text, "this")){
-        type = Type__new(BaseType__Structure, name->span);
-        type->name = struct_name;
+      if (string__eq(var_name->text, "this")){
+        type = struct_type;
         if (found_amp){
           type = Type__new_link(BaseType__Pointer, type, name->span);
         } 
@@ -2683,11 +2701,11 @@ Function* Parser__parse_function(Parser* this) {
   func->is_static = is_static;
   if (Parser__consume_if(this, TokenType__Colon)){
     func->return_type = Parser__parse_type(this);
-  }  else   if (streq(name->text, "main")){
+  }  else   if (string__eq(name->text, "main")){
     func->return_type = Type__new(BaseType__I32, name->span);
   }  else {
     func->return_type = Type__new(BaseType__Void, name->span);
-    if ((Parser__token_is(this, TokenType__Identifier) && streq(Parser__token(this)->text, "exits"))){
+    if ((Parser__token_is(this, TokenType__Identifier) && string__eq(Parser__token(this)->text, "exits"))){
       Parser__consume(this, TokenType__Identifier);
       func->exits = true;
     } 
@@ -2807,10 +2825,10 @@ AST* Parser__parse_global_var(Parser* this) {
 }
 
 char* Parser__find_file_path(Parser* this, char* filename) {
-  if (strstartswith(filename, "/"))
+  if (string__starts_with(filename, "/"))
   return filename;
   
-  if (strstartswith(filename, "@/")){
+  if (string__starts_with(filename, "@/")){
     char* file_path = __format_string("%s/%s", this->project_root, (filename + 2));
     if (File__exists(file_path))
     return file_path;
@@ -2825,6 +2843,13 @@ char* Parser__find_file_path(Parser* this, char* filename) {
       
       free(file_path);
     } 
+  } 
+  if (this->curr == 0){
+    printf("---------------------------------------------------------------" "\n");
+    printf("[-] Error: Could not find file '%s'" "\n", filename);
+    printf("[+] Hint: Specify the aecor root directory with the -l option" "\n");
+    printf("---------------------------------------------------------------" "\n");
+    exit(1);
   } 
   this->curr -= 1;
   error_span(Parser__token(this)->span, __format_string("Could not find file: %s", filename));
@@ -2855,19 +2880,19 @@ void Parser__parse_use(Parser* this, Program* program) {
 void Parser__parse_compiler_option(Parser* this, Program* program) {
   Parser__consume(this, TokenType__AtSign);
   Token* compiler = Parser__consume(this, TokenType__Identifier);
-  if ((!(streq(compiler->text, "compiler")))){
+  if ((!(string__eq(compiler->text, "compiler")))){
     error_span(compiler->span, "Expected 'compiler'");
   } 
   Token* name = Parser__consume(this, TokenType__Identifier);
   {
     char *__match_str = name->text;
-    if (streq(__match_str, "c_include")) {
+    if (!strcmp(__match_str, "c_include")) {
       Token* filename = Parser__consume(this, TokenType__StringLiteral);
       Vector__push(program->c_includes, filename->text);
-    } else if (streq(__match_str, "c_flag")) {
+    } else if (!strcmp(__match_str, "c_flag")) {
       Token* flag = Parser__consume(this, TokenType__StringLiteral);
       Vector__push(program->c_flags, flag->text);
-    } else if (streq(__match_str, "c_embed_header")) {
+    } else if (!strcmp(__match_str, "c_embed_header")) {
       Token* filename = Parser__consume(this, TokenType__StringLiteral);
       char* resolved = Parser__find_file_path(this, filename->text);
       Vector__push(program->c_embed_headers, resolved);
@@ -2923,6 +2948,7 @@ TypeChecker* TypeChecker__new() {
   checker->functions = Map__new();
   checker->structures = Map__new();
   checker->methods = Map__new();
+  Map__insert(checker->methods, "string", Map__new());
   return checker;
 }
 
@@ -2961,6 +2987,9 @@ Variable* TypeChecker__find_var(TypeChecker* this, char* name) {
 
 Variable* TypeChecker__get_struct_member(TypeChecker* this, char* lhs, char* rhs) {
   Structure* struc = ((Structure*)Map__get(this->structures, lhs));
+  if (struc == NULL){
+    return NULL;
+  } 
   return Structure__find_field(struc, rhs);
 }
 
@@ -3012,9 +3041,9 @@ void TypeChecker__check_method_call(TypeChecker* this, Type* method_type, AST* n
   Type* method_param = ((Variable*)Vector__at(method->params, 0))->type;
   Member member = callee->u.member;
   AST* first_arg = member.lhs;
-  if ((member.is_pointer && (method_param->base != BaseType__Pointer))){
+  if ((member.is_pointer && (method_param->name != NULL))){
     first_arg = AST__new_unop(ASTType__Dereference, first_arg->span, first_arg);
-  }  else   if (((!(member.is_pointer)) && method_param->base == BaseType__Pointer)){
+  }  else   if (((!(member.is_pointer)) && method_param->name == NULL)){
     first_arg = AST__new_unop(ASTType__Address, first_arg->span, first_arg);
   } 
   
@@ -3026,7 +3055,7 @@ Type* TypeChecker__check_call(TypeChecker* this, AST* node) {
   if (callee->type == ASTType__Identifier){
     callee->u.ident.is_function = false;
     char* name = callee->u.ident.name;
-    if ((streq(name, "print") || streq(name, "println"))){
+    if ((string__eq(name, "print") || string__eq(name, "println"))){
       for (int i = 0; (i < node->u.call.args->size); i += 1) {
         AST* arg = ((AST*)Vector__at(node->u.call.args, i));
         TypeChecker__check_expression(this, arg);
@@ -3330,12 +3359,12 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
     } break;
     case ASTType__Member: {
       Type* lhs_type = TypeChecker__check_expression(this, node->u.member.lhs);
-      if ((!(Type__is_struct_or_ptr(lhs_type)))){
+      if (((!(Type__is_struct_or_ptr(lhs_type))) && (!(Type__is_string(lhs_type))))){
         error_span(node->u.member.lhs->span, "LHS of member access must be a (pointer to) struct");
       } 
-      node->u.member.is_pointer = lhs_type->base == BaseType__Pointer;
+      node->u.member.is_pointer = lhs_type->name == NULL;
       Type* struct_type = lhs_type;
-      if (lhs_type->base == BaseType__Pointer){
+      if (lhs_type->name == NULL){
         struct_type = lhs_type->ptr;
       } 
       char* struct_name = struct_type->name;
@@ -3344,7 +3373,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       Variable* field = TypeChecker__get_struct_member(this, struct_name, field_name);
       Map* s_methods = ((Map*)Map__get(this->methods, struct_name));
       Function* method = ((Function*)Map__get(s_methods, field_name));
-      if (((!(struc->is_enum)) && (field != NULL))){
+      if ((((struc != NULL) && (!(struc->is_enum))) && (field != NULL))){
         etype = field->type;
       }  else       if ((method != NULL)){
         if (method->is_static){
@@ -3352,11 +3381,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
         } 
         etype = method->type;
       }  else {
-        if (struc->is_enum){
-          error_span(node->span, "Enum has no method with this name");
-        }  else {
-          error_span(node->span, "Struct has no member with this name");
-        } 
+        error_span(node->span, "Type has no member with this name");
       } 
       
     } break;
@@ -3600,7 +3625,7 @@ void TypeChecker__check_function(TypeChecker* this, Function* func) {
   if ((func->body != NULL)){
     TypeChecker__check_block(this, func->body);
     if (((!(func->body->returns)) && (func->return_type->base != BaseType__Void))){
-      if ((!(streq(func->name, "main")))){
+      if ((!(string__eq(func->name, "main")))){
         error_span(func->span, "Function does not always return");
       } 
     } 
@@ -3616,10 +3641,10 @@ void TypeChecker__check_all_functions(TypeChecker* this, Program* program) {
     char* struct_name = func->method_struct_name;
     Type* func_type = ((Type*)NULL);
     if (func->is_method){
-      if ((!(Map__exists(this->structures, struct_name)))){
+      Map* s_methods = ((Map*)Map__get(this->methods, struct_name));
+      if (s_methods == NULL){
         error_span(func->span, "Type for method does not exist");
       } 
-      Map* s_methods = ((Map*)Map__get(this->methods, struct_name));
       if (Map__exists(s_methods, name)){
         error_span(func->span, "Method is already defined for this type");
       } 
@@ -4093,7 +4118,7 @@ void CodeGenerator__gen_match_string(CodeGenerator* this, AST* node, int indent)
   File__puts(this->out, "if (");
   for (int i = 0; (i < cases->size); i += 1) {
     MatchCase* _case = ((MatchCase*)Vector__at(cases, i));
-    File__puts(this->out, "streq(__match_str, ");
+    File__puts(this->out, "!strcmp(__match_str, ");
     CodeGenerator__gen_expression(this, _case->cond);
     File__puts(this->out, ")");
     if ((_case->body != NULL)){
@@ -4429,19 +4454,19 @@ int main(int argc, char** argv) {
   bool silent = false;
   char* lib_path = ((char*)0);
   for (int i = 1; (i < argc); i += 1) {
-    if (streq(argv[i], "-o")){
+    if (string__eq(argv[i], "-o")){
       i += 1;
       exec_path = argv[i];
-    }  else     if (streq(argv[i], "-h")){
+    }  else     if (string__eq(argv[i], "-h")){
       usage(0);
-    }  else     if (streq(argv[i], "-s")){
+    }  else     if (string__eq(argv[i], "-s")){
       silent = true;
-    }  else     if (streq(argv[i], "-n")){
+    }  else     if (string__eq(argv[i], "-n")){
       compile_c = false;
-    }  else     if (streq(argv[i], "-l")){
+    }  else     if (string__eq(argv[i], "-l")){
       i += 1;
       lib_path = argv[i];
-    }  else     if (streq(argv[i], "-c")){
+    }  else     if (string__eq(argv[i], "-c")){
       i += 1;
       c_path = argv[i];
     }  else     if (argv[i][0] == '-'){

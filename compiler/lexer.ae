@@ -19,7 +19,7 @@ struct Lexer {
 def Lexer::make(source: string, filename: string): Lexer {
     let lexer: Lexer
     lexer.source = source
-    lexer.source_len = strlen(source)
+    lexer.source_len = source.len()
     lexer.i = 0
     lexer.loc = Location::make(filename, 1, 1)
     lexer.seen_newline = false
@@ -157,7 +157,7 @@ def Lexer::lex(&this): &Vector {
                         token_type = TokenType::IntLiteral
                     }
                     let len = .i - start
-                    let text = substring(.source, start, len)
+                    let text = .source.substring(start, len)
 
                     .loc.col += len
                     .push(Token::new(token_type, Span::make(start_loc, .loc), text))
@@ -168,7 +168,7 @@ def Lexer::lex(&this): &Vector {
                         .i += 1
                     }
                     let len = .i - start
-                    let text = substring(.source, start, len)
+                    let text = .source.substring(start, len)
 
                     .loc.col += len
                     .push(Token::from_ident(text, Span::make(start_loc, .loc)))
@@ -188,7 +188,7 @@ def Lexer::lex(&this): &Vector {
                     }
 
                     let len = .i - start
-                    let text = substring(.source, start, len)
+                    let text = .source.substring(start, len)
 
                     .loc.col += len + 2;
                     .i += 1
@@ -206,7 +206,7 @@ def Lexer::lex(&this): &Vector {
                     }
 
                     let len = .i - start
-                    let text = substring(.source, start, len)
+                    let text = .source.substring(start, len)
                     .loc.col += len + 2;
                     .i += 1
                     if end_char == '`' {

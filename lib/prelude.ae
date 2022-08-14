@@ -57,38 +57,38 @@ def File::slurp(&this): string {
 }
 
 def File::puts(&this, str: string) {
-    fwrite(str , 1, strlen(str), this)
+    fwrite(str , 1, str.len(), this)
 }
 
 def exit(code: i32) exits extern
 
-def strlen(str: string): i32 extern
-def strcmp(str1: string, str2: string): i32 extern
-def strncmp(str1: string, str2: string, n: i32): i32 extern
-def strcpy(dest: string, src: string): string extern
-def strncpy(dest: string, src: string, n: i32): string extern
-def strdup(str: string): string extern
-def strcat(dest: string, src: string): string extern
-def strerror(errno: i32): string extern
+def string::len(this): i32 extern("strlen")
+def string::compare(this, str2: string): i32 extern("strcmp")
+def string::compare_n(this, str2: string, n: i32): i32 extern("strncmp")
+def string::copy_from(this, src: string): string extern("strcpy")
+def string::copy_n_from(this, src: string, n: i32): string extern("strncpy")
+def string::copy(this): string extern("strdup")
+def string::concat(this, src: string): string extern("strcat")
 
-def strstartswith(str: string, prefix: string): bool {
-    let prefix_len = strlen(prefix)
-    let str_len = strlen(str)
-    if str_len < prefix_len {
+def string::starts_with(this, prefix: string): bool {
+    let prefix_len = prefix.len()
+    if .len() < prefix_len {
         return false
     }
-    return strncmp(str, prefix, prefix_len) == 0
+    return .compare_n(prefix, prefix_len) == 0
 }
 
-def streq(str1: string, str2: string): bool {
-    return strcmp(str1, str2) == 0
+def string::eq(this, str2: string): bool {
+    return this.compare(str2) == 0
 }
 
-def substring(str: string, start: i32, len: i32): string {
+def string::substring(this, start: i32, len: i32): string {
     let new_str = calloc(len + 1, sizeof(char)) as string
-    strncpy(new_str, str + start, len)
+    new_str.copy_n_from(this + start, len)
     return new_str
 }
+
+def strerror(errno: i32): string extern
 
 def puts(str: string) extern
 def system(str: string): i32 extern
