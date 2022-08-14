@@ -36,6 +36,11 @@ def Type::new(base: BaseType, span: Span): &Type {
 def Type::new_link(base: BaseType, next: &Type, span: Span): &Type {
     let type = Type::new(base, span)
     type.ptr = next
+
+    // This is a hack to attach methods to strings
+    if base == BaseType::Pointer and next != null and next.base == BaseType::Char {
+        type.name = "string"
+    }
     return type
 }
 
@@ -72,7 +77,7 @@ def Type::eq(&this, other: &Type): bool {
         return true
     }
 
-    if .base == BaseType::Structure return streq(.name, other.name)
+    if .base == BaseType::Structure return .name.eq(other.name)
     if .base == BaseType::Pointer {
         // EXPERIMENTAL: `untyped_ptr` is equivalent to any pointer type.
         if .ptr.base == BaseType::Void or other.ptr.base == BaseType::Void {

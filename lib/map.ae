@@ -39,7 +39,7 @@ def Map::new(): &Map {
 
 def Map::hash(&this, s: string): i32 {
     let hash = 5381
-    let len = strlen(s)
+    let len = s.len()
     for let i = 0; i < len; i += 1 {
         hash = hash * 33 ^ s[i] as i32
     }
@@ -54,7 +54,7 @@ def Map::get_node(&this, key: string): &MapNode {
     let hash = .hash(key)
     let node = .buckets[hash]
     while node != null {
-        if streq(node.key, key) {
+        if node.key.eq(key) {
             return node
         }
         node = node.next

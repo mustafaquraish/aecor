@@ -16,6 +16,10 @@ def TypeChecker::new(): &TypeChecker {
     checker.functions = Map::new()
     checker.structures = Map::new()
     checker.methods = Map::new()
+
+    // FIXME: This is a hack to attach methods to strings:
+    checker.methods.insert("string", Map::new())
+
     return checker
 }
 
@@ -54,6 +58,9 @@ def TypeChecker::find_var(&this, name: string): &Variable {
 
 def TypeChecker::get_struct_member(&this, lhs: string, rhs: string): &Variable {
     let struc = .structures.get(lhs) as &Structure
+    if struc == null {
+        return null
+    }
     return struc.find_field(rhs)
 }
 
@@ -106,9 +113,9 @@ def TypeChecker::check_method_call(&this, method_type: &Type, node: &AST) {
 
     let member = callee.u.member
     let first_arg = member.lhs
-    if member.is_pointer and method_param.base != BaseType::Pointer {
+    if member.is_pointer and method_param.name != null {
         first_arg = AST::new_unop(ASTType::Dereference, first_arg.span, first_arg)
-    } else if not member.is_pointer and method_param.base == BaseType::Pointer {
+    } else if not member.is_pointer and method_param.name == null {
         first_arg = AST::new_unop(ASTType::Address, first_arg.span, first_arg)
     }
     node.u.call.args.push_front(first_arg)
@@ -120,7 +127,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     if (callee.type == ASTType::Identifier) {
         callee.u.ident.is_function = false;
         let name = callee.u.ident.name;
-        if streq(name, "print") or streq(name, "println") {
+        if name.eq("print") or name.eq("println") {
             for let i = 0; i < node.u.call.args.size; i += 1 {
                 let arg = node.u.call.args.at(i) as &AST
                 .check_expression(arg)
@@ -172,7 +179,7 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
 
     let size = 0
     for let i = 0; i < parts.size; i += 1 {
-        size += strlen(parts.at(i) as string) + 3
+        size += (parts.at(i) as string).len() + 3
     }
 
     let buf = calloc(size + 1, 1) as string
@@ -180,23 +187,23 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         let part = parts.at(i) as string
         let expr = exprs.at(i) as &AST
 
-        strcat(buf, part)
+        buf.concat(part)
         let expr_type = .check_expression(expr)
         match expr_type.base {
-            BaseType::I32 | BaseType::U8 => strcat(buf, "%d")
-            BaseType::Bool => strcat(buf, "%s")
-            BaseType::F32 => strcat(buf, "%f")
-            BaseType::Char => strcat(buf, "%c")
+            BaseType::I32 | BaseType::U8 => buf.concat("%d")
+            BaseType::Bool => buf.concat("%s")
+            BaseType::F32 => buf.concat("%f")
+            BaseType::Char => buf.concat("%c")
             BaseType::Pointer => {
                 if expr_type.ptr.base == BaseType::Char
-                    strcat(buf, "%s")
+                    buf.concat("%s")
                 else
-                    strcat(buf, "%p")
+                    buf.concat("%p")
             }
             else => error_span(expr.span, "Invalid type for format string")
         }
     }
-    strcat(buf, parts.back() as string)
+    buf.concat(parts.back() as string)
     node.u.fmt_str.str = buf
     return Type::ptr_to(BaseType::Char, node.span)
 }
@@ -396,13 +403,13 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         }
         Member => {
             let lhs_type = .check_expression(node.u.member.lhs)
-            if not lhs_type.is_struct_or_ptr() {
+            if not lhs_type.is_struct_or_ptr() and not lhs_type.is_string() {
                 error_span(node.u.member.lhs.span,
                         "LHS of member access must be a (pointer to) struct")
             }
-            node.u.member.is_pointer = (lhs_type.base == BaseType::Pointer)
+            node.u.member.is_pointer = (lhs_type.name == null)
             let struct_type = lhs_type
-            if (lhs_type.base == BaseType::Pointer) {
+            if (lhs_type.name == null) {
                 struct_type = lhs_type.ptr
             }
 
@@ -415,7 +422,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             let s_methods = .methods.get(struct_name) as &Map
             let method = s_methods.get(field_name) as &Function
 
-            if not struc.is_enum and field != null {
+            if struc != null and not struc.is_enum and field != null {
                 etype = field.type;
             } else if method != null {
                 if method.is_static {
@@ -423,11 +430,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 }
                 etype = method.type
             } else {
-                if struc.is_enum {
-                    error_span(node.span, "Enum has no method with this name")
-                } else {
-                    error_span(node.span, "Struct has no member with this name")
-                }
+                error_span(node.span, "Type has no member with this name")
             }
         }
         ASTType::Cast => {
@@ -678,7 +681,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     if func.body != null {
         .check_block(func.body);
         if not func.body.returns and func.return_type.base != BaseType::Void {
-            if not streq(func.name, "main") {
+            if not func.name.eq("main") {
               error_span(func.span, "Function does not always return")
             }
         }
@@ -696,10 +699,10 @@ def TypeChecker::check_all_functions(&this, program: &Program) {
         let func_type = null as &Type
 
         if func.is_method {
-            if not .structures.exists(struct_name) {
+            let s_methods = .methods.get(struct_name) as &Map
+            if s_methods == null {
                 error_span(func.span, "Type for method does not exist")
             }
-            let s_methods = .methods.get(struct_name) as &Map
             if s_methods.exists(name) {
                 error_span(func.span, "Method is already defined for this type")
             }

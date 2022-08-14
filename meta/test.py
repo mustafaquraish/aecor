@@ -75,7 +75,7 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
         if expected_error in error_line:
             return True, "(Success)", path
         else:
-            return False, f"Did not find expected error message: {expected_error}"
+            return False, f"Did not find expected error message: {expected_error}", path
     elif process.returncode != 0:
         return False, "Compilation failed", path
     elif expected.type == ExpectedOutputType.COMPILE_SUCCESS:

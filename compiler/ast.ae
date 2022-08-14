@@ -206,7 +206,7 @@ def Structure::new(span: Span): &Structure {
 def Structure::find_field(&this, name: string): &Variable {
     for let i = 0; i < .fields.size; i += 1 {
         let field = .fields.at(i) as &Variable
-        if streq(field.name, name) {
+        if field.name.eq(name) {
             return field
         }
     }
@@ -241,7 +241,7 @@ def Program::new(): &Program {
 }
 
 def Program::is_file_included(&this, filename: string): bool {
-    let len = strlen(filename)
+    let len = filename.len()
     if len > 2 and filename[0] == '.' and filename[1] == '/' {
         filename = &filename[2]
     }
@@ -249,7 +249,7 @@ def Program::is_file_included(&this, filename: string): bool {
 }
 
 def Program::add_included_file(&this, filename: string) {
-    let len = strlen(filename)
+    let len = filename.len()
     if len > 2 and filename[0] == '.' and filename[1] == '/' {
         filename = &filename[2]
     }
@@ -393,5 +393,5 @@ def AST::callee_is(&this, expected: string): bool {
     if .type != ASTType::Call return false
     if .u.call.callee.type != ASTType::Identifier return false
     let name = .u.call.callee.u.ident.name
-    return streq(name, expected)
+    return name.eq(expected)
 }

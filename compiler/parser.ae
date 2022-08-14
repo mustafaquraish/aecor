@@ -38,8 +38,8 @@ def Parser::new(tokens: &Vector, filename: string): &Parser {
 
     // This is because different `dirname` implementations have different
     // memory semantics, and we don't want to ever mutate the filename.
-    let tmp_filename = strdup(filename)
-    parser.project_root = strdup(dirname(tmp_filename))
+    let tmp_filename = filename.copy()
+    parser.project_root = dirname(tmp_filename).copy()
     free(tmp_filename)
 
     parser.context_stack = Vector::new()
@@ -143,6 +143,7 @@ def Parser::parse_type(&this): &Type {
         TokenType::String => {
             let span = start_span.join(.token().span)
             type = Type::new_link(BaseType::Char, Type::new_link(BaseType::Pointer, type, span), span)
+            type.ptr.name = "string"
             .curr += 1
         }
         TokenType::UntypedPtr => {
@@ -183,7 +184,7 @@ def Parser::parse_type(&this): &Type {
 
 def Parser::parse_format_string(&this): &AST {
     let fstr = .consume(TokenType::FormatStringLiteral)
-    let fstr_len = strlen(fstr.text)
+    let fstr_len = fstr.text.len()
 
     let expr_parts = Vector::new()    // Vector<string>
     let expr_start = Vector::new()    // Vector<i32>
@@ -196,7 +197,7 @@ def Parser::parse_format_string(&this): &AST {
     for let i = 0; i < fstr_len; i += 1 {
         if fstr.text[i] == '{' {
             if count == 0 {
-                let part = substring(fstr.text, cur_start, i - cur_start)
+                let part = fstr.text.substring(cur_start, i - cur_start)
                 format_parts.push(part)
                 cur_start = i + 1
             }
@@ -204,7 +205,7 @@ def Parser::parse_format_string(&this): &AST {
         } else if fstr.text[i] == '}' {
             count -= 1
             if count == 0 {
-                let part = substring(fstr.text, cur_start, i - cur_start)
+                let part = fstr.text.substring(cur_start, i - cur_start)
                 expr_parts.push(part)
                 expr_start.push((fstr.text + cur_start))
                 cur_start = i + 1
@@ -217,7 +218,7 @@ def Parser::parse_format_string(&this): &AST {
     if count != 0 {
         error_span(fstr.span, "Unmatched '{' in format string")
     }
-    let part = substring(fstr.text, cur_start, fstr_len - cur_start)
+    let part = fstr.text.substring(cur_start, fstr_len - cur_start)
     format_parts.push(part)
 
     let node = AST::new(ASTType::FormatStringLiteral, fstr.span)
@@ -678,15 +679,24 @@ def Parser::parse_block(&this): &AST {
 def Parser::parse_function(&this): &Function {
     .consume(TokenType::Def)
 
-    let struct_name = 0 as string
+    let struct_type = null as &Type
+    let struct_name = null as string
     let is_method = false
     let is_static = false
-    let name = .consume(TokenType::Identifier)
-    if .consume_if(TokenType::ColonColon) {
+
+    // Handle methods
+    let next_token = .tokens.at(.curr + 1) as &Token
+    if next_token.type == TokenType::ColonColon {
+        struct_type = .parse_type()
+        if struct_type.name == null {
+            error_span(struct_type.span, "Invalid type in method declaration")
+        }
+        struct_name = struct_type.name
         is_method = true
-        struct_name = name.text
-        name = .consume(TokenType::Identifier)
+        .consume(TokenType::ColonColon)
     }
+
+    let name = .consume(TokenType::Identifier)
 
     let func = Function::new(name.span)
     func.name = name.text
@@ -699,9 +709,8 @@ def Parser::parse_function(&this): &Function {
         let var_name = .consume(TokenType::Identifier)
         let type = null as &Type
         if func.params.empty() and is_method {
-            if streq(var_name.text, "this") {
-                type = Type::new(BaseType::Structure, name.span)
-                type.name = struct_name
+            if var_name.text.eq("this") {
+                type = struct_type
                 if found_amp {
                     type = Type::new_link(BaseType::Pointer, type, name.span)
                 }
@@ -730,11 +739,11 @@ def Parser::parse_function(&this): &Function {
 
     if .consume_if(TokenType::Colon) {
         func.return_type = .parse_type()
-    } else if streq(name.text, "main") {
+    } else if name.text.eq("main") {
         func.return_type = Type::new(BaseType::I32, name.span)
     } else {
         func.return_type = Type::new(BaseType::Void, name.span)
-        if .token_is(TokenType::Identifier) and streq(.token().text, "exits") {
+        if .token_is(TokenType::Identifier) and .token().text.eq("exits") {
             .consume(TokenType::Identifier)
             func.exits = true
         }
@@ -872,10 +881,10 @@ def Parser::parse_global_var(&this): &AST {
 
 def Parser::find_file_path(&this, filename: string): string {
     // Absolute paths
-    if strstartswith(filename, "/") return filename
+    if filename.starts_with("/") return filename
 
     // Relative to project root
-    if strstartswith(filename, "@/") {
+    if filename.starts_with("@/") {
         let file_path = `{.project_root}/{filename + 2}` // Remove @/
         if File::exists(file_path)
             return file_path
@@ -934,7 +943,7 @@ def Parser::parse_use(&this, program: &Program) {
 def Parser::parse_compiler_option(&this, program: &Program) {
     .consume(TokenType::AtSign)
     let compiler = .consume(TokenType::Identifier)
-    if not streq(compiler.text, "compiler") {
+    if not compiler.text.eq("compiler") {
         error_span(compiler.span, "Expected 'compiler'")
     }
 
