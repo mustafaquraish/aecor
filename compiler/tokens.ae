@@ -141,6 +141,7 @@ enum TokenType {
   Percent
   Plus
   PlusEquals
+  Question
   Semicolon
   Slash
   SlashEquals
@@ -261,6 +262,7 @@ def TokenType::str(this): string {
         TokenType::Percent => return "Percent"
         TokenType::Plus => return "Plus"
         TokenType::PlusEquals => return "PlusEquals"
+        TokenType::Question => return "Question"
         TokenType::Semicolon => return "Semicolon"
         TokenType::Slash => return "Slash"
         TokenType::SlashEquals => return "SlashEquals"

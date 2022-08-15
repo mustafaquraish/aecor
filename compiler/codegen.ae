@@ -244,6 +244,12 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             let enum_value = node.u.enum_val
             .gen_enum_value(enum_value.struct_def.name, enum_value.name)
         }
+        // Perhaps there's a nicer way to do this...
+        IsNotNull => {
+            .out.puts("((bool)")
+            .gen_expression(node.u.unary)
+            .out.puts(")")
+        }
         Cast => {
             .out.puts("((")
             .gen_type(node.u.cast.to)

@@ -386,6 +386,11 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
                 cast.u.cast.to = type
                 node = cast
             }
+            TokenType::Question => {
+                .consume(TokenType::Question)
+                node = AST::new_unop(ASTType::IsNotNull, node.span.join(.token().span), node)
+            }
+
             else => running = false
         }
     }

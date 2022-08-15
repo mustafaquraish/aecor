@@ -151,6 +151,7 @@ enum TokenType {
   TokenType__Percent,
   TokenType__Plus,
   TokenType__PlusEquals,
+  TokenType__Question,
   TokenType__Semicolon,
   TokenType__Slash,
   TokenType__SlashEquals,
@@ -242,6 +243,7 @@ enum ASTType {
   ASTType__Identifier,
   ASTType__Index,
   ASTType__IntLiteral,
+  ASTType__IsNotNull,
   ASTType__LessThan,
   ASTType__LessThanEquals,
   ASTType__Match,
@@ -1062,6 +1064,9 @@ char* TokenType__str(TokenType this) {
     case TokenType__PlusEquals: {
       return "PlusEquals";
     } break;
+    case TokenType__Question: {
+      return "Question";
+    } break;
     case TokenType__Semicolon: {
       return "Semicolon";
     } break;
@@ -1219,6 +1224,9 @@ Vector* Lexer__lex(Lexer* this) {
       case '|': {
         Lexer__push_type(this, TokenType__Line, 1);
       } break;
+      case '?': {
+        Lexer__push_type(this, TokenType__Question, 1);
+      } break;
       case '!': {
         switch (Lexer__peek(this, 1)) {
           case '=': {
@@ -1356,7 +1364,7 @@ Vector* Lexer__lex(Lexer* this) {
           this->loc.col += len;
           Lexer__push(this, Token__from_ident(text, Span__make(start_loc, this->loc)));
         }  else {
-          printf("%s: Unrecognized char in lexer: '%d'" "\n", Location__str(this->loc), c);
+          printf("%s: Unrecognized char in lexer: '%c'" "\n", Location__str(this->loc), c);
           exit(1);
         } 
         
@@ -1700,6 +1708,9 @@ char* ASTType__str(ASTType this) {
     } break;
     case ASTType__IntLiteral: {
       return "IntLiteral";
+    } break;
+    case ASTType__IsNotNull: {
+      return "IsNotNull";
     } break;
     case ASTType__LessThan: {
       return "LessThan";
@@ -2398,6 +2409,10 @@ AST* Parser__parse_factor(Parser* this, bool in_parens) {
         cast->u.cast.lhs = node;
         cast->u.cast.to = type;
         node = cast;
+      } break;
+      case TokenType__Question: {
+        Parser__consume(this, TokenType__Question);
+        node = AST__new_unop(ASTType__IsNotNull, Span__join(node->span, Parser__token(this)->span), node);
       } break;
       default: {
         running = false;
@@ -3434,6 +3449,13 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       } 
       etype = node->u.cast.to;
     } break;
+    case ASTType__IsNotNull: {
+      Type* lhs_type = TypeChecker__check_expression(this, node->u.unary);
+      if ((lhs_type->base != BaseType__Pointer)){
+        error_span(node->u.unary->span, "Can only use ? on pointer types");
+      } 
+      etype = Type__new(BaseType__Bool, node->span);
+    } break;
     default: {
       printf("Unhandled type in check_expression: %s" "\n", ASTType__str(node->type));
       exit(1);
@@ -4101,6 +4123,11 @@ void CodeGenerator__gen_expression(CodeGenerator* this, AST* node) {
     case ASTType__EnumValue: {
       EnumValue enum_value = node->u.enum_val;
       CodeGenerator__gen_enum_value(this, enum_value.struct_def->name, enum_value.name);
+    } break;
+    case ASTType__IsNotNull: {
+      File__puts(this->out, "((bool)");
+      CodeGenerator__gen_expression(this, node->u.unary);
+      File__puts(this->out, ")");
     } break;
     case ASTType__Cast: {
       File__puts(this->out, "((");
