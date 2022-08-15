@@ -18,6 +18,7 @@ def random_vec_unit(): Vec {
             return vec.normalized()
         }
     }
+    return Vec::make(0.0, 0.0, 0.0)
 }
 
 struct Ray {

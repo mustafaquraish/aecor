@@ -46,6 +46,19 @@ def SDLColor::make(r: i32, g: i32, b: i32, a: i32): SDLColor {
 }
 
 let SDLKey_Q: i32 extern("SDLK_q")
+
+let SDLKey_W: i32 extern("SDLK_w")
+let SDLKey_A: i32 extern("SDLK_a")
+let SDLKey_S: i32 extern("SDLK_s")
+let SDLKey_D: i32 extern("SDLK_d")
+let SDLKey_Z: i32 extern("SDLK_z")
+let SDLKey_X: i32 extern("SDLK_x")
+
+let SDLKey_Up: i32 extern("SDLK_UP")
+let SDLKey_Down: i32 extern("SDLK_DOWN")
+let SDLKey_Left: i32 extern("SDLK_LEFT")
+let SDLKey_Right: i32 extern("SDLK_RIGHT")
+
 let SDLKey_Esc: i32 extern("SDLK_ESCAPE")
 
 struct SDLKeysym extern("SDL_Keysym") {
@@ -65,6 +78,9 @@ struct SDLEvent extern("SDL_Event") {
 }
 
 let SDL_INIT_EVERYTHING: i32 extern
+let SDL_PIXELFORMAT_ABGR8888: i32 extern
+let SDL_TEXTUREACCESS_STREAMING: i32 extern
+
 let SDL_Quit: i32 extern("SDL_QUIT")
 let SDL_KeyDown: i32 extern("SDL_KEYDOWN")
 let SDL_KeyUp: i32 extern("SDL_KEYUP")
@@ -91,11 +107,14 @@ def SDLRenderer::set_draw_color(&this, r: i32, g: i32, b: i32, a: i32) extern("S
 def SDLRenderer::destroy(&this) extern("SDL_DestroyRenderer")
 def SDLRenderer::load_image(&this, path: string): &SDLTexture extern("IMG_LoadTexture")
 def SDLRenderer::create_texture_from_surface(&this, surface: &SDLSurface): &SDLTexture extern("SDL_CreateTextureFromSurface")
+def SDLRenderer::create_texture(&this, format: i32, access: i32, w: i32, h: i32): &SDLTexture extern("SDL_CreateTexture")
 
 def SDLWindow::destroy(&this) extern("SDL_DestroyWindow")
 
 // FIXME: what's a and b?
 def SDLTexture::query(&this, a: untyped_ptr, b: untyped_ptr, w: &i32, h: &i32) extern("SDL_QueryTexture")
+def SDLTexture::lock(&this, rect: &SDLRect, pixels: &untyped_ptr, pitch: &i32) extern("SDL_LockTexture")
+def SDLTexture::unlock(&this) extern("SDL_UnlockTexture")
 
 def SDL::poll_event(event: &SDLEvent): bool extern("SDL_PollEvent")
 

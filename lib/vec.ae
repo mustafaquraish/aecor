@@ -58,9 +58,9 @@ def Vec::dot(this, other: Vec): f32 {
 
 def Vec::cross(this, other: Vec): Vec {
     return Vec::make(
-        .y * other.z - .z * other.y
-        .z * other.x - .x * other.z
-        .x * other.y - .y * other.x
+        .y * other.z - .z * other.y,
+        .z * other.x - .x * other.z,
+        .x * other.y - .y * other.x,
     )
 }
 

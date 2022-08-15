@@ -1,0 +1,350 @@
+use "lib/sdl.ae"
+
+// Make raytracer go brrr
+@compiler c_flag "-O3"
+
+use "lib/vec.ae"
+use "lib/vector.ae"
+use "lib/image.ae"
+
+let TOL = 0.00001;
+
+def random_vec(): Vec {
+    return Vec::make(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
+}
+
+def random_vec_unit(): Vec {
+    while (true) {
+        let vec = random_vec();
+        if vec.length_sq() < 1.0 {
+            return vec.normalized()
+        }
+    }
+    return Vec::make(0.0, 0.0, 0.0)
+}
+
+struct Ray {
+    ori: Vec
+    dir: Vec
+}
+
+def Ray::at(&this, t: f32): Vec {
+    return .dir.multf(t).add(.ori);
+}
+
+struct Sphere {
+    center: Vec
+    color: Vec
+    radius: f32
+}
+
+def Sphere::new(x: f32, y: f32, z: f32, radius: f32, r: f32, g: f32, b: f32): &Sphere {
+    let s = malloc(sizeof(Sphere)) as &Sphere
+    s.center = Vec::make(x, y, z)
+    s.color = Vec::make(r, g, b)
+    s.radius = radius
+    return s
+}
+
+def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec, col: &Vec): bool {
+    let oc = ray.ori.sub(.center);
+    let a = ray.dir.dot(ray.dir)
+    let b = 2.0 * oc.dot(ray.dir)
+    let c = oc.dot(oc) - .radius * .radius
+
+    let disc = b * b - 4.0 * a * c
+    if disc < 0.0
+        return false
+    let t0 = (-b - sqrt(disc)) / (2.0 * a)
+    let t1 = (-b + sqrt(disc)) / (2.0 * a)
+
+    let best = t0;
+    if best < TOL
+        best = t1
+    if best < TOL
+        return false
+
+    *t = best
+    *col = .color
+    *n = ray.at(best).sub(.center).normalized()
+
+    return true
+}
+
+def background_color(ray: &Ray): Vec {
+    let t = 0.5 * (ray.dir.y + 1.0)
+    let col2 = Vec::make(1.0, 1.0, 1.0).multf(1.0-t)
+
+    let res = Vec::make(0.5, 0.7, 1.0)
+    return res.multf(t).add(col2)
+}
+
+def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, obj_col: &Vec): i32 {
+    let idx = -1
+
+    for let i = 0; i < objs.size; i += 1 {
+        let obj = objs.at(i) as &Sphere
+
+        let tmp_t: f32
+        let tmp_n: Vec
+        let tmp_col: Vec
+
+        if obj.hit(ray, &tmp_t, &tmp_n, &tmp_col) {
+            if *t < 0.0 or tmp_t < *t {
+                *t = tmp_t
+                idx = i
+                *obj_col = tmp_col
+                *n = tmp_n
+            }
+        }
+    }
+    return idx
+}
+
+def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
+    if depth < 0
+        return Vec::make(0.0, 0.0, 0.0)
+
+    let t = -1.0
+    let n: Vec
+    let obj_col: Vec
+
+    if find_hit(ray, objs, &t, &n, &obj_col) < 0
+        return background_color(ray)
+
+    ray.ori = ray.at(t)
+    ray.dir = random_vec_unit().add(n)
+
+    let rec_col = raytrace(ray, objs, depth - 1)
+    return rec_col.mult(obj_col)
+}
+
+let WIDTH = 800
+let HEIGHT = 600
+
+let samples = 0
+let img: &Image
+let objs: &Vector
+
+struct Camera {
+    origin: Vec
+    direction: Vec
+
+    horizontal: Vec
+    vertical: Vec
+    ll_corner: Vec
+
+    u: Vec
+    v: Vec
+    w: Vec
+}
+
+def Camera::make(origin: Vec, direction: Vec): Camera {
+    let cam: Camera
+    let aspect_ratio = WIDTH as f32 / HEIGHT as f32
+
+    let viewport_height = 2.0
+    let viewport_width = aspect_ratio * viewport_height
+    let focal_length = 1.0
+
+    let up = Vec::make(0.0, 1.0, 0.0)
+
+    cam.origin = origin
+    cam.direction = direction.normalized()
+
+    cam.w = cam.direction.multf(-1.0)
+    cam.u = up.cross(cam.w).normalized()
+    cam.v = cam.w.cross(cam.u)
+
+    cam.horizontal = cam.u.multf(-viewport_width)
+    cam.vertical = cam.v.multf(viewport_height)
+    cam.ll_corner = (cam.origin
+        .sub(cam.horizontal.divf(2.0))
+        .sub(cam.vertical.divf(2.0))
+        .sub(cam.w))
+
+    return cam
+}
+
+def Camera::ray(&this, x: i32, y: i32): Ray {
+    let u = (rand01() + x as f32) / (WIDTH-1) as f32
+    let v = 1.0 - (rand01() + y as f32) / (HEIGHT-1) as f32
+    let ray: Ray
+    ray.ori = .origin
+    ray.dir = (.ll_corner
+        .add(.horizontal.multf(u))
+        .add(.vertical.multf(v))
+        .sub(.origin)
+        .normalized())
+    return ray
+}
+
+let camera: Camera
+
+def draw(screen: &u8, pitch: i32) {
+    samples += 1
+    for let x = 0; x < WIDTH; x += 1 {
+        for let y = 0; y < HEIGHT; y += 1 {
+            let ray = camera.ray(x, y)
+            let color = raytrace(&ray, objs, 5)
+
+            let prev_color = img.get(x, y)
+            let new_color = prev_color.add(color)
+            img.set(x, y, new_color)
+
+            // Save to screen
+            let r = (new_color.x / samples as f32) * 255.0
+            let g = (new_color.y / samples as f32) * 255.0
+            let b = (new_color.z / samples as f32) * 255.0
+
+            let offset = (y * pitch) + (x * 4)
+            screen[offset + 0] = r as u8
+            screen[offset + 1] = g as u8
+            screen[offset + 2] = b as u8
+            screen[offset + 3] = 255 as u8
+        }
+    }
+}
+
+def memset(ptr: untyped_ptr, val: u8, size: i32) extern
+
+def Image::clear(&this) {
+    memset(.data, 0 as u8, .width * .height * sizeof(Vec))
+}
+
+def Vec::rotateX(&this, angle: f32): Vec {
+    let c = cos(angle)
+    let s = sin(angle)
+    let y = .y * c - .z * s
+    let z = .y * s + .z * c
+    return Vec::make(.x, y, z)
+}
+
+def Vec::rotateY(&this, angle: f32): Vec {
+    let c = cos(angle)
+    let s = sin(angle)
+    let z = .z * c - .x * s
+    let x = .z * s + .x * c
+    return Vec::make(x, .y, z)
+}
+
+def Vec::rotateZ(&this, angle: f32): Vec {
+    let c = cos(angle)
+    let s = sin(angle)
+    let x = .x * c - .y * s
+    let y = .x * s + .y * c
+    return Vec::make(x, y, .z)
+}
+
+def main() {
+    let window: &SDLWindow
+    let renderer: &SDLRenderer
+
+    SDL::init(SDL_INIT_EVERYTHING)
+    SDL::create_window_renderer(WIDTH, HEIGHT, 0, &window, &renderer)
+
+    renderer.set_draw_color(0, 0, 0, 255)
+    renderer.clear()
+    renderer.present()
+
+    let buffer = renderer.create_texture(
+        SDL_PIXELFORMAT_ABGR8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        WIDTH,
+        HEIGHT
+    )
+
+    objs = Vector::new()
+    objs.push(Sphere::new(0.0,    0.0, 1.0,   0.5, 1.0, 0.6, 0.3))
+    objs.push(Sphere::new(0.0, -100.5, 1.0, 100.0, 0.5, 0.5, 0.5))
+
+
+    let origin = Vec::make(0.0, 0.0, 0.0)
+    let direction = Vec::make(0.0, 0.0, 1.0)
+    camera = Camera::make(origin, direction)
+
+    img = Image::new(WIDTH, HEIGHT);
+
+    let e: SDLEvent
+
+    let quit = false
+    while not quit {
+        let modified = false
+        while SDL::poll_event(&e) {
+            if e.type == SDL_Quit {
+                quit = true
+            }
+            if e.type == SDL_KeyDown {
+                let key = e.key.keysym.sym
+                if key == SDLKey_Q or key == SDLKey_Esc {
+                    quit = true
+                }
+                if key == SDLKey_W {
+                    origin = origin.add(camera.w.multf(-0.1))
+                    modified = true
+                }
+                if key == SDLKey_S {
+                    origin = origin.add(camera.w.multf(0.1))
+                    modified = true
+                }
+                if key == SDLKey_A {
+                    origin = origin.add(camera.u.multf(0.1))
+                    modified = true
+                }
+                if key == SDLKey_D {
+                    origin = origin.add(camera.u.multf(-0.1))
+                    modified = true
+                }
+                if key == SDLKey_Z {
+                    origin = origin.add(camera.v.multf(-0.1))
+                    modified = true
+                }
+                if key == SDLKey_X {
+                    origin = origin.add(camera.v.multf(0.1))
+                    modified = true
+                }
+
+                if key == SDLKey_Left {
+                    direction = direction.rotateY(-0.1)
+                    modified = true
+                }
+                if key == SDLKey_Right {
+                    direction = direction.rotateY(0.1)
+                    modified = true
+                }
+                if key == SDLKey_Up {
+                    direction = direction.rotateX(-0.1)
+                    modified = true
+                }
+                if key == SDLKey_Down {
+                    direction = direction.rotateX(0.1)
+                    modified = true
+                }
+            }
+        }
+
+        if modified {
+            camera = Camera::make(origin, direction)
+            img.clear()
+            samples = 0
+        }
+
+        let pixels: &u8
+        let pitch = 0
+        buffer.lock(null, (&pixels) as &untyped_ptr, &pitch)
+
+        draw(pixels, pitch)
+
+        buffer.unlock()
+        renderer.copy(buffer, null, null)
+        renderer.present()
+
+        SDL::delay(1000 / 60)
+    }
+
+    renderer.destroy()
+    window.destroy()
+    SDL::quit()
+
+    return 0
+}
