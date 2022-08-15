@@ -1109,7 +1109,7 @@ void Lexer__push_type(Lexer* this, TokenType type, int len) {
 }
 
 char Lexer__peek(Lexer* this, int offset) {
-  if (this->source[this->i] == ((char)0)){
+  if (this->source[this->i] == '\0'){
     return this->source[this->i];
   } 
   return this->source[(this->i + 1)];
@@ -1969,7 +1969,7 @@ __attribute__((noreturn)) void error_span(Span span, char* msg) {
   char* lines = contents;
   char* cur = strsep((&(lines)), "\n");
   int line_no = 1;
-  while (((cur != ((char*)0)) && (line_no <= max_line))) {
+  while (((cur != NULL) && (line_no <= max_line))) {
     if (((line_no >= min_line) && (line_no <= max_line))){
       printf("%4d | ", line_no);
       if (line_no == span.start.line){
@@ -4397,7 +4397,6 @@ void CodeGenerator__gen_global_vars(CodeGenerator* this, Program* program) {
   for (int i = 0; (i < program->global_vars->size); i += 1) {
     AST* node = ((AST*)Vector__at(program->global_vars, i));
     if ((!(node->u.var_decl.var->is_extern))){
-      CodeGenerator__gen_debug_info(this, node->span);
       CodeGenerator__gen_statement(this, node, 0);
     } 
   } 
@@ -4459,59 +4458,57 @@ void usage(int code) {
   printf("    -d        Emit debug information (default: false)" "\n");
   printf("    -l        Library path (root of aecor repo)" "\n");
   printf("                   (Default: working directory)" "\n");
-  printf("--------------------------------------------------------\n");
+  printf("--------------------------------------------------------" "\n");
   exit(code);
 }
 
 int main(int argc, char** argv) {
   char* exec_path = "./out";
-  char* c_path = ((char*)0);
-  char* filename = ((char*)0);
+  char* c_path = ((char*)NULL);
+  char* filename = ((char*)NULL);
   bool compile_c = true;
   bool silent = false;
-  char* lib_path = ((char*)0);
+  char* lib_path = ((char*)NULL);
   bool debug = false;
   for (int i = 1; (i < argc); i += 1) {
-    if (string__eq(argv[i], "-o")){
-      i += 1;
-      exec_path = argv[i];
-    }  else     if (string__eq(argv[i], "-h")){
-      usage(0);
-    }  else     if (string__eq(argv[i], "-s")){
-      silent = true;
-    }  else     if (string__eq(argv[i], "-d")){
-      debug = true;
-    }  else     if (string__eq(argv[i], "-n")){
-      compile_c = false;
-    }  else     if (string__eq(argv[i], "-l")){
-      i += 1;
-      lib_path = argv[i];
-    }  else     if (string__eq(argv[i], "-c")){
-      i += 1;
-      c_path = argv[i];
-    }  else     if (argv[i][0] == '-'){
-      printf("Unknown option: %s" "\n", argv[i]);
-      usage(1);
-    }  else     if (filename == ((char*)0)){
-      filename = argv[i];
-    }  else {
-      printf("Unknown option/argument: '%s'" "\n", argv[i]);
-      usage(1);
-    } 
-    
-    
-    
-    
-    
-    
-    
-    
+    {
+      char *__match_str = argv[i];
+      if (!strcmp(__match_str, "-h")) {
+        usage(0);
+      } else if (!strcmp(__match_str, "-s")) {
+        silent = true;
+      } else if (!strcmp(__match_str, "-d")) {
+        debug = true;
+      } else if (!strcmp(__match_str, "-n")) {
+        compile_c = false;
+      } else if (!strcmp(__match_str, "-o")) {
+        i += 1;
+        exec_path = argv[i];
+      } else if (!strcmp(__match_str, "-l")) {
+        i += 1;
+        lib_path = argv[i];
+      } else if (!strcmp(__match_str, "-c")) {
+        i += 1;
+        c_path = argv[i];
+      } else  {
+        if (argv[i][0] == '-'){
+          printf("Unknown option: %s" "\n", argv[i]);
+          usage(1);
+        }  else         if (filename == NULL){
+          filename = argv[i];
+        }  else {
+          printf("Unknown option/argument: '%s'" "\n", argv[i]);
+          usage(1);
+        } 
+        
+      }
+    }
   } 
-  if (filename == ((char*)0)){
+  if (filename == NULL){
     printf("No file specified" "\n");
     usage(1);
   } 
-  if (c_path == ((char*)0)){
+  if (c_path == NULL){
     c_path = __format_string("%s.c", exec_path);
   } 
   FILE* file = File__open(filename, "r");
@@ -4519,7 +4516,7 @@ int main(int argc, char** argv) {
   Lexer lexer = Lexer__make(contents, filename);
   Vector* tokens = Lexer__lex((&(lexer)));
   Parser* parser = Parser__new(tokens, filename);
-  if ((lib_path != ((char*)0))){
+  if ((lib_path != NULL)){
     Parser__add_include_dir(parser, lib_path);
   } 
   Program* program = Parser__parse_program(parser);

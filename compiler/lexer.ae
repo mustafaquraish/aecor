@@ -40,7 +40,7 @@ def Lexer::push_type(&this, type: TokenType, len: i32) {
 }
 
 def Lexer::peek(&this, offset: i32): char {
-    if .source[.i] == (0 as char) {
+    if .source[.i] == '\0' {
         return .source[.i]
     }
     return .source[.i + 1]
