@@ -24,7 +24,7 @@ def error_span(span: Span, msg: string) exits {
     let lines = contents
     let cur = strsep(&lines, "\n")
     let line_no = 1
-    while cur != null and line_no <= max_line {
+    while cur? and line_no <= max_line {
         if line_no >= min_line and line_no <= max_line {
             print("%4d | ", line_no)
             if line_no == span.start.line {

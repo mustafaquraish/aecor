@@ -38,7 +38,7 @@ def Type::new_link(base: BaseType, next: &Type, span: Span): &Type {
     type.ptr = next
 
     // This is a hack to attach methods to strings
-    if base == BaseType::Pointer and next != null and next.base == BaseType::Char {
+    if base == BaseType::Pointer and next? and next.base == BaseType::Char {
         type.name = "string"
     }
     return type
@@ -106,7 +106,7 @@ def Type::str(&this): string {
 def Type::reverse(&this): &Type {
     let rev = null as &Type
     let cur = this
-    while cur != null as &Type {
+    while cur? {
         let tmp = cur.ptr
         cur.ptr = rev
         rev = cur

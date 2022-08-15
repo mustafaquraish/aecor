@@ -75,7 +75,7 @@ def CodeGenerator::gen_enum(&this, struc: &Structure) {
 def CodeGenerator::gen_struct(&this, struc: &Structure) {
     if not struc.is_extern {
         let name = struc.type.name;
-        if (struc.is_union) {
+        if struc.is_union {
             .out.puts("union ")
         } else {
             .out.puts("struct ")
@@ -183,7 +183,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             } else if node.callee_is("println") {
                 .out.puts("printf")
                 newline_after_first = true;
-            } else if node.u.call.func == null {
+            } else if not node.u.call.func? {
                 .gen_expression(node.u.call.callee);
             } else {
                 .gen_function_name(node.u.call.func);
@@ -258,7 +258,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(")")
         }
         FormatStringLiteral => {
-            .out.puts("__format_string(\"")
+            .out.puts("format_string(\"")
             .out.puts(node.u.fmt_str.str)
             .out.puts("\"")
             let exprs = node.u.fmt_str.exprs
@@ -305,7 +305,7 @@ def CodeGenerator::gen_var_decl(&this, node: &AST) {
     let var = node.u.var_decl.var
     if var.is_extern return
     .gen_type_and_name(var.type, var.name)
-    if node.u.var_decl.init != null {
+    if node.u.var_decl.init? {
         .out.puts(" = ")
         .gen_expression(node.u.var_decl.init)
     }
@@ -329,7 +329,7 @@ def CodeGenerator::gen_match_string(&this, node: &AST, indent: i32) {
         .gen_expression(_case.cond)
         .out.puts(")")
 
-        if _case.body != null {
+        if _case.body? {
             .out.puts(")")
             .gen_match_case_body(_case.body, indent)
             .out.puts(" else ")
@@ -340,7 +340,7 @@ def CodeGenerator::gen_match_string(&this, node: &AST, indent: i32) {
             .out.puts(" || ")
         }
     }
-    if stmt.defolt != null {
+    if stmt.defolt? {
         .gen_match_case_body(stmt.defolt, indent)
     }
     .out.puts("\n")
@@ -379,7 +379,7 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
         .out.puts("case ")
         .gen_expression(_case.cond)
         .out.puts(":")
-        if _case.body != null {
+        if _case.body? {
             .gen_match_case_body(_case.body, indent)
             .out.puts(" break;\n")
 
@@ -387,7 +387,7 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
             .out.puts("\n")
         }
     }
-    if stmt.defolt != null {
+    if stmt.defolt? {
         .indent(indent + 1)
         .out.puts("default:")
         .gen_match_case_body(stmt.defolt, indent)
@@ -399,83 +399,82 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
 
 def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
     .gen_debug_info(node.span)
-    if node.type == ASTType::Return {
-        .indent(indent)
-        .out.puts("return")
-        if node.u.unary != null {
-            .out.puts(" ")
-            .gen_expression(node.u.unary)
-        }
-        .out.puts(";\n")
-
-    } else if node.type == ASTType::Match {
-        .gen_match(node, indent)
-
-    } else if node.type == ASTType::Break {
-        .indent(indent)
-        .out.puts("break;\n")
-
-    } else if node.type == ASTType::Continue {
-        .indent(indent)
-        .out.puts("continue;\n")
-
-    } else if node.type == ASTType::VarDeclaration {
-        .indent(indent)
-        .gen_var_decl(node)
-        .out.puts(";\n")
-
-    } else if node.type == ASTType::If {
-        .indent(indent)
-        .out.puts("if (")
-        .gen_expression(node.u.if_stmt.cond)
-        .out.puts(")")
-        .gen_control_body(node.u.if_stmt.then, indent)
-        if node.u.if_stmt.els != null {
-            .out.puts(" else ")
-            .gen_control_body(node.u.if_stmt.els, indent)
-        }
-        .out.puts("\n")
-
-    } else if node.type == ASTType::While {
-        .indent(indent)
-        .out.puts("while (")
-        .gen_expression(node.u.loop.cond)
-        .out.puts(") ")
-        .gen_control_body(node.u.loop.body, indent)
-        .out.puts("\n")
-
-    } else if node.type == ASTType::For {
-        .indent(indent)
-        .out.puts("for (")
-        if node.u.loop.init != null {
-            if node.u.loop.init.type == ASTType::VarDeclaration {
-                .gen_var_decl(node.u.loop.init)
-            } else {
-                .gen_expression(node.u.loop.init)
+    match node.type {
+        ASTType::Match => .gen_match(node, indent)
+        ASTType::Return => {
+            .indent(indent)
+            .out.puts("return")
+            if node.u.unary? {
+                .out.puts(" ")
+                .gen_expression(node.u.unary)
             }
+            .out.puts(";\n")
         }
-        .out.puts("; ")
-        if node.u.loop.cond != null {
+        ASTType::Break => {
+            .indent(indent)
+            .out.puts("break;\n")
+        }
+        ASTType::Continue => {
+            .indent(indent)
+            .out.puts("continue;\n")
+        }
+        ASTType::VarDeclaration => {
+            .indent(indent)
+            .gen_var_decl(node)
+            .out.puts(";\n")
+        }
+        ASTType::If => {
+            .indent(indent)
+            .out.puts("if (")
+            .gen_expression(node.u.if_stmt.cond)
+            .out.puts(")")
+            .gen_control_body(node.u.if_stmt.then, indent)
+            if node.u.if_stmt.els? {
+                .out.puts(" else ")
+                .gen_control_body(node.u.if_stmt.els, indent)
+            }
+            .out.puts("\n")
+        }
+        ASTType::While => {
+            .indent(indent)
+            .out.puts("while (")
             .gen_expression(node.u.loop.cond)
+            .out.puts(") ")
+            .gen_control_body(node.u.loop.body, indent)
+            .out.puts("\n")
         }
-        .out.puts("; ")
-        if node.u.loop.incr != null {
-            .gen_expression(node.u.loop.incr)
+        ASTType::For => {
+            .indent(indent)
+            .out.puts("for (")
+            if node.u.loop.init? {
+                if node.u.loop.init.type == ASTType::VarDeclaration {
+                    .gen_var_decl(node.u.loop.init)
+                } else {
+                    .gen_expression(node.u.loop.init)
+                }
+            }
+            .out.puts("; ")
+            if node.u.loop.cond? {
+                .gen_expression(node.u.loop.cond)
+            }
+            .out.puts("; ")
+            if node.u.loop.incr? {
+                .gen_expression(node.u.loop.incr)
+            }
+            .out.puts(") ")
+            .gen_control_body(node.u.loop.body, indent)
+            .out.puts("\n")
         }
-        .out.puts(") ")
-        .gen_control_body(node.u.loop.body, indent)
-        .out.puts("\n")
-
-
-    } else if node.type == ASTType::Block {
-        .indent(indent)
-        .gen_block(node, indent)
-        .out.puts("\n")
-
-    } else {
-        .indent(indent)
-        .gen_expression(node)
-        .out.puts(";\n")
+        ASTType::Block => {
+            .indent(indent)
+            .gen_block(node, indent)
+            .out.puts("\n")
+        }
+        else => {
+            .indent(indent)
+            .gen_expression(node)
+            .out.puts(";\n")
+        }
     }
 }
 
@@ -512,9 +511,9 @@ def CodeGenerator::gen_struct_decls(&this, program: &Program) {
         if struc.is_extern continue
 
         let name = struc.name;
-        if (struc.is_enum) {
+        if struc.is_enum {
             .out.puts("typedef enum ")
-        } else if (struc.is_union) {
+        } else if struc.is_union {
             .out.puts("typedef union ")
         } else {
             .out.puts("typedef struct ")

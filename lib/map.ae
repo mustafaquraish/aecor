@@ -16,7 +16,7 @@ def MapNode::new(key: string, value: untyped_ptr, next: &MapNode): &MapNode {
 
 def MapNode::free_list(node: &MapNode) {
     let cur = node
-    while cur != null {
+    while cur? {
         let next = cur.next
         free(cur)
         cur = next
@@ -53,7 +53,7 @@ def Map::hash(&this, s: string): i32 {
 def Map::get_node(&this, key: string): &MapNode {
     let hash = .hash(key)
     let node = .buckets[hash]
-    while node != null {
+    while node? {
         if node.key.eq(key) {
             return node
         }
@@ -64,24 +64,24 @@ def Map::get_node(&this, key: string): &MapNode {
 
 def Map::get(&this, key: string): untyped_ptr {
     let node = .get_node(key)
-    if node != null {
+    if node? {
         return node.value
     }
     return null
 }
 
 def Map::exists(&this, key: string): bool {
-    return .get_node(key) != null
+    return .get_node(key)?
 }
 
 def Map::insert(&this, key: string, value: untyped_ptr) {
     let node = .get_node(key)
-    if node != null {
+    if node? {
         node.value = value
     } else {
         let hash = .hash(key)
         let new_node = MapNode::new(key, value, .buckets[hash])
-        if .buckets[hash] != null {
+        if .buckets[hash]? {
             .num_collisions += 1
         }
         .buckets[hash] = new_node
@@ -101,10 +101,10 @@ def Map::resize(&this) {
     .buckets = calloc(.num_buckets, sizeof(&MapNode)) as &&MapNode
     for let i = 0; i < old_num_buckets; i += 1 {
         let node = old_buckets[i]
-        while node != null {
+        while node? {
             let new_hash = .hash(node.key)
             let new_node = MapNode::new(node.key, node.value, .buckets[new_hash])
-            if .buckets[new_hash] != null {
+            if .buckets[new_hash]? {
                 .num_collisions += 1
             }
             .buckets[new_hash] = new_node
@@ -120,7 +120,7 @@ def Map::resize(&this) {
 def Map::print_keys(&this) {
     for let i = 0; i < .num_buckets; i += 1 {
         let node = .buckets[i]
-        while node != null {
+        while node? {
             println("- '%s'\n", node.key)
             node = node.next
         }

@@ -20,7 +20,7 @@ def Node::add_front(&this, val: i32): &Node {
 
 def Node::print_list(&this) {
     let node = this;
-    while node != (null) {
+    while node? {
         print("%d -> ", node.val);
         node = node.next;
     }

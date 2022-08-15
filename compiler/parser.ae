@@ -403,7 +403,7 @@ def Parser::parse_term(&this, in_parens: bool): &AST {
     while .token_is(TokenType::Star) or
             .token_is(TokenType::Slash) or
             .token_is(TokenType::Percent) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_factor(in_parens)
@@ -415,7 +415,7 @@ def Parser::parse_term(&this, in_parens: bool): &AST {
 def Parser::parse_additive(&this, in_parens: bool): &AST {
     let lhs = .parse_term(in_parens)
     while .token_is(TokenType::Plus) or .token_is(TokenType::Minus) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_term(in_parens)
@@ -427,7 +427,7 @@ def Parser::parse_additive(&this, in_parens: bool): &AST {
 def Parser::parse_bw_and(&this, in_parens: bool): &AST {
     let lhs = .parse_additive(in_parens)
     while .token_is(TokenType::Ampersand) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_additive(in_parens)
@@ -439,7 +439,7 @@ def Parser::parse_bw_and(&this, in_parens: bool): &AST {
 def Parser::parse_bw_xor(&this, in_parens: bool): &AST {
     let lhs = .parse_bw_and(in_parens)
     while .token_is(TokenType::Caret) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_bw_and(in_parens)
@@ -451,7 +451,7 @@ def Parser::parse_bw_xor(&this, in_parens: bool): &AST {
 def Parser::parse_bw_or(&this, in_parens: bool): &AST {
     let lhs = .parse_bw_xor(in_parens)
     while .token_is(TokenType::Line) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_bw_xor(in_parens)
@@ -468,7 +468,7 @@ def Parser::parse_relational(&this, in_parens: bool): &AST {
             .token_is(TokenType::GreaterThanEquals) or
             .token_is(TokenType::EqualEquals) or
             .token_is(TokenType::NotEquals) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_bw_or(in_parens)
@@ -480,7 +480,7 @@ def Parser::parse_relational(&this, in_parens: bool): &AST {
 def Parser::parse_logical_and(&this, in_parens: bool): &AST {
     let lhs = .parse_relational(in_parens)
     while .token_is(TokenType::And) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_relational(in_parens)
@@ -492,7 +492,7 @@ def Parser::parse_logical_and(&this, in_parens: bool): &AST {
 def Parser::parse_logical_or(&this, in_parens: bool): &AST {
     let lhs = .parse_logical_and(in_parens)
     while .token_is(TokenType::Or) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_logical_and(in_parens)
@@ -503,7 +503,7 @@ def Parser::parse_logical_or(&this, in_parens: bool): &AST {
 
 def Parser::parse_ternary(&this, in_parens: bool): &AST {
     let lhs = .parse_logical_or(in_parens)
-    if (not in_parens and .token().seen_newline) 
+    if not in_parens and .token().seen_newline
         return lhs
 
     if .token_is(TokenType::If) {
@@ -527,7 +527,7 @@ def Parser::parse_expression(&this, in_parens: bool): &AST {
             .token_is(TokenType::MinusEquals) or
             .token_is(TokenType::StarEquals) or
             .token_is(TokenType::SlashEquals) {
-        if (not in_parens and .token().seen_newline) break
+        if not in_parens and .token().seen_newline break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_expression(in_parens)
@@ -712,7 +712,7 @@ def Parser::parse_function(&this): &Function {
     let next_token = .tokens.at(.curr + 1) as &Token
     if next_token.type == TokenType::ColonColon {
         struct_type = .parse_type()
-        if struct_type.name == null {
+        if not struct_type.name? {
             error_span(struct_type.span, "Invalid type in method declaration")
         }
         struct_name = struct_type.name
@@ -744,7 +744,7 @@ def Parser::parse_function(&this): &Function {
                 is_static = true
             }
         }
-        if type == null {
+        if not type? {
             .consume(TokenType::Colon)
             type = .parse_type()
         }
@@ -773,7 +773,7 @@ def Parser::parse_function(&this): &Function {
         }
     }
 
-    if (.consume_if(TokenType::Extern)) {
+    if .consume_if(TokenType::Extern) {
         func.is_extern = true
         func.extern_name = func.name
         if .consume_if(TokenType::OpenParen) {
@@ -890,7 +890,7 @@ def Parser::parse_global_var(&this): &AST {
             var.extern_name = var.name
         }
 
-        if type == null {
+        if not type? {
             error_span(name.span, "Extern variables must have a type");
         }
     } else {
