@@ -74,8 +74,8 @@ def Lexer::lex_string_literal(&this) {
     let end_char = .source[.i]
     let start = .i + 1;
     .i += 1
-    while (.source[.i] != end_char) {
-        if (.source[.i] == '\\') {
+    while .source[.i] != end_char {
+        if .source[.i] == '\\' {
             .i += 1
         }
         .i += 1
@@ -169,16 +169,16 @@ def Lexer::lex(&this): &Vector {
             else => {
                 let start_loc = .loc
 
-                if (is_digit(c)) {
+                if is_digit(c) {
                     let start = .i
 
                     let token_type: TokenType
-                    while (is_digit(.source[.i])) {
+                    while is_digit(.source[.i]) {
                         .i += 1
                     }
                     if .source[.i] == '.' {
                         .i += 1
-                        while (is_digit(.source[.i])) {
+                        while is_digit(.source[.i]) {
                             .i += 1
                         }
                         token_type = TokenType::FloatLiteral
@@ -191,9 +191,9 @@ def Lexer::lex(&this): &Vector {
                     .loc.col += len
                     .push(Token::new(token_type, Span::make(start_loc, .loc), text))
 
-                } else if (is_alpha(c) or c == '_') {
+                } else if is_alpha(c) or c == '_' {
                     let start = .i
-                    while (is_alnum(.source[.i]) or .source[.i] == '_') {
+                    while is_alnum(.source[.i]) or .source[.i] == '_' {
                         .i += 1
                     }
                     let len = .i - start

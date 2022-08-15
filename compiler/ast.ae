@@ -201,10 +201,10 @@ struct Structure {
 }
 
 def Structure::new(span: Span): &Structure {
-    let struct_ = calloc(1, sizeof(Structure)) as &Structure
-    struct_.fields = Vector::new()
-    struct_.span = span
-    return struct_
+    let struc = calloc(1, sizeof(Structure)) as &Structure
+    struc.fields = Vector::new()
+    struc.span = span
+    return struc
 }
 
 def Structure::find_field(&this, name: string): &Variable {
@@ -393,7 +393,7 @@ def AST::new_binop(type: ASTType, lhs: &AST, rhs: &AST): &AST {
 }
 
 def AST::callee_is(&this, expected: string): bool {
-    if this == null return false
+    if not this? return false
     if .type != ASTType::Call return false
     if .u.call.callee.type != ASTType::Identifier return false
     let name = .u.call.callee.u.ident.name
