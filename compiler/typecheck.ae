@@ -440,6 +440,13 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             }
             etype = node.u.cast.to
         }
+        ASTType::IsNotNull => {
+            let lhs_type = .check_expression(node.u.unary)
+            if lhs_type.base != BaseType::Pointer {
+                error_span(node.u.unary.span, "Can only use ? on pointer types")
+            }
+            etype = Type::new(BaseType::Bool, node.span)
+        }
         else => {
             println("Unhandled type in check_expression: %s", node.type.str())
             exit(1)

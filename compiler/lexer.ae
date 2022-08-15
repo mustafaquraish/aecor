@@ -120,6 +120,7 @@ def Lexer::lex(&this): &Vector {
             '^' => .push_type(TokenType::Caret, 1)
             '&' => .push_type(TokenType::Ampersand, 1)
             '|' => .push_type(TokenType::Line, 1)
+            '?' => .push_type(TokenType::Question, 1)
             '!' => match .peek(1) {
                 '='  => .push_type(TokenType::NotEquals, 2)
                 else => .push_type(TokenType::Exclamation, 1)
@@ -202,7 +203,7 @@ def Lexer::lex(&this): &Vector {
                     .push(Token::from_ident(text, Span::make(start_loc, .loc)))
 
                 } else {
-                    println("%s: Unrecognized char in lexer: '%d'", .loc.str(), c)
+                    println("%s: Unrecognized char in lexer: '%c'", .loc.str(), c)
                     exit(1)
                 }
             }
