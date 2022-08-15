@@ -285,6 +285,15 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(CodeGenerator::get_op(node.type))
             .gen_expression(node.u.binary.rhs)
         }
+        Ternary => {
+            .out.puts("(")
+            .gen_expression(node.u.if_stmt.cond)
+            .out.puts(" ? ")
+            .gen_expression(node.u.if_stmt.then)
+            .out.puts(" : ")
+            .gen_expression(node.u.if_stmt.els)
+            .out.puts(")")
+        }
         else => {
             println("unknown type in gen_expression: %s", node.type.str())
             exit(1)

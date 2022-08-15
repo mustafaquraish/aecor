@@ -1,0 +1,5 @@
+/// fail: Unexpected token in parse_expression: return
+
+def main() {
+	let x = 0 if true else return -1
+}

@@ -433,19 +433,31 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 error_span(node.span, "Type has no member with this name")
             }
         }
-        ASTType::Cast => {
+        Cast => {
             let lhs_type = .check_expression(node.u.cast.lhs)
             if not .type_is_valid(node.u.cast.to) {
                 error_span(node.u.cast.to.span, "Type does not exist");
             }
             etype = node.u.cast.to
         }
-        ASTType::IsNotNull => {
+        IsNotNull => {
             let lhs_type = .check_expression(node.u.unary)
             if lhs_type.base != BaseType::Pointer {
                 error_span(node.u.unary.span, "Can only use ? on pointer types")
             }
             etype = Type::new(BaseType::Bool, node.span)
+        }
+        Ternary => {
+            let cond_type = .check_expression(node.u.if_stmt.cond)
+            if cond_type.base != BaseType::Bool {
+                error_span(node.u.if_stmt.cond.span, "Condition must be boolean")
+            }
+            let lhs_type = .check_expression(node.u.if_stmt.then)
+            let rhs_type = .check_expression(node.u.if_stmt.els)
+            if not lhs_type.eq(rhs_type) {
+                error_span(node.span, "Both branches of ternary must be of the same type")
+            }
+            etype = lhs_type
         }
         else => {
             println("Unhandled type in check_expression: %s", node.type.str())
