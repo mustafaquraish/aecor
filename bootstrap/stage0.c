@@ -476,6 +476,8 @@ Lexer Lexer__make(char* source, char* filename);
 void Lexer__push(Lexer* this, Token* token);
 void Lexer__push_type(Lexer* this, TokenType type, int len);
 char Lexer__peek(Lexer* this, int offset);
+void Lexer__lex_char_literal(Lexer* this);
+void Lexer__lex_string_literal(Lexer* this);
 Vector* Lexer__lex(Lexer* this);
 MapNode* MapNode__new(char* key, void* value, MapNode* next);
 void MapNode__free_list(MapNode* node);
@@ -1115,6 +1117,48 @@ char Lexer__peek(Lexer* this, int offset) {
   return this->source[(this->i + 1)];
 }
 
+void Lexer__lex_char_literal(Lexer* this) {
+  Location start_loc = this->loc;
+  int start = (this->i + 1);
+  this->i += 1;
+  if (this->source[this->i] == '\\'){
+    this->i += 2;
+  }  else {
+    this->i += 1;
+  } 
+  if ((this->source[this->i] != '\'')){
+    this->loc.col += ((this->i - start) + 1);
+    error_loc(this->loc, "Expected ' after character literal");
+  } 
+  int len = (this->i - start);
+  char* text = string__substring(this->source, start, len);
+  this->loc.col += (len + 2);
+  this->i += 1;
+  Lexer__push(this, Token__new(TokenType__CharLiteral, Span__make(start_loc, this->loc), text));
+}
+
+void Lexer__lex_string_literal(Lexer* this) {
+  Location start_loc = this->loc;
+  char end_char = this->source[this->i];
+  int start = (this->i + 1);
+  this->i += 1;
+  while ((this->source[this->i] != end_char)) {
+    if (this->source[this->i] == '\\'){
+      this->i += 1;
+    } 
+    this->i += 1;
+  } 
+  int len = (this->i - start);
+  char* text = string__substring(this->source, start, len);
+  this->loc.col += (len + 2);
+  this->i += 1;
+  if (end_char == '`'){
+    Lexer__push(this, Token__new(TokenType__FormatStringLiteral, Span__make(start_loc, this->loc), text));
+  }  else {
+    Lexer__push(this, Token__new(TokenType__StringLiteral, Span__make(start_loc, this->loc), text));
+  } 
+}
+
 Vector* Lexer__lex(Lexer* this) {
   while ((this->i < this->source_len)) {
     char c = this->source[this->i];
@@ -1176,76 +1220,110 @@ Vector* Lexer__lex(Lexer* this) {
         Lexer__push_type(this, TokenType__Line, 1);
       } break;
       case '!': {
-        if (Lexer__peek(this, 1) == '=')
-        Lexer__push_type(this, TokenType__NotEquals, 2);
-         else 
-        Lexer__push_type(this, TokenType__Exclamation, 1);
-        
+        switch (Lexer__peek(this, 1)) {
+          case '=': {
+            Lexer__push_type(this, TokenType__NotEquals, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__Exclamation, 1);
+          } break;
+        }
       } break;
       case ':': {
-        if (Lexer__peek(this, 1) == ':')
-        Lexer__push_type(this, TokenType__ColonColon, 2);
-         else 
-        Lexer__push_type(this, TokenType__Colon, 1);
-        
+        switch (Lexer__peek(this, 1)) {
+          case ':': {
+            Lexer__push_type(this, TokenType__ColonColon, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__Colon, 1);
+          } break;
+        }
       } break;
       case '=': {
-        if (Lexer__peek(this, 1) == '=')
-        Lexer__push_type(this, TokenType__EqualEquals, 2);
-         else         if (Lexer__peek(this, 1) == '>')
-        Lexer__push_type(this, TokenType__FatArrow, 2);
-         else 
-        Lexer__push_type(this, TokenType__Equals, 1);
-        
-        
+        switch (Lexer__peek(this, 1)) {
+          case '=': {
+            Lexer__push_type(this, TokenType__EqualEquals, 2);
+          } break;
+          case '>': {
+            Lexer__push_type(this, TokenType__FatArrow, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__Equals, 1);
+          } break;
+        }
       } break;
       case '*': {
-        if (Lexer__peek(this, 1) == '=')
-        Lexer__push_type(this, TokenType__StarEquals, 2);
-         else 
-        Lexer__push_type(this, TokenType__Star, 1);
-        
+        switch (Lexer__peek(this, 1)) {
+          case '=': {
+            Lexer__push_type(this, TokenType__StarEquals, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__Star, 1);
+          } break;
+        }
       } break;
       case '+': {
-        if (Lexer__peek(this, 1) == '=')
-        Lexer__push_type(this, TokenType__PlusEquals, 2);
-         else 
-        Lexer__push_type(this, TokenType__Plus, 1);
-        
+        switch (Lexer__peek(this, 1)) {
+          case '=': {
+            Lexer__push_type(this, TokenType__PlusEquals, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__Plus, 1);
+          } break;
+        }
       } break;
       case '-': {
-        if (Lexer__peek(this, 1) == '=')
-        Lexer__push_type(this, TokenType__MinusEquals, 2);
-         else 
-        Lexer__push_type(this, TokenType__Minus, 1);
-        
-      } break;
-      case '/': {
-        if (Lexer__peek(this, 1) == '/'){
-          this->i += 1;
-          while (((this->i < this->source_len) && (this->source[this->i] != '\n'))) {
-            this->i += 1;
-          } 
-        }  else         if (Lexer__peek(this, 1) == '='){
-          Lexer__push_type(this, TokenType__SlashEquals, 2);
-        }  else {
-          Lexer__push_type(this, TokenType__Slash, 1);
-        } 
-        
+        switch (Lexer__peek(this, 1)) {
+          case '=': {
+            Lexer__push_type(this, TokenType__MinusEquals, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__Minus, 1);
+          } break;
+        }
       } break;
       case '<': {
-        if (Lexer__peek(this, 1) == '=')
-        Lexer__push_type(this, TokenType__LessThanEquals, 2);
-         else 
-        Lexer__push_type(this, TokenType__LessThan, 1);
-        
+        switch (Lexer__peek(this, 1)) {
+          case '=': {
+            Lexer__push_type(this, TokenType__LessThanEquals, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__LessThan, 1);
+          } break;
+        }
       } break;
       case '>': {
-        if (Lexer__peek(this, 1) == '=')
-        Lexer__push_type(this, TokenType__GreaterThanEquals, 2);
-         else 
-        Lexer__push_type(this, TokenType__GreaterThan, 1);
-        
+        switch (Lexer__peek(this, 1)) {
+          case '=': {
+            Lexer__push_type(this, TokenType__GreaterThanEquals, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__GreaterThan, 1);
+          } break;
+        }
+      } break;
+      case '/': {
+        switch (Lexer__peek(this, 1)) {
+          case '/': {
+            this->i += 1;
+            while (((this->i < this->source_len) && (this->source[this->i] != '\n'))) {
+              this->i += 1;
+            } 
+          } break;
+          case '=': {
+            Lexer__push_type(this, TokenType__SlashEquals, 2);
+          } break;
+          default: {
+            Lexer__push_type(this, TokenType__Slash, 1);
+          } break;
+        }
+      } break;
+      case '\'': {
+        Lexer__lex_char_literal(this);
+      } break;
+      case '"':
+      case '`': {
+        Lexer__lex_string_literal(this);
       } break;
       default: {
         Location start_loc = this->loc;
@@ -1277,48 +1355,10 @@ Vector* Lexer__lex(Lexer* this) {
           char* text = string__substring(this->source, start, len);
           this->loc.col += len;
           Lexer__push(this, Token__from_ident(text, Span__make(start_loc, this->loc)));
-        }  else         if (c == '\''){
-          int start = (this->i + 1);
-          this->i += 1;
-          if (this->source[this->i] == '\\'){
-            this->i += 2;
-          }  else {
-            this->i += 1;
-          } 
-          if ((this->source[this->i] != '\'')){
-            this->loc.col += ((this->i - start) + 1);
-            error_loc(this->loc, "Expected ' after character literal");
-          } 
-          int len = (this->i - start);
-          char* text = string__substring(this->source, start, len);
-          this->loc.col += (len + 2);
-          this->i += 1;
-          Lexer__push(this, Token__new(TokenType__CharLiteral, Span__make(start_loc, this->loc), text));
-        }  else         if ((c == '"' || c == '`')){
-          char end_char = c;
-          int start = (this->i + 1);
-          this->i += 1;
-          while ((this->source[this->i] != c)) {
-            if (this->source[this->i] == '\\'){
-              this->i += 1;
-            } 
-            this->i += 1;
-          } 
-          int len = (this->i - start);
-          char* text = string__substring(this->source, start, len);
-          this->loc.col += (len + 2);
-          this->i += 1;
-          if (end_char == '`'){
-            Lexer__push(this, Token__new(TokenType__FormatStringLiteral, Span__make(start_loc, this->loc), text));
-          }  else {
-            Lexer__push(this, Token__new(TokenType__StringLiteral, Span__make(start_loc, this->loc), text));
-          } 
         }  else {
           printf("%s: Unrecognized char in lexer: '%d'" "\n", Location__str(this->loc), c);
           exit(1);
         } 
-        
-        
         
       } break;
     }
