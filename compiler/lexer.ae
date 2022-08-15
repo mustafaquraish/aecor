@@ -2,7 +2,6 @@ use "lib/vector.ae"
 use "@/tokens.ae"
 
 @compiler c_include "ctype.h"
-@compiler c_flag "-ggdb3"
 def is_alpha(c: char): bool extern("isalpha")
 def is_digit(c: char): bool extern("isdigit")
 def is_alnum(c: char): bool extern("isalnum")

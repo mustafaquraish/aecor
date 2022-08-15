@@ -441,6 +441,7 @@ struct TypeChecker {
 struct CodeGenerator {
   FILE* out;
   Vector* scopes;
+  bool debug;
 };
 
 /* function declarations */
@@ -579,7 +580,8 @@ void TypeChecker__check_all_functions(TypeChecker* this, Program* program);
 void TypeChecker__dfs_structs(TypeChecker* this, Structure* struc, Vector* results, Map* done);
 void TypeChecker__check_all_structs(TypeChecker* this, Program* program);
 void TypeChecker__check_program(TypeChecker* this, Program* program);
-CodeGenerator CodeGenerator__make(char* filename);
+CodeGenerator CodeGenerator__make(char* filename, bool debug);
+void CodeGenerator__gen_debug_info(CodeGenerator* this, Span span);
 void CodeGenerator__indent(CodeGenerator* this, int num);
 void CodeGenerator__push_scope(CodeGenerator* this);
 Vector* CodeGenerator__scope(CodeGenerator* this);
@@ -3738,11 +3740,22 @@ void TypeChecker__check_program(TypeChecker* this, Program* program) {
   TypeChecker__pop_scope(this);
 }
 
-CodeGenerator CodeGenerator__make(char* filename) {
+CodeGenerator CodeGenerator__make(char* filename, bool debug) {
   CodeGenerator gen;
   gen.out = File__open(filename, "w");
   gen.scopes = Vector__new();
+  gen.debug = debug;
   return gen;
+}
+
+void CodeGenerator__gen_debug_info(CodeGenerator* this, Span span) {
+  if ((!(this->debug)))
+  return;
+  
+  Location loc = span.start;
+  char* text = __format_string("\n#line %d \"%s\"\n", loc.line, loc.filename);
+  File__puts(this->out, text);
+  free(text);
 }
 
 void CodeGenerator__indent(CodeGenerator* this, int num) {
@@ -4187,6 +4200,7 @@ void CodeGenerator__gen_match(CodeGenerator* this, AST* node, int indent) {
 }
 
 void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent) {
+  CodeGenerator__gen_debug_info(this, node->span);
   if (node->type == ASTType__Return){
     CodeGenerator__indent(this, indent);
     File__puts(this->out, "return");
@@ -4371,6 +4385,7 @@ void CodeGenerator__gen_function(CodeGenerator* this, Function* func) {
   if (func->is_extern)
   return;
   
+  CodeGenerator__gen_debug_info(this, func->span);
   CodeGenerator__gen_function_decl(this, func);
   File__puts(this->out, " ");
   CodeGenerator__gen_block(this, func->body, 0);
@@ -4382,6 +4397,7 @@ void CodeGenerator__gen_global_vars(CodeGenerator* this, Program* program) {
   for (int i = 0; (i < program->global_vars->size); i += 1) {
     AST* node = ((AST*)Vector__at(program->global_vars, i));
     if ((!(node->u.var_decl.var->is_extern))){
+      CodeGenerator__gen_debug_info(this, node->span);
       CodeGenerator__gen_statement(this, node, 0);
     } 
   } 
@@ -4440,6 +4456,7 @@ void usage(int code) {
   printf("    -c path   Output C code (default: {out}.c)" "\n");
   printf("    -s        Silent mode (no debug output)" "\n");
   printf("    -n        Don't compile C code (default: false)" "\n");
+  printf("    -d        Emit debug information (default: false)" "\n");
   printf("    -l        Library path (root of aecor repo)" "\n");
   printf("                   (Default: working directory)" "\n");
   printf("--------------------------------------------------------\n");
@@ -4453,6 +4470,7 @@ int main(int argc, char** argv) {
   bool compile_c = true;
   bool silent = false;
   char* lib_path = ((char*)0);
+  bool debug = false;
   for (int i = 1; (i < argc); i += 1) {
     if (string__eq(argv[i], "-o")){
       i += 1;
@@ -4461,6 +4479,8 @@ int main(int argc, char** argv) {
       usage(0);
     }  else     if (string__eq(argv[i], "-s")){
       silent = true;
+    }  else     if (string__eq(argv[i], "-d")){
+      debug = true;
     }  else     if (string__eq(argv[i], "-n")){
       compile_c = false;
     }  else     if (string__eq(argv[i], "-l")){
@@ -4478,6 +4498,7 @@ int main(int argc, char** argv) {
       printf("Unknown option/argument: '%s'" "\n", argv[i]);
       usage(1);
     } 
+    
     
     
     
@@ -4504,7 +4525,7 @@ int main(int argc, char** argv) {
   Program* program = Parser__parse_program(parser);
   TypeChecker* checker = TypeChecker__new();
   TypeChecker__check_program(checker, program);
-  CodeGenerator generator = CodeGenerator__make(c_path);
+  CodeGenerator generator = CodeGenerator__make(c_path, debug);
   CodeGenerator__gen_program((&(generator)), program);
   if ((!(compile_c))){
     return 0;
@@ -4515,6 +4536,9 @@ int main(int argc, char** argv) {
     char* flag = ((char*)Vector__at(program->c_flags, i));
     strcat(cmdbuf, " ");
     strcat(cmdbuf, flag);
+  } 
+  if (debug){
+    strcat(cmdbuf, " -ggdb3");
   } 
   if ((!(silent))){
     printf("[+] %s" "\n", cmdbuf);

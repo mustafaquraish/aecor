@@ -3,13 +3,23 @@ use "@/ast.ae"
 struct CodeGenerator {
     out: &File
     scopes: &Vector  // Vector<Vector<AST>>
+    debug: bool
 }
 
-def CodeGenerator::make(filename: string): CodeGenerator {
+def CodeGenerator::make(filename: string, debug: bool): CodeGenerator {
     let gen: CodeGenerator
     gen.out = File::open(filename, "w")
     gen.scopes = Vector::new()
+    gen.debug = debug
     return gen
+}
+
+def CodeGenerator::gen_debug_info(&this, span: Span) {
+    if not .debug return
+    let loc = span.start
+    let text = `\n#line {loc.line} \"{loc.filename}\"\n`
+    .out.puts(text)
+    free(text)
 }
 
 def CodeGenerator::indent(&this, num: i32) {
@@ -373,6 +383,7 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
 }
 
 def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
+    .gen_debug_info(node.span)
     if node.type == ASTType::Return {
         .indent(indent)
         .out.puts("return")
@@ -554,6 +565,7 @@ def CodeGenerator::gen_function_decls(&this, program: &Program) {
 
 def CodeGenerator::gen_function(&this, func: &Function) {
     if func.is_extern return
+    .gen_debug_info(func.span)
     .gen_function_decl(func)
     .out.puts(" ")
     .gen_block(func.body, 0)
