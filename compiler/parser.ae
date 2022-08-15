@@ -501,8 +501,27 @@ def Parser::parse_logical_or(&this, in_parens: bool): &AST {
     return lhs;
 }
 
-def Parser::parse_expression(&this, in_parens: bool): &AST {
+def Parser::parse_ternary(&this, in_parens: bool): &AST {
     let lhs = .parse_logical_or(in_parens)
+    if (not in_parens and .token().seen_newline) 
+        return lhs
+
+    if .token_is(TokenType::If) {
+        .consume(TokenType::If)
+        let cond = .parse_expression(true)
+        .consume(TokenType::Else)
+        let els = .parse_expression(in_parens)
+        let node = AST::new(ASTType::Ternary, lhs.span.join(els.span))
+        node.u.if_stmt.cond = cond
+        node.u.if_stmt.then = lhs
+        node.u.if_stmt.els = els
+        lhs = node
+    }
+    return lhs
+}
+
+def Parser::parse_expression(&this, in_parens: bool): &AST {
+    let lhs = .parse_ternary(in_parens)
     while .token_is(TokenType::Equals) or
             .token_is(TokenType::PlusEquals) or
             .token_is(TokenType::MinusEquals) or
