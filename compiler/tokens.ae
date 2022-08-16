@@ -104,6 +104,7 @@ enum TokenType {
   Union
   Use
   Void
+  Yield
   While
 
   // Other tokens
@@ -185,6 +186,7 @@ def TokenType::from_text(text: string): TokenType {
         "union" => return TokenType::Union
         "use" => return TokenType::Use
         "void" => return TokenType::Void
+        "yield" => return TokenType::Yield
         "while" => return TokenType::While
         else => return TokenType::Identifier
     }
@@ -225,6 +227,7 @@ def TokenType::str(this): string {
         TokenType::Union => return "union"
         TokenType::Use => return "use"
         TokenType::Void => return "void"
+        TokenType::Yield => return "yield"
         TokenType::While => return "while"
 
         // Others
