@@ -57,7 +57,7 @@ def TypeChecker::find_var(&this, name: string): &Variable {
 
 def TypeChecker::get_struct_member(&this, lhs: string, rhs: string): &Variable {
     let struc = .structures.get(lhs) as &Structure
-    return struc.find_field(rhs) if struc? else null
+    return if struc? then struc.find_field(rhs) else null
 }
 
 def TypeChecker::type_is_valid(&this, type: &Type): bool {
@@ -404,7 +404,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                         "LHS of member access must be a (pointer to) struct")
             }
             node.u.member.is_pointer = (lhs_type.name == null)
-            let struct_type = lhs_type if lhs_type.name? else lhs_type.ptr
+            let struct_type = if lhs_type.name? then lhs_type else lhs_type.ptr
 
             let struct_name = struct_type.name
             let field_name = node.u.member.name
@@ -439,18 +439,6 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 error_span(node.u.unary.span, "Can only use ? on pointer types")
             }
             etype = Type::new(BaseType::Bool, node.span)
-        }
-        Ternary => {
-            let cond_type = .check_expression(node.u.if_stmt.cond)
-            if cond_type.base != BaseType::Bool {
-                error_span(node.u.if_stmt.cond.span, "Condition must be boolean")
-            }
-            let lhs_type = .check_expression(node.u.if_stmt.body)
-            let rhs_type = .check_expression(node.u.if_stmt.els)
-            if not lhs_type.eq(rhs_type) {
-                error_span(node.span, "Both branches of ternary must be of the same type")
-            }
-            etype = lhs_type
         }
         Match => {
             .check_match(node, true)

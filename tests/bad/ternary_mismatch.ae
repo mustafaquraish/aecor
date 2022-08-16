@@ -1,5 +1,0 @@
-/// fail: Both branches of ternary must be of the same type
-
-def main() {
-	let x = 0 if false else "hello"
-}

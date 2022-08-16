@@ -51,7 +51,6 @@ enum ASTType {
   SizeOf
   ScopeLookup
   StringLiteral
-  Ternary
   UnaryMinus
   VarDeclaration
   Yield
@@ -108,7 +107,6 @@ def ASTType::str(this): string {
         SizeOf => return "SizeOf"
         ScopeLookup => return "ScopeLookup"
         StringLiteral => return "StringLiteral"
-        Ternary => return "Ternary"
         UnaryMinus => return "UnaryMinus"
         VarDeclaration => return "VarDeclaration"
         Yield => return "Yield"

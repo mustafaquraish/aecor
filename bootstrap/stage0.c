@@ -260,7 +260,6 @@ enum ASTType {
   ASTType__SizeOf,
   ASTType__ScopeLookup,
   ASTType__StringLiteral,
-  ASTType__Ternary,
   ASTType__UnaryMinus,
   ASTType__VarDeclaration,
   ASTType__Yield,
@@ -550,7 +549,6 @@ AST* Parser__parse_bw_or(Parser* this, TokenType end_type);
 AST* Parser__parse_relational(Parser* this, TokenType end_type);
 AST* Parser__parse_logical_and(Parser* this, TokenType end_type);
 AST* Parser__parse_logical_or(Parser* this, TokenType end_type);
-AST* Parser__parse_ternary(Parser* this, TokenType end_type);
 AST* Parser__parse_expression(Parser* this, TokenType end_type);
 AST* Parser__parse_match(Parser* this);
 AST* Parser__parse_if(Parser* this);
@@ -1790,9 +1788,6 @@ char* ASTType__str(ASTType this) {
     case ASTType__StringLiteral: {
       return "StringLiteral";
     } break;
-    case ASTType__Ternary: {
-      return "Ternary";
-    } break;
     case ASTType__UnaryMinus: {
       return "UnaryMinus";
     } break;
@@ -2573,27 +2568,8 @@ AST* Parser__parse_logical_or(Parser* this, TokenType end_type) {
   return lhs;
 }
 
-AST* Parser__parse_ternary(Parser* this, TokenType end_type) {
-  AST* lhs = Parser__parse_logical_or(this, end_type);
-  if (Parser__token_is(this, end_type)) 
-  return lhs;
-  
-  if (Parser__token_is(this, TokenType__If)) {
-    Parser__consume(this, TokenType__If);
-    AST* cond = Parser__parse_expression(this, TokenType__Else);
-    Parser__consume(this, TokenType__Else);
-    AST* els = Parser__parse_expression(this, end_type);
-    AST* node = AST__new(ASTType__Ternary, Span__join(lhs->span, els->span));
-    node->u.if_stmt.cond = cond;
-    node->u.if_stmt.body = lhs;
-    node->u.if_stmt.els = els;
-    lhs = node;
-  } 
-  return lhs;
-}
-
 AST* Parser__parse_expression(Parser* this, TokenType end_type) {
-  AST* lhs = Parser__parse_ternary(this, end_type);
+  AST* lhs = Parser__parse_logical_or(this, end_type);
   while (((((Parser__token_is(this, TokenType__Equals) || Parser__token_is(this, TokenType__PlusEquals)) || Parser__token_is(this, TokenType__MinusEquals)) || Parser__token_is(this, TokenType__StarEquals)) || Parser__token_is(this, TokenType__SlashEquals))) {
     if (Parser__token_is(this, end_type)) 
     break;
@@ -3521,18 +3497,6 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       } 
       etype = Type__new(BaseType__Bool, node->span);
     } break;
-    case ASTType__Ternary: {
-      Type* cond_type = TypeChecker__check_expression(this, node->u.if_stmt.cond);
-      if ((cond_type->base != BaseType__Bool)) {
-        error_span(node->u.if_stmt.cond->span, "Condition must be boolean");
-      } 
-      Type* lhs_type = TypeChecker__check_expression(this, node->u.if_stmt.body);
-      Type* rhs_type = TypeChecker__check_expression(this, node->u.if_stmt.els);
-      if ((!(Type__eq(lhs_type, rhs_type)))) {
-        error_span(node->span, "Both branches of ternary must be of the same type");
-      } 
-      etype = lhs_type;
-    } break;
     case ASTType__Match: {
       TypeChecker__check_match(this, node, true);
       etype = node->etype;
@@ -4341,15 +4305,6 @@ void CodeGenerator__gen_expression(CodeGenerator* this, AST* node) {
       CodeGenerator__gen_expression(this, node->u.binary.lhs);
       File__puts(this->out, CodeGenerator__get_op(node->type));
       CodeGenerator__gen_expression(this, node->u.binary.rhs);
-    } break;
-    case ASTType__Ternary: {
-      File__puts(this->out, "(");
-      CodeGenerator__gen_expression(this, node->u.if_stmt.cond);
-      File__puts(this->out, " ? ");
-      CodeGenerator__gen_expression(this, node->u.if_stmt.body);
-      File__puts(this->out, " : ");
-      CodeGenerator__gen_expression(this, node->u.if_stmt.els);
-      File__puts(this->out, ")");
     } break;
     default: {
       printf("unknown type in gen_expression: %s" "\n", ASTType__str(node->type));

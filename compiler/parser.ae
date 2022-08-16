@@ -513,27 +513,8 @@ def Parser::parse_logical_or(&this, end_type: TokenType): &AST {
     return lhs;
 }
 
-def Parser::parse_ternary(&this, end_type: TokenType): &AST {
-    let lhs = .parse_logical_or(end_type)
-    if .token_is(end_type)
-        return lhs
-
-    if .token_is(TokenType::If) {
-        .consume(TokenType::If)
-        let cond = .parse_expression(TokenType::Else)
-        .consume(TokenType::Else)
-        let els = .parse_expression(end_type)
-        let node = AST::new(ASTType::Ternary, lhs.span.join(els.span))
-        node.u.if_stmt.cond = cond
-        node.u.if_stmt.body = lhs
-        node.u.if_stmt.els = els
-        lhs = node
-    }
-    return lhs
-}
-
 def Parser::parse_expression(&this, end_type: TokenType): &AST {
-    let lhs = .parse_ternary(end_type)
+    let lhs = .parse_logical_or(end_type)
     while .token_is(TokenType::Equals) or
             .token_is(TokenType::PlusEquals) or
             .token_is(TokenType::MinusEquals) or
