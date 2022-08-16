@@ -99,6 +99,7 @@ enum TokenType {
   String
   Struct
   True
+  Then
   U8
   UntypedPtr
   Union
@@ -182,6 +183,7 @@ def TokenType::from_text(text: string): TokenType {
         "string" => return TokenType::String
         "struct" => return TokenType::Struct
         "true" => return TokenType::True
+        "then" => return TokenType::Then
         "u8" => return TokenType::U8
         "untyped_ptr" => return TokenType::UntypedPtr
         "union" => return TokenType::Union
@@ -223,6 +225,7 @@ def TokenType::str(this): string {
         TokenType::String => return "string"
         TokenType::Struct => return "struct"
         TokenType::True => return "true"
+        TokenType::Then => return "then"
         TokenType::U8 => return "u8"
         TokenType::UntypedPtr => return "untyped_ptr"
         TokenType::Union => return "union"

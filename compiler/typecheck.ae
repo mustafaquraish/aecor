@@ -445,7 +445,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             if cond_type.base != BaseType::Bool {
                 error_span(node.u.if_stmt.cond.span, "Condition must be boolean")
             }
-            let lhs_type = .check_expression(node.u.if_stmt.then)
+            let lhs_type = .check_expression(node.u.if_stmt.body)
             let rhs_type = .check_expression(node.u.if_stmt.els)
             if not lhs_type.eq(rhs_type) {
                 error_span(node.span, "Both branches of ternary must be of the same type")
@@ -606,12 +606,12 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool) {
     if cond_type.base != BaseType::Bool {
         error_span(node.u.if_stmt.cond.span, "Condition must be boolean")
     }
-    .check_expression_statement(node, node.u.if_stmt.then, is_expr)
+    .check_expression_statement(node, node.u.if_stmt.body, is_expr)
     if node.u.if_stmt.els? {
         let else_stmt = node.u.if_stmt.els
         .check_expression_statement(node, else_stmt, is_expr)
 
-        if node.u.if_stmt.then.returns and else_stmt.returns {
+        if node.u.if_stmt.body.returns and else_stmt.returns {
             node.returns = true
         }
     } else if is_expr {

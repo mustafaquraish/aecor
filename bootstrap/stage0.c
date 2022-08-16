@@ -105,6 +105,7 @@ enum TokenType {
   TokenType__String,
   TokenType__Struct,
   TokenType__True,
+  TokenType__Then,
   TokenType__U8,
   TokenType__UntypedPtr,
   TokenType__Union,
@@ -359,7 +360,7 @@ struct VarDeclaration {
 
 struct IfStatement {
   AST* cond;
-  AST* then;
+  AST* body;
   AST* els;
 };
 
@@ -850,6 +851,8 @@ TokenType TokenType__from_text(char* text) {
       return TokenType__Struct;
     } else if (!strcmp(__match_str, "true")) {
       return TokenType__True;
+    } else if (!strcmp(__match_str, "then")) {
+      return TokenType__Then;
     } else if (!strcmp(__match_str, "u8")) {
       return TokenType__U8;
     } else if (!strcmp(__match_str, "untyped_ptr")) {
@@ -952,6 +955,9 @@ char* TokenType__str(TokenType this) {
     } break;
     case TokenType__True: {
       return "true";
+    } break;
+    case TokenType__Then: {
+      return "then";
     } break;
     case TokenType__U8: {
       return "u8";
@@ -2579,7 +2585,7 @@ AST* Parser__parse_ternary(Parser* this, TokenType end_type) {
     AST* els = Parser__parse_expression(this, end_type);
     AST* node = AST__new(ASTType__Ternary, Span__join(lhs->span, els->span));
     node->u.if_stmt.cond = cond;
-    node->u.if_stmt.then = lhs;
+    node->u.if_stmt.body = lhs;
     node->u.if_stmt.els = els;
     lhs = node;
   } 
@@ -2636,8 +2642,9 @@ AST* Parser__parse_if(Parser* this) {
   Span start_span = Parser__token(this)->span;
   Parser__consume(this, TokenType__If);
   AST* cond = Parser__parse_expression(this, TokenType__Newline);
-  AST* then = Parser__parse_statement(this);
-  Span end_span = then->span;
+  Parser__consume_if(this, TokenType__Then);
+  AST* body = Parser__parse_statement(this);
+  Span end_span = body->span;
   AST* els = ((AST*)NULL);
   if (Parser__consume_if(this, TokenType__Else)) {
     els = Parser__parse_statement(this);
@@ -2645,7 +2652,7 @@ AST* Parser__parse_if(Parser* this) {
   } 
   AST* node = AST__new(ASTType__If, Span__join(start_span, end_span));
   node->u.if_stmt.cond = cond;
-  node->u.if_stmt.then = then;
+  node->u.if_stmt.body = body;
   node->u.if_stmt.els = els;
   return node;
 }
@@ -3519,7 +3526,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       if ((cond_type->base != BaseType__Bool)) {
         error_span(node->u.if_stmt.cond->span, "Condition must be boolean");
       } 
-      Type* lhs_type = TypeChecker__check_expression(this, node->u.if_stmt.then);
+      Type* lhs_type = TypeChecker__check_expression(this, node->u.if_stmt.body);
       Type* rhs_type = TypeChecker__check_expression(this, node->u.if_stmt.els);
       if ((!(Type__eq(lhs_type, rhs_type)))) {
         error_span(node->span, "Both branches of ternary must be of the same type");
@@ -3669,11 +3676,11 @@ void TypeChecker__check_if(TypeChecker* this, AST* node, bool is_expr) {
   if ((cond_type->base != BaseType__Bool)) {
     error_span(node->u.if_stmt.cond->span, "Condition must be boolean");
   } 
-  TypeChecker__check_expression_statement(this, node, node->u.if_stmt.then, is_expr);
+  TypeChecker__check_expression_statement(this, node, node->u.if_stmt.body, is_expr);
   if (((bool)node->u.if_stmt.els)) {
     AST* else_stmt = node->u.if_stmt.els;
     TypeChecker__check_expression_statement(this, node, else_stmt, is_expr);
-    if ((node->u.if_stmt.then->returns && else_stmt->returns)) {
+    if ((node->u.if_stmt.body->returns && else_stmt->returns)) {
       node->returns = true;
     } 
   }  else   if (is_expr) {
@@ -4180,9 +4187,23 @@ void CodeGenerator__gen_expression(CodeGenerator* this, AST* node) {
     case ASTType__Null: {
       File__puts(this->out, "NULL");
     } break;
-    case ASTType__Match:
-    case ASTType__If: {
+    case ASTType__Match: {
       CodeGenerator__gen_in_yield_context(this, node);
+    } break;
+    case ASTType__If: {
+      AST* a = node->u.if_stmt.body;
+      AST* b = node->u.if_stmt.els;
+      if (((a->type != ASTType__Block) && (b->type != ASTType__Block))) {
+        File__puts(this->out, "(");
+        CodeGenerator__gen_expression(this, node->u.if_stmt.cond);
+        File__puts(this->out, " ? ");
+        CodeGenerator__gen_expression(this, a);
+        File__puts(this->out, " : ");
+        CodeGenerator__gen_expression(this, b);
+        File__puts(this->out, ")");
+      }  else {
+        CodeGenerator__gen_in_yield_context(this, node);
+      } 
     } break;
     case ASTType__BoolLiteral: {
       if (node->u.bool_literal) {
@@ -4325,7 +4346,7 @@ void CodeGenerator__gen_expression(CodeGenerator* this, AST* node) {
       File__puts(this->out, "(");
       CodeGenerator__gen_expression(this, node->u.if_stmt.cond);
       File__puts(this->out, " ? ");
-      CodeGenerator__gen_expression(this, node->u.if_stmt.then);
+      CodeGenerator__gen_expression(this, node->u.if_stmt.body);
       File__puts(this->out, " : ");
       CodeGenerator__gen_expression(this, node->u.if_stmt.els);
       File__puts(this->out, ")");
@@ -4480,7 +4501,7 @@ void CodeGenerator__gen_statement(CodeGenerator* this, AST* node, int indent) {
       File__puts(this->out, "if (");
       CodeGenerator__gen_expression(this, node->u.if_stmt.cond);
       File__puts(this->out, ") ");
-      CodeGenerator__gen_control_body(this, node, node->u.if_stmt.then, indent);
+      CodeGenerator__gen_control_body(this, node, node->u.if_stmt.body, indent);
       if (((bool)node->u.if_stmt.els)) {
         File__puts(this->out, " else ");
         CodeGenerator__gen_control_body(this, node, node->u.if_stmt.els, indent);

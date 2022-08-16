@@ -525,7 +525,7 @@ def Parser::parse_ternary(&this, end_type: TokenType): &AST {
         let els = .parse_expression(end_type)
         let node = AST::new(ASTType::Ternary, lhs.span.join(els.span))
         node.u.if_stmt.cond = cond
-        node.u.if_stmt.then = lhs
+        node.u.if_stmt.body = lhs
         node.u.if_stmt.els = els
         lhs = node
     }
@@ -587,9 +587,10 @@ def Parser::parse_if(&this): &AST {
     let start_span = .token().span
     .consume(TokenType::If)
     let cond = .parse_expression(TokenType::Newline)
-    let then = .parse_statement()
+    .consume_if(TokenType::Then)
+    let body = .parse_statement()
 
-    let end_span = then.span
+    let end_span = body.span
     let els = null as &AST
     if .consume_if(TokenType::Else) {
         els = .parse_statement()
@@ -597,7 +598,7 @@ def Parser::parse_if(&this): &AST {
     }
     let node = AST::new(ASTType::If, start_span.join(end_span))
     node.u.if_stmt.cond = cond
-    node.u.if_stmt.then = then
+    node.u.if_stmt.body = body
     node.u.if_stmt.els = els
     return node
 }
