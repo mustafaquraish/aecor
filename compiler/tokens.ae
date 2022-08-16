@@ -136,6 +136,7 @@ enum TokenType {
   Minus
   MinusEquals
   NotEquals
+  Newline    // Not an actual token, but nice to have this here
   OpenCurly
   OpenParen
   OpenSquare
@@ -259,6 +260,7 @@ def TokenType::str(this): string {
         TokenType::Minus => return "Minus"
         TokenType::MinusEquals => return "MinusEquals"
         TokenType::NotEquals => return "NotEquals"
+        TokenType::Newline => return "Newline"
         TokenType::OpenCurly => return "OpenCurly"
         TokenType::OpenParen => return "OpenParen"
         TokenType::OpenSquare => return "OpenSquare"

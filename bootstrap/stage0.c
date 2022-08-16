@@ -140,6 +140,7 @@ enum TokenType {
   TokenType__Minus,
   TokenType__MinusEquals,
   TokenType__NotEquals,
+  TokenType__Newline,
   TokenType__OpenCurly,
   TokenType__OpenParen,
   TokenType__OpenSquare,
@@ -539,17 +540,17 @@ void Parser__consume_newline_or(Parser* this, TokenType type);
 Token* Parser__consume(Parser* this, TokenType type);
 Type* Parser__parse_type(Parser* this);
 AST* Parser__parse_format_string(Parser* this);
-AST* Parser__parse_factor(Parser* this, bool in_parens);
-AST* Parser__parse_term(Parser* this, bool in_parens);
-AST* Parser__parse_additive(Parser* this, bool in_parens);
-AST* Parser__parse_bw_and(Parser* this, bool in_parens);
-AST* Parser__parse_bw_xor(Parser* this, bool in_parens);
-AST* Parser__parse_bw_or(Parser* this, bool in_parens);
-AST* Parser__parse_relational(Parser* this, bool in_parens);
-AST* Parser__parse_logical_and(Parser* this, bool in_parens);
-AST* Parser__parse_logical_or(Parser* this, bool in_parens);
-AST* Parser__parse_ternary(Parser* this, bool in_parens);
-AST* Parser__parse_expression(Parser* this, bool in_parens);
+AST* Parser__parse_factor(Parser* this, TokenType end_type);
+AST* Parser__parse_term(Parser* this, TokenType end_type);
+AST* Parser__parse_additive(Parser* this, TokenType end_type);
+AST* Parser__parse_bw_and(Parser* this, TokenType end_type);
+AST* Parser__parse_bw_xor(Parser* this, TokenType end_type);
+AST* Parser__parse_bw_or(Parser* this, TokenType end_type);
+AST* Parser__parse_relational(Parser* this, TokenType end_type);
+AST* Parser__parse_logical_and(Parser* this, TokenType end_type);
+AST* Parser__parse_logical_or(Parser* this, TokenType end_type);
+AST* Parser__parse_ternary(Parser* this, TokenType end_type);
+AST* Parser__parse_expression(Parser* this, TokenType end_type);
 AST* Parser__parse_match(Parser* this);
 AST* Parser__parse_if(Parser* this);
 AST* Parser__parse_statement(Parser* this);
@@ -1056,6 +1057,9 @@ char* TokenType__str(TokenType this) {
     } break;
     case TokenType__NotEquals: {
       return "NotEquals";
+    } break;
+    case TokenType__Newline: {
+      return "Newline";
     } break;
     case TokenType__OpenCurly: {
       return "OpenCurly";
@@ -2121,12 +2125,17 @@ Token* Parser__token(Parser* this) {
 }
 
 bool Parser__token_is(Parser* this, TokenType type) {
+  if (type == TokenType__Newline) {
+    return Parser__token(this)->seen_newline;
+  } 
   return Parser__token(this)->type == type;
 }
 
 bool Parser__consume_if(Parser* this, TokenType type) {
   if (Parser__token_is(this, type)) {
-    this->curr += 1;
+    if ((type != TokenType__Newline)) {
+      this->curr += 1;
+    } 
     return true;
   } 
   return false;
@@ -2142,10 +2151,11 @@ void Parser__consume_newline_or(Parser* this, TokenType type) {
 }
 
 Token* Parser__consume(Parser* this, TokenType type) {
+  Token* tok = Parser__token(this);
   if ((!(Parser__consume_if(this, type)))) {
     Parser__error(this, format_string("Expected TokenType::%s", TokenType__str(type)));
   } 
-  return ((Token*)Vector__at(this->tokens, (this->curr - 1)));
+  return tok;
 }
 
 Type* Parser__parse_type(Parser* this) {
@@ -2272,7 +2282,7 @@ AST* Parser__parse_format_string(Parser* this) {
     lexer.loc.col += start;
     Vector* tokens = Lexer__lex((&(lexer)));
     Parser__push_context(this, tokens);
-    AST* expr = Parser__parse_expression(this, false);
+    AST* expr = Parser__parse_expression(this, TokenType__CloseCurly);
     Parser__pop_context(this);
     Vector__push(expr_nodes, expr);
   } 
@@ -2284,7 +2294,7 @@ AST* Parser__parse_format_string(Parser* this) {
   Vector__free(expr_parts);
 }
 
-AST* Parser__parse_factor(Parser* this, bool in_parens) {
+AST* Parser__parse_factor(Parser* this, TokenType end_type) {
   AST* node = ((AST*)NULL);
   switch (Parser__token(this)->type) {
     case TokenType__FormatStringLiteral: {
@@ -2332,22 +2342,22 @@ AST* Parser__parse_factor(Parser* this, bool in_parens) {
     } break;
     case TokenType__Minus: {
       Token* op = Parser__consume(this, TokenType__Minus);
-      AST* expr = Parser__parse_factor(this, in_parens);
+      AST* expr = Parser__parse_factor(this, end_type);
       node = AST__new_unop(ASTType__UnaryMinus, Span__join(op->span, expr->span), expr);
     } break;
     case TokenType__Not: {
       Token* op = Parser__consume(this, TokenType__Not);
-      AST* expr = Parser__parse_factor(this, in_parens);
+      AST* expr = Parser__parse_factor(this, end_type);
       node = AST__new_unop(ASTType__Not, Span__join(op->span, expr->span), expr);
     } break;
     case TokenType__Ampersand: {
       Token* op = Parser__consume(this, TokenType__Ampersand);
-      AST* expr = Parser__parse_factor(this, in_parens);
+      AST* expr = Parser__parse_factor(this, end_type);
       node = AST__new_unop(ASTType__Address, Span__join(op->span, expr->span), expr);
     } break;
     case TokenType__Star: {
       Token* op = Parser__consume(this, TokenType__Star);
-      AST* expr = Parser__parse_factor(this, in_parens);
+      AST* expr = Parser__parse_factor(this, end_type);
       node = AST__new_unop(ASTType__Dereference, Span__join(op->span, expr->span), expr);
     } break;
     case TokenType__Identifier: {
@@ -2357,7 +2367,7 @@ AST* Parser__parse_factor(Parser* this, bool in_parens) {
     } break;
     case TokenType__OpenParen: {
       Token* open = Parser__consume(this, TokenType__OpenParen);
-      node = Parser__parse_expression(this, true);
+      node = Parser__parse_expression(this, TokenType__CloseParen);
       Token* close = Parser__consume(this, TokenType__CloseParen);
       node->span = Span__join(open->span, close->span);
     } break;
@@ -2381,7 +2391,7 @@ AST* Parser__parse_factor(Parser* this, bool in_parens) {
   }
   bool running = true;
   while (running) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     switch (Parser__token(this)->type) {
@@ -2389,7 +2399,7 @@ AST* Parser__parse_factor(Parser* this, bool in_parens) {
         Span paren_span = Parser__consume(this, TokenType__OpenParen)->span;
         Vector* args = Vector__new();
         while ((!(Parser__token_is(this, TokenType__CloseParen)))) {
-          AST* expr = Parser__parse_expression(this, false);
+          AST* expr = Parser__parse_expression(this, TokenType__Comma);
           Vector__push(args, expr);
           if ((!(Parser__token_is(this, TokenType__CloseParen)))) {
             Parser__consume(this, TokenType__Comma);
@@ -2405,7 +2415,7 @@ AST* Parser__parse_factor(Parser* this, bool in_parens) {
       } break;
       case TokenType__OpenSquare: {
         Parser__consume(this, TokenType__OpenSquare);
-        AST* index = Parser__parse_expression(this, true);
+        AST* index = Parser__parse_expression(this, TokenType__CloseSquare);
         Parser__consume(this, TokenType__CloseSquare);
         node = AST__new_binop(ASTType__Index, node, index);
       } break;
@@ -2445,128 +2455,128 @@ AST* Parser__parse_factor(Parser* this, bool in_parens) {
   return node;
 }
 
-AST* Parser__parse_term(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_factor(this, in_parens);
+AST* Parser__parse_term(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_factor(this, end_type);
   while (((Parser__token_is(this, TokenType__Star) || Parser__token_is(this, TokenType__Slash)) || Parser__token_is(this, TokenType__Percent))) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_factor(this, in_parens);
+    AST* rhs = Parser__parse_factor(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
-AST* Parser__parse_additive(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_term(this, in_parens);
+AST* Parser__parse_additive(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_term(this, end_type);
   while ((Parser__token_is(this, TokenType__Plus) || Parser__token_is(this, TokenType__Minus))) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_term(this, in_parens);
+    AST* rhs = Parser__parse_term(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
-AST* Parser__parse_bw_and(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_additive(this, in_parens);
+AST* Parser__parse_bw_and(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_additive(this, end_type);
   while (Parser__token_is(this, TokenType__Ampersand)) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_additive(this, in_parens);
+    AST* rhs = Parser__parse_additive(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
-AST* Parser__parse_bw_xor(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_bw_and(this, in_parens);
+AST* Parser__parse_bw_xor(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_bw_and(this, end_type);
   while (Parser__token_is(this, TokenType__Caret)) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_bw_and(this, in_parens);
+    AST* rhs = Parser__parse_bw_and(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
-AST* Parser__parse_bw_or(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_bw_xor(this, in_parens);
+AST* Parser__parse_bw_or(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_bw_xor(this, end_type);
   while (Parser__token_is(this, TokenType__Line)) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_bw_xor(this, in_parens);
+    AST* rhs = Parser__parse_bw_xor(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
-AST* Parser__parse_relational(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_bw_or(this, in_parens);
+AST* Parser__parse_relational(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_bw_or(this, end_type);
   while ((((((Parser__token_is(this, TokenType__LessThan) || Parser__token_is(this, TokenType__GreaterThan)) || Parser__token_is(this, TokenType__LessThanEquals)) || Parser__token_is(this, TokenType__GreaterThanEquals)) || Parser__token_is(this, TokenType__EqualEquals)) || Parser__token_is(this, TokenType__NotEquals))) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_bw_or(this, in_parens);
+    AST* rhs = Parser__parse_bw_or(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
-AST* Parser__parse_logical_and(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_relational(this, in_parens);
+AST* Parser__parse_logical_and(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_relational(this, end_type);
   while (Parser__token_is(this, TokenType__And)) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_relational(this, in_parens);
+    AST* rhs = Parser__parse_relational(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
-AST* Parser__parse_logical_or(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_logical_and(this, in_parens);
+AST* Parser__parse_logical_or(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_logical_and(this, end_type);
   while (Parser__token_is(this, TokenType__Or)) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_logical_and(this, in_parens);
+    AST* rhs = Parser__parse_logical_and(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
 }
 
-AST* Parser__parse_ternary(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_logical_or(this, in_parens);
-  if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+AST* Parser__parse_ternary(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_logical_or(this, end_type);
+  if (Parser__token_is(this, end_type)) 
   return lhs;
   
   if (Parser__token_is(this, TokenType__If)) {
     Parser__consume(this, TokenType__If);
-    AST* cond = Parser__parse_expression(this, true);
+    AST* cond = Parser__parse_expression(this, TokenType__Else);
     Parser__consume(this, TokenType__Else);
-    AST* els = Parser__parse_expression(this, in_parens);
+    AST* els = Parser__parse_expression(this, end_type);
     AST* node = AST__new(ASTType__Ternary, Span__join(lhs->span, els->span));
     node->u.if_stmt.cond = cond;
     node->u.if_stmt.then = lhs;
@@ -2576,15 +2586,15 @@ AST* Parser__parse_ternary(Parser* this, bool in_parens) {
   return lhs;
 }
 
-AST* Parser__parse_expression(Parser* this, bool in_parens) {
-  AST* lhs = Parser__parse_ternary(this, in_parens);
+AST* Parser__parse_expression(Parser* this, TokenType end_type) {
+  AST* lhs = Parser__parse_ternary(this, end_type);
   while (((((Parser__token_is(this, TokenType__Equals) || Parser__token_is(this, TokenType__PlusEquals)) || Parser__token_is(this, TokenType__MinusEquals)) || Parser__token_is(this, TokenType__StarEquals)) || Parser__token_is(this, TokenType__SlashEquals))) {
-    if (((!(in_parens)) && Parser__token(this)->seen_newline)) 
+    if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
-    AST* rhs = Parser__parse_expression(this, in_parens);
+    AST* rhs = Parser__parse_expression(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
@@ -2592,7 +2602,7 @@ AST* Parser__parse_expression(Parser* this, bool in_parens) {
 
 AST* Parser__parse_match(Parser* this) {
   Token* op = Parser__consume(this, TokenType__Match);
-  AST* expr = Parser__parse_expression(this, false);
+  AST* expr = Parser__parse_expression(this, TokenType__OpenCurly);
   AST* node = AST__new(ASTType__Match, Span__join(op->span, expr->span));
   node->u.match_stmt.expr = expr;
   Vector* cases = Vector__new();
@@ -2604,7 +2614,7 @@ AST* Parser__parse_match(Parser* this) {
       Parser__consume(this, TokenType__FatArrow);
       node->u.match_stmt.defolt = Parser__parse_statement(this);
     }  else {
-      AST* cond = Parser__parse_factor(this, false);
+      AST* cond = Parser__parse_factor(this, TokenType__Line);
       AST* body = ((AST*)NULL);
       if ((!(Parser__consume_if(this, TokenType__Line)))) {
         Parser__consume(this, TokenType__FatArrow);
@@ -2625,7 +2635,7 @@ AST* Parser__parse_match(Parser* this) {
 AST* Parser__parse_if(Parser* this) {
   Span start_span = Parser__token(this)->span;
   Parser__consume(this, TokenType__If);
-  AST* cond = Parser__parse_expression(this, false);
+  AST* cond = Parser__parse_expression(this, TokenType__Newline);
   AST* then = Parser__parse_statement(this);
   Span end_span = then->span;
   AST* els = ((AST*)NULL);
@@ -2657,7 +2667,7 @@ AST* Parser__parse_statement(Parser* this) {
       Parser__consume(this, TokenType__Return);
       AST* expr = ((AST*)NULL);
       if ((!(Parser__token(this)->seen_newline))) {
-        expr = Parser__parse_expression(this, false);
+        expr = Parser__parse_expression(this, TokenType__Newline);
       } 
       node = AST__new_unop(ASTType__Return, Span__join(start_span, Parser__token(this)->span), expr);
       Parser__consume_newline_or(this, TokenType__Semicolon);
@@ -2679,12 +2689,13 @@ AST* Parser__parse_statement(Parser* this) {
     } break;
     case TokenType__Yield: {
       Parser__consume(this, TokenType__Yield);
-      AST* expr = Parser__parse_expression(this, false);
+      AST* expr = Parser__parse_expression(this, TokenType__Newline);
       node = AST__new_unop(ASTType__Yield, Span__join(start_span, expr->span), expr);
+      Parser__consume_newline_or(this, TokenType__Semicolon);
     } break;
     case TokenType__While: {
       Parser__consume(this, TokenType__While);
-      AST* cond = Parser__parse_expression(this, false);
+      AST* cond = Parser__parse_expression(this, TokenType__Newline);
       AST* body = Parser__parse_statement(this);
       node = AST__new(ASTType__While, Span__join(start_span, body->span));
       node->u.loop.cond = cond;
@@ -2706,11 +2717,11 @@ AST* Parser__parse_statement(Parser* this) {
       } 
       Parser__consume(this, TokenType__Semicolon);
       if ((!(Parser__token_is(this, TokenType__Semicolon)))) 
-      node->u.loop.cond = Parser__parse_expression(this, true);
+      node->u.loop.cond = Parser__parse_expression(this, TokenType__Semicolon);
       
       Parser__consume(this, TokenType__Semicolon);
       if ((!(Parser__token_is(this, TokenType__CloseCurly)))) 
-      node->u.loop.incr = Parser__parse_expression(this, false);
+      node->u.loop.incr = Parser__parse_expression(this, TokenType__Newline);
       
       node->u.loop.body = Parser__parse_statement(this);
       node->span = Span__join(node->span, node->u.loop.body->span);
@@ -2726,7 +2737,7 @@ AST* Parser__parse_statement(Parser* this) {
       } 
       AST* init = ((AST*)NULL);
       if (Parser__consume_if(this, TokenType__Equals)) {
-        init = Parser__parse_expression(this, false);
+        init = Parser__parse_expression(this, TokenType__Newline);
         end_span = init->span;
       } 
       Parser__consume_newline_or(this, TokenType__Semicolon);
@@ -2735,8 +2746,8 @@ AST* Parser__parse_statement(Parser* this) {
       node->u.var_decl.init = init;
     } break;
     default: {
-      node = Parser__parse_expression(this, false);
-      Parser__consume_newline_or(this, TokenType__Semicolon);
+      node = Parser__parse_expression(this, TokenType__Newline);
+      Parser__consume_if(this, TokenType__Semicolon);
     } break;
   }
   return node;
@@ -2927,7 +2938,7 @@ AST* Parser__parse_global_var(Parser* this) {
   }  else {
     var->is_extern = false;
     if (Parser__consume_if(this, TokenType__Equals)) {
-      node->u.var_decl.init = Parser__parse_expression(this, false);
+      node->u.var_decl.init = Parser__parse_expression(this, TokenType__Newline);
     } 
   } 
   Parser__consume_newline_or(this, TokenType__Semicolon);
