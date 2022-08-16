@@ -1,5 +1,0 @@
-/// fail: Condition must be boolean
-
-def main() {
-	let x = 0 if null else "hello"
-}
