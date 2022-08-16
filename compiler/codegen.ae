@@ -4,12 +4,17 @@ struct CodeGenerator {
     out: &File
     scopes: &Vector  // Vector<Vector<AST>>
     debug: bool
+
+    yield_vars: &Vector // Vector<string>
+    yield_count: i32
 }
 
 def CodeGenerator::make(filename: string, debug: bool): CodeGenerator {
     let gen: CodeGenerator
     gen.out = File::open(filename, "w")
     gen.scopes = Vector::new()
+    gen.yield_vars = Vector::new()
+    gen.yield_count = 0
     gen.debug = debug
     return gen
 }
@@ -41,17 +46,23 @@ def CodeGenerator::pop_scope(&this) {
     scope.free()
 }
 
-def CodeGenerator::gen_control_body(&this, node: &AST, indent: i32) {
-  if node.type == ASTType::Block {
-    .gen_block(node, indent);
-    .out.puts(" ")
-  } else {
-    if node.type != ASTType::If {
-        .out.puts("\n")
+def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST, indent: i32) {
+    if body.type == ASTType::Block {
+        .gen_block(body, indent);
+        .out.puts(" ")
+
+    } else {
+        if body.type != ASTType::If {
+            .out.puts("\n")
+        }
+        // In this case, we're implicitly yielding the result of the body.
+        if node.etype? and body.type != ASTType::Yield {
+            .gen_yield_expression(body, indent+1)
+        } else {
+            .gen_statement(body, indent);
+        }
+        .indent(indent);
     }
-    .gen_statement(node, indent);
-    .indent(indent);
-  }
 }
 
 def CodeGenerator::gen_enum_value(&this, enum_name: string, value_name: string) {
@@ -152,6 +163,31 @@ def CodeGenerator::gen_type(&this, type: &Type) {
     }
 }
 
+def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
+    // Using a GCC extension for the compound statement
+    let yield_var = `__yield_{.yield_count}`
+    .yield_count += 1
+    .yield_vars.push(yield_var)
+
+    let ret_type = node.etype
+
+    .out.puts("({ ")
+    .gen_type_and_name(ret_type, yield_var)
+    .out.puts(";\n")
+
+    // This should be a statement... right?
+    // FIXME: Is there a better way to do this?
+    // FIXME: Pass along the indent level?
+    .gen_statement(node, 1)
+
+    .out.puts(";")
+    .out.puts(yield_var)
+    .out.puts("; })")
+
+    .yield_count -= 1
+    .yield_vars.pop()
+}
+
 def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => .out.puts(node.u.num_literal)
@@ -159,6 +195,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         StringLiteral => .out.puts(`\"{node.u.string_literal}\"`)
         CharLiteral => .out.puts(`'{node.u.char_literal}'`)
         Null => .out.puts("NULL")
+        Match | If => .gen_in_yield_context(node)
         BoolLiteral => {
             if node.u.bool_literal {
                 .out.puts("true")
@@ -311,6 +348,25 @@ def CodeGenerator::gen_var_decl(&this, node: &AST) {
     }
 }
 
+def CodeGenerator::gen_match_case_body(&this, node: &AST, body: &AST, indent: i32) {
+    if body.type == ASTType::Block {
+        .out.puts(" ")
+        .gen_block(body, indent + 1)
+
+    // In this case, we're implicitly yielding the result of the body.
+    } else if node.etype? and body.type != ASTType::Yield {
+        .out.puts(" {\n")
+        .gen_yield_expression(body, indent+2)
+        .out.puts("}")
+
+    } else {
+        .out.puts(" {\n")
+        .gen_statement(body, indent + 2)
+        .indent(indent + 1)
+        .out.puts("}")
+    }
+}
+
 def CodeGenerator::gen_match_string(&this, node: &AST, indent: i32) {
     let stmt = node.u.match_stmt
     .indent(indent)
@@ -331,7 +387,7 @@ def CodeGenerator::gen_match_string(&this, node: &AST, indent: i32) {
 
         if _case.body? {
             .out.puts(")")
-            .gen_match_case_body(_case.body, indent)
+            .gen_match_case_body(node, _case.body, indent)
             .out.puts(" else ")
             if i != cases.size - 1 {
                 .out.puts("if (")
@@ -341,23 +397,11 @@ def CodeGenerator::gen_match_string(&this, node: &AST, indent: i32) {
         }
     }
     if stmt.defolt? {
-        .gen_match_case_body(stmt.defolt, indent)
+        .gen_match_case_body(node, stmt.defolt, indent)
     }
     .out.puts("\n")
     .indent(indent)
     .out.puts("}\n")
-}
-
-def CodeGenerator::gen_match_case_body(&this, node: &AST, indent: i32) {
-    if node.type == ASTType::Block {
-        .out.puts(" ")
-        .gen_block(node, indent + 1)
-    } else {
-        .out.puts(" {\n")
-        .gen_statement(node, indent + 2)
-        .indent(indent + 1)
-        .out.puts("}")
-    }
 }
 
 def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
@@ -380,7 +424,7 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
         .gen_expression(_case.cond)
         .out.puts(":")
         if _case.body? {
-            .gen_match_case_body(_case.body, indent)
+            .gen_match_case_body(node, _case.body, indent)
             .out.puts(" break;\n")
 
         } else {
@@ -390,17 +434,27 @@ def CodeGenerator::gen_match(&this, node: &AST, indent: i32) {
     if stmt.defolt? {
         .indent(indent + 1)
         .out.puts("default:")
-        .gen_match_case_body(stmt.defolt, indent)
+        .gen_match_case_body(node, stmt.defolt, indent)
         .out.puts(" break;\n")
     }
     .indent(indent)
     .out.puts("}\n")
 }
 
+def CodeGenerator::gen_yield_expression(&this, expr: &AST, indent: i32) {
+    let yield_var = .yield_vars.back()
+    .indent(indent)
+    .out.puts(yield_var)
+    .out.puts(" = ")
+    .gen_expression(expr)
+    .out.puts(";\n")
+}
+
 def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
     .gen_debug_info(node.span)
     match node.type {
         ASTType::Match => .gen_match(node, indent)
+        ASTType::Yield => .gen_yield_expression(node.u.unary, indent)
         ASTType::Return => {
             .indent(indent)
             .out.puts("return")
@@ -427,11 +481,11 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
             .indent(indent)
             .out.puts("if (")
             .gen_expression(node.u.if_stmt.cond)
-            .out.puts(")")
-            .gen_control_body(node.u.if_stmt.then, indent)
+            .out.puts(") ")
+            .gen_control_body(node, node.u.if_stmt.then, indent)
             if node.u.if_stmt.els? {
                 .out.puts(" else ")
-                .gen_control_body(node.u.if_stmt.els, indent)
+                .gen_control_body(node, node.u.if_stmt.els, indent)
             }
             .out.puts("\n")
         }
@@ -440,7 +494,7 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
             .out.puts("while (")
             .gen_expression(node.u.loop.cond)
             .out.puts(") ")
-            .gen_control_body(node.u.loop.body, indent)
+            .gen_control_body(node, node.u.loop.body, indent)
             .out.puts("\n")
         }
         ASTType::For => {
@@ -462,7 +516,7 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
                 .gen_expression(node.u.loop.incr)
             }
             .out.puts(") ")
-            .gen_control_body(node.u.loop.body, indent)
+            .gen_control_body(node, node.u.loop.body, indent)
             .out.puts("\n")
         }
         ASTType::Block => {

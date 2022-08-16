@@ -331,6 +331,11 @@ def Parser::parse_factor(&this, in_parens: bool): &AST {
             node = AST::new(ASTType::SizeOf, start.span.join(close.span))
             node.u.size_of_type = type
         }
+
+        // FIXME: Should this go here?
+        TokenType::Match => node = .parse_match()
+        TokenType::If => node = .parse_if()
+
         else => .unhandled_type("parse_expression")
     }
 
@@ -571,12 +576,32 @@ def Parser::parse_match(&this): &AST {
     return node
 }
 
+def Parser::parse_if(&this): &AST {
+    let start_span = .token().span
+    .consume(TokenType::If)
+    let cond = .parse_expression(false)
+    let then = .parse_statement()
+
+    let end_span = then.span
+    let els = null as &AST
+    if .consume_if(TokenType::Else) {
+        els = .parse_statement()
+        end_span = els.span
+    }
+    let node = AST::new(ASTType::If, start_span.join(end_span))
+    node.u.if_stmt.cond = cond
+    node.u.if_stmt.then = then
+    node.u.if_stmt.els = els
+    return node
+}
+
 def Parser::parse_statement(&this): &AST {
     let node = null as &AST
     let start_span = .token().span
 
     match .token().type {
         TokenType::Match => node = .parse_match()
+        TokenType::If => node = .parse_if()
         TokenType::OpenCurly => node = .parse_block()
         TokenType::Return => {
             .consume(TokenType::Return)
@@ -602,21 +627,10 @@ def Parser::parse_statement(&this): &AST {
             let expr = .parse_statement()
             node = AST::new_unop(ASTType::Defer, start_span.join(expr.span), expr)
         }
-        TokenType::If => {
-            .consume(TokenType::If)
-            let cond = .parse_expression(false)
-            let then = .parse_statement()
-
-            let end_span = then.span
-            let els = null as &AST
-            if .consume_if(TokenType::Else) {
-                els = .parse_statement()
-                end_span = els.span
-            }
-            node = AST::new(ASTType::If, start_span.join(end_span))
-            node.u.if_stmt.cond = cond
-            node.u.if_stmt.then = then
-            node.u.if_stmt.els = els
+        TokenType::Yield => {
+            .consume(TokenType::Yield)
+            let expr = .parse_expression(false)
+            node = AST::new_unop(ASTType::Yield, start_span.join(expr.span), expr)
         }
         TokenType::While => {
             .consume(TokenType::While)

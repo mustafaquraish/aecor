@@ -8,6 +8,7 @@ struct TypeChecker {
     methods: &Map     // &Map<string, &Map<string, &Function>>
     cur_func: &Function
     in_loop: bool
+    can_yield: bool
 }
 
 def TypeChecker::new(): &TypeChecker {
@@ -451,6 +452,14 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             }
             etype = lhs_type
         }
+        Match => {
+            .check_match(node, true)
+            etype = node.etype
+        }
+        If => {
+            .check_if(node, true)
+            etype = node.etype
+        }
         else => {
             println("Unhandled type in check_expression: %s", node.type.str())
             exit(1)
@@ -460,12 +469,37 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
     return etype
 }
 
-def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST) {
+
+def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_expr: bool) {
+    match body.type {
+        // If this is an expression-statement, a non-block should also be an expression
+        ASTType::Match => .check_match(body, is_expr)
+        ASTType::If => .check_if(body, is_expr)
+
+        ASTType::Block => .check_block(body, is_expr)
+        else => .check_statement(body)
+    }
+
+    if is_expr {
+        let ret = body.etype
+        if not ret? {
+            error_span(body.span, "Must yield a value in this branch")
+        }
+        if not node.etype? {
+            node.etype = ret
+        } else if not node.etype.eq(ret) {
+            error_span(body.span, "Yield type doesn't match previous branches")
+        }
+    }
+    node.returns = node.returns and body.returns
+}
+
+def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_expr: bool) {
     let mapping = Map::new()
     defer mapping.free()
 
     let cases = node.u.match_stmt.cases
-    let always_returns = true
+    node.returns = true
 
     for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
@@ -496,28 +530,29 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST) {
         }
         mapping.insert(name, _case)
         if _case.body? {
-            .check_statement(_case.body)
-            always_returns = always_returns and _case.body.returns
+            .check_expression_statement(node, _case.body, is_expr)
         }
     }
 
     let defolt = node.u.match_stmt.defolt
-
     if mapping.num_items != struc.fields.size {
         if not defolt? {
             error_span(node.span, "Match does not cover all cases")
         }
-        .check_statement(node.u.match_stmt.defolt)
-        always_returns = always_returns and defolt.returns
+        .check_expression_statement(node, defolt, is_expr)
     } else {
         if defolt? {
             error_span(node.u.match_stmt.defolt_span, "`else` case is not needed for this match")
         }
     }
-    node.returns = always_returns
+
+    if is_expr and not node.etype? {
+        error_span(node.span, "Expression-match must yield a value")
+    }
 }
 
-def TypeChecker::check_match(&this, node: &AST) {
+
+def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
     let expr = node.u.match_stmt.expr
     let expr_type = .check_expression(expr)
 
@@ -525,7 +560,7 @@ def TypeChecker::check_match(&this, node: &AST) {
     if expr_type.base == BaseType::Structure {
         struc = .structures.get(expr_type.name) as &Structure
         if struc.is_enum {
-            .check_match_for_enum(struc, node)
+            .check_match_for_enum(struc, node, is_expr)
             return
         }
     }
@@ -536,7 +571,7 @@ def TypeChecker::check_match(&this, node: &AST) {
     }
     // Here we have either i32 or char
     let cases = node.u.match_stmt.cases
-    let always_returns = true
+    node.returns = true
 
     for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
@@ -550,8 +585,7 @@ def TypeChecker::check_match(&this, node: &AST) {
             error_span(_case.cond.span, "Match condition must use only literals")
         }
         if _case.body? {
-            .check_statement(_case.body)
-            always_returns = always_returns and _case.body.returns
+            .check_expression_statement(node, _case.body, is_expr)
         }
     }
 
@@ -560,16 +594,42 @@ def TypeChecker::check_match(&this, node: &AST) {
     if not defolt? {
         error_span(node.span, "`else` case is missing")
     }
-    .check_statement(defolt)
-    always_returns = always_returns and defolt.returns
-    node.returns = always_returns
+    .check_expression_statement(node, defolt, is_expr)
+
+    if is_expr and not node.etype? {
+        error_span(node.span, "Expression-match must yield a value")
+    }
+}
+
+def TypeChecker::check_if(&this, node: &AST, is_expr: bool) {
+    let cond_type = .check_expression(node.u.if_stmt.cond)
+    if cond_type.base != BaseType::Bool {
+        error_span(node.u.if_stmt.cond.span, "Condition must be boolean")
+    }
+    .check_expression_statement(node, node.u.if_stmt.then, is_expr)
+    if node.u.if_stmt.els? {
+        let else_stmt = node.u.if_stmt.els
+        .check_expression_statement(node, else_stmt, is_expr)
+
+        if node.u.if_stmt.then.returns and else_stmt.returns {
+            node.returns = true
+        }
+    } else if is_expr {
+        error_span(node.span, "Expression-if must have an 'else' branch")
+    }
 }
 
 def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
-        ASTType::Block => .check_block(node)
+        ASTType::Block => .check_block(node, false)
         ASTType::Defer => .check_expression(node.u.unary)
-        ASTType::Match => .check_match(node)
+        ASTType::Match => .check_match(node, false)
+        ASTType::Yield => {
+            if not .can_yield {
+                error_span(node.span, "Cannot yield in this context")
+            }
+            node.etype = .check_expression(node.u.unary)
+        }
         ASTType::Return => {
             if not .cur_func? {
                 error_span(node.span, "Return statement outside of function")
@@ -646,26 +706,15 @@ def TypeChecker::check_statement(&this, node: &AST) {
             .pop_scope()
             .in_loop = was_in_loop
         }
-        ASTType::If => {
-            let cond_type = .check_expression(node.u.if_stmt.cond)
-            if cond_type.base != BaseType::Bool {
-                error_span(node.u.if_stmt.cond.span, "Condition must be boolean")
-            }
-            .check_statement(node.u.if_stmt.then)
-            if node.u.if_stmt.els? {
-                let else_stmt = node.u.if_stmt.els
-                .check_statement(else_stmt)
-
-                if node.u.if_stmt.then.returns and else_stmt.returns {
-                    node.returns = true
-                }
-            }
-        }
+        ASTType::If => .check_if(node, false)
         else => .check_expression(node)
     }
 }
 
-def TypeChecker::check_block(&this, node: &AST) {
+def TypeChecker::check_block(&this, node: &AST, can_yield: bool) {
+    let could_yield = .can_yield
+    .can_yield = can_yield
+
     .push_scope();
     let statements = node.u.block.statements;
     for let i = 0; i < statements.size; i += 1 {
@@ -674,8 +723,16 @@ def TypeChecker::check_block(&this, node: &AST) {
         if statement.returns {
             node.returns = true
         }
+        if statement.type == ASTType::Yield {
+            if node.etype? {
+                error_span(statement.span, "Cannot yield multiple times in a block")
+            }
+            node.etype = statement.etype
+        }
     }
+
     .pop_scope();
+    .can_yield = could_yield
 }
 
 def TypeChecker::check_function(&this, func: &Function) {
@@ -690,7 +747,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     }
 
     if func.body? {
-        .check_block(func.body);
+        .check_block(func.body, false)
         if not func.body.returns and func.return_type.base != BaseType::Void {
             if not func.name.eq("main") {
               error_span(func.span, "Function does not always return")

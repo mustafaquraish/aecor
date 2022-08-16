@@ -54,6 +54,7 @@ enum ASTType {
   Ternary
   UnaryMinus
   VarDeclaration
+  Yield
   While
 }
 
@@ -110,6 +111,7 @@ def ASTType::str(this): string {
         Ternary => return "Ternary"
         UnaryMinus => return "UnaryMinus"
         VarDeclaration => return "VarDeclaration"
+        Yield => return "Yield"
         While =>    return "While"
     }
 }
