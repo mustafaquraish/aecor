@@ -310,7 +310,7 @@ struct VarDeclaration {
 
 struct IfStatement {
     cond: &AST
-    then: &AST
+    body: &AST
     els: &AST
 }
 
