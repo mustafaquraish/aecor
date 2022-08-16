@@ -13,6 +13,10 @@ def random_vec(): Vec {
     return Vec::make(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
 }
 
+def Vec::reflect(this, normal: Vec): Vec {
+    return .sub(normal.multf(2.0 * .dot(normal)));
+}
+
 def random_vec_unit(): Vec {
     while (true) {
         let vec = random_vec();
@@ -32,21 +36,30 @@ def Ray::at(&this, t: f32): Vec {
     return .dir.multf(t).add(.ori);
 }
 
+enum Material {
+    Diffuse
+    Mirror
+}
+
 struct Sphere {
+    mat: Material
     center: Vec
     color: Vec
     radius: f32
+    fuzz: f32
 }
 
-def Sphere::new(x: f32, y: f32, z: f32, radius: f32, r: f32, g: f32, b: f32): &Sphere {
+def Sphere::new(mat: Material, pos: Vec, radius: f32, color: Vec, fuzz: f32): &Sphere {
     let s = malloc(sizeof(Sphere)) as &Sphere
-    s.center = Vec::make(x, y, z)
-    s.color = Vec::make(r, g, b)
+    s.center = pos
+    s.mat = mat
+    s.color = color
     s.radius = radius
+    s.fuzz = fuzz
     return s
 }
 
-def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec, col: &Vec): bool {
+def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec): bool {
     let oc = ray.ori.sub(.center);
     let a = ray.dir.dot(ray.dir)
     let b = 2.0 * oc.dot(ray.dir)
@@ -65,7 +78,6 @@ def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec, col: &Vec): bool {
         return false
 
     *t = best
-    *col = .color
     *n = ray.at(best).sub(.center).normalized()
 
     return true
@@ -79,26 +91,25 @@ def background_color(ray: &Ray): Vec {
     return res.multf(t).add(col2)
 }
 
-def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, obj_col: &Vec): i32 {
-    let idx = -1
+def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, hit_obj: &&Sphere): bool {
+    let hit = false
 
     for let i = 0; i < objs.size; i += 1 {
         let obj = objs.at(i) as &Sphere
 
         let tmp_t: f32
         let tmp_n: Vec
-        let tmp_col: Vec
 
-        if obj.hit(ray, &tmp_t, &tmp_n, &tmp_col) {
+        if obj.hit(ray, &tmp_t, &tmp_n) {
             if *t < 0.0 or tmp_t < *t {
+                hit = true
                 *t = tmp_t
-                idx = i
-                *obj_col = tmp_col
+                *hit_obj = obj
                 *n = tmp_n
             }
         }
     }
-    return idx
+    return hit
 }
 
 def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
@@ -107,16 +118,19 @@ def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
 
     let t = -1.0
     let n: Vec
-    let obj_col: Vec
+    let obj: &Sphere
 
-    if find_hit(ray, objs, &t, &n, &obj_col) < 0
+    if not find_hit(ray, objs, &t, &n, &obj)
         return background_color(ray)
 
     ray.ori = ray.at(t)
-    ray.dir = random_vec_unit().add(n)
+    match obj.mat {
+        Diffuse => ray.dir = random_vec_unit().add(n).normalized().normalized()
+        Mirror => ray.dir = ray.dir.reflect(n).add(random_vec_unit().multf(obj.fuzz)).normalized()
+    }
 
     let rec_col = raytrace(ray, objs, depth - 1)
-    return rec_col.mult(obj_col)
+    return rec_col.mult(obj.color)
 }
 
 let WIDTH = 800
@@ -236,12 +250,27 @@ def Vec::rotateZ(&this, angle: f32): Vec {
     return Vec::make(x, y, .z)
 }
 
-def main() {
-    let window: &SDLWindow
-    let renderer: &SDLRenderer
+let window: &SDLWindow
+let renderer: &SDLRenderer
 
+def draw_text(font: &TTFFont, text: string, x: i32, y: i32) {
+    let col = SDLColor::make(0, 0, 0, 255)
+    let msg_surf = font.render_solid(text, col)
+    let msg = renderer.create_texture_from_surface(msg_surf)
+    let w = 0
+    let h = 0
+    msg.query(null, null, &w, &h)
+    let rect = SDLRect::make(x, y, w, h)
+    renderer.copy(msg, null, &rect)
+    msg_surf.destroy()
+    msg.destroy()
+}
+
+def main() {
     SDL::init(SDL_INIT_EVERYTHING)
     SDL::create_window_renderer(WIDTH, HEIGHT, 0, &window, &renderer)
+    TTF::init()
+    let font = TTFFont::load("font.ttf", 24)
 
     renderer.set_draw_color(0, 0, 0, 255)
     renderer.clear()
@@ -255,8 +284,10 @@ def main() {
     )
 
     objs = Vector::new()
-    objs.push(Sphere::new(0.0,    0.0, 1.0,   0.5, 1.0, 0.6, 0.3))
-    objs.push(Sphere::new(0.0, -100.5, 1.0, 100.0, 0.5, 0.5, 0.5))
+    objs.push(Sphere::new(Material::Diffuse, Vec::make(0.0,    0.0, 1.0),   0.5, Vec::make(1.0, 0.6, 0.3), 0.0))
+    objs.push(Sphere::new(Material::Mirror,  Vec::make(1.0,    0.0, 1.0),   0.5, Vec::make(0.8, 0.8, 0.8), 0.7))
+    objs.push(Sphere::new(Material::Mirror,  Vec::make(-1.0,   0.0, 1.0),   0.5, Vec::make(0.8, 0.6, 0.2), 0.0))
+    objs.push(Sphere::new(Material::Diffuse, Vec::make(0.0, -100.5, 1.0), 100.0, Vec::make(0.5, 0.5, 0.5), 0.0))
 
 
     let origin = Vec::make(0.0, 0.0, 0.0)
@@ -304,6 +335,12 @@ def main() {
                     modified = true
                 }
 
+                if key == SDLKey_R {
+                    origin = Vec::make(0.0, 0.0, 0.0)
+                    direction = Vec::make(0.0, 0.0, 1.0)
+                    modified = true
+                }
+
                 if key == SDLKey_Left {
                     direction = direction.rotateY(-0.1)
                     modified = true
@@ -337,9 +374,14 @@ def main() {
 
         buffer.unlock()
         renderer.copy(buffer, null, null)
+
+        let text = `Samples: {samples}`
+        draw_text(font, text, 10, 10)
+        free(text)
+
         renderer.present()
 
-        SDL::delay(1000 / 60)
+        // SDL::delay(1000 / 60)
     }
 
     renderer.destroy()

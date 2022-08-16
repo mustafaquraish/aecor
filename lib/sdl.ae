@@ -54,6 +54,8 @@ let SDLKey_D: i32 extern("SDLK_d")
 let SDLKey_Z: i32 extern("SDLK_z")
 let SDLKey_X: i32 extern("SDLK_x")
 
+let SDLKey_R: i32 extern("SDLK_r")
+
 let SDLKey_Up: i32 extern("SDLK_UP")
 let SDLKey_Down: i32 extern("SDLK_DOWN")
 let SDLKey_Left: i32 extern("SDLK_LEFT")
