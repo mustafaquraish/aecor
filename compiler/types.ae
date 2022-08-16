@@ -89,17 +89,17 @@ def Type::eq(&this, other: &Type): bool {
 }
 
 def Type::str(&this): string {
-    match .base {
-        Void => return "void"
-        Char => return "char"
-        I32 => return "i32"
-        F32 => return "f32"
-        Bool => return "bool"
-        U8 => return "u8"
-        Pointer => return `&{.ptr.str()}`
-        Structure => return .name
-        Function => return "<function>"
-        Method => return "<method>"
+    return match .base {
+        Void => "void"
+        Char => "char"
+        I32 => "i32"
+        F32 => "f32"
+        Bool => "bool"
+        U8 => "u8"
+        Pointer => `&{.ptr.str()}`
+        Structure => .name
+        Function => "<function>"
+        Method => "<method>"
     }
 }
 
