@@ -104,32 +104,32 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
 }
 
 def CodeGenerator::get_op(type: ASTType): string {
-    match type {
-        Address => return "&"
-        And => return " && "
-        Assignment => return " = "
-        BitwiseAnd => return " & "
-        BitwiseOr => return " | "
-        BitwiseXor => return " ^ "
-        Dereference => return "*"
-        Divide => return " / "
-        DivideEquals => return " /= "
-        Equals => return " == "
-        GreaterThan => return " > "
-        GreaterThanEquals => return " >= "
-        LessThan => return " < "
-        LessThanEquals => return " <= "
-        Minus => return " - "
-        MinusEquals => return " -= "
-        Modulus => return " % "
-        Multiply => return " * "
-        MultiplyEquals => return " *= "
-        Not => return "!"
-        NotEquals => return " != "
-        Or => return " || "
-        Plus => return " + "
-        PlusEquals => return " += "
-        UnaryMinus => return "-"
+    return match type {
+        Address => "&"
+        And => " && "
+        Assignment => " = "
+        BitwiseAnd => " & "
+        BitwiseOr => " | "
+        BitwiseXor => " ^ "
+        Dereference => "*"
+        Divide => " / "
+        DivideEquals => " /= "
+        Equals => " == "
+        GreaterThan => " > "
+        GreaterThanEquals => " >= "
+        LessThan => " < "
+        LessThanEquals => " <= "
+        Minus => " - "
+        MinusEquals => " -= "
+        Modulus => " % "
+        Multiply => " * "
+        MultiplyEquals => " *= "
+        Not => "!"
+        NotEquals => " != "
+        Or => " || "
+        Plus => " + "
+        PlusEquals => " += "
+        UnaryMinus => "-"
         else => {
             println("Unknown op type in get_op: %s", type.str())
             exit(1)
@@ -279,9 +279,8 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Address | Dereference | Not | UnaryMinus => {
             .out.puts("(")
             .out.puts(CodeGenerator::get_op(node.type))
-            .out.puts("(")
             .gen_expression(node.u.unary)
-            .out.puts("))")
+            .out.puts(")")
         }
         Index => {
             .gen_expression(node.u.binary.lhs)
@@ -291,11 +290,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         }
         Member => {
             .gen_expression(node.u.member.lhs)
-            if node.u.member.is_pointer {
-                .out.puts("->")
-            } else {
-                .out.puts(".")
-            }
+            .out.puts(if node.u.member.is_pointer "->" else ".")
             .out.puts(node.u.member.name)
         }
         EnumValue => {

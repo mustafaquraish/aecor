@@ -470,10 +470,14 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
 
     if is_expr {
         let ret = body.etype
-        if not ret? {
+
+        // For now, we'll allow expression statements to early-return from the function.
+        // Maybe this should be disallowed?
+        if body.returns {
+            // Do nothing
+        } else if not ret? {
             error_span(body.span, "Must yield a value in this branch")
-        }
-        if not node.etype? {
+        } else if not node.etype? {
             node.etype = ret
         } else if not node.etype.eq(ret) {
             error_span(body.span, "Yield type doesn't match previous branches")
@@ -487,7 +491,7 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
     defer mapping.free()
 
     let cases = node.u.match_stmt.cases
-    node.returns = true
+    node.returns = (cases.size > 0)
 
     for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
@@ -534,7 +538,7 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
         }
     }
 
-    if is_expr and not node.etype? {
+    if is_expr and not node.etype? and not node.returns {
         error_span(node.span, "Expression-match must yield a value")
     }
 }
@@ -559,7 +563,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
     }
     // Here we have either i32 or char
     let cases = node.u.match_stmt.cases
-    node.returns = true
+    node.returns = (cases.size > 0)
 
     for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
@@ -584,7 +588,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
     }
     .check_expression_statement(node, defolt, is_expr)
 
-    if is_expr and not node.etype? {
+    if is_expr and not node.etype? and not node.returns {
         error_span(node.span, "Expression-match must yield a value")
     }
 }
@@ -604,6 +608,9 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool) {
         }
     } else if is_expr {
         error_span(node.span, "Expression-if must have an 'else' branch")
+    }
+    if is_expr and not node.etype? and not node.returns {
+        error_span(node.span, "Expression-if must yield a value")
     }
 }
 
