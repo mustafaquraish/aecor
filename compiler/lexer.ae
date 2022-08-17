@@ -64,7 +64,7 @@ def Lexer::lex_char_literal(&this) {
     let len = .i - start
     let text = .source.substring(start, len)
 
-    .loc.col += len + 2;
+    .loc.col += len + 2
     .i += 1
     .push(Token::new(TokenType::CharLiteral, Span::make(start_loc, .loc), text))
 }
@@ -72,7 +72,7 @@ def Lexer::lex_char_literal(&this) {
 def Lexer::lex_string_literal(&this) {
     let start_loc = .loc
     let end_char = .source[.i]
-    let start = .i + 1;
+    let start = .i + 1
     .i += 1
     while .source[.i] != end_char {
         if .source[.i] == '\\' {
@@ -83,7 +83,7 @@ def Lexer::lex_string_literal(&this) {
 
     let len = .i - start
     let text = .source.substring(start, len)
-    .loc.col += len + 2;
+    .loc.col += len + 2
     .i += 1
     if end_char == '`' {
         .push(Token::new(TokenType::FormatStringLiteral, Span::make(start_loc, .loc), text))

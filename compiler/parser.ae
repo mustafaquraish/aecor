@@ -421,7 +421,7 @@ def Parser::parse_term(&this, end_type: TokenType): &AST {
         let rhs = .parse_factor(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_additive(&this, end_type: TokenType): &AST {
@@ -433,7 +433,7 @@ def Parser::parse_additive(&this, end_type: TokenType): &AST {
         let rhs = .parse_term(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_bw_and(&this, end_type: TokenType): &AST {
@@ -445,7 +445,7 @@ def Parser::parse_bw_and(&this, end_type: TokenType): &AST {
         let rhs = .parse_additive(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_bw_xor(&this, end_type: TokenType): &AST {
@@ -457,7 +457,7 @@ def Parser::parse_bw_xor(&this, end_type: TokenType): &AST {
         let rhs = .parse_bw_and(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
@@ -469,7 +469,7 @@ def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
         let rhs = .parse_bw_xor(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_relational(&this, end_type: TokenType): &AST {
@@ -486,7 +486,7 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
         let rhs = .parse_bw_or(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
@@ -498,7 +498,7 @@ def Parser::parse_logical_and(&this, end_type: TokenType): &AST {
         let rhs = .parse_relational(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_logical_or(&this, end_type: TokenType): &AST {
@@ -510,7 +510,7 @@ def Parser::parse_logical_or(&this, end_type: TokenType): &AST {
         let rhs = .parse_logical_and(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_expression(&this, end_type: TokenType): &AST {
@@ -526,7 +526,7 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
         let rhs = .parse_expression(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
-    return lhs;
+    return lhs
 }
 
 def Parser::parse_match(&this): &AST {
@@ -631,33 +631,33 @@ def Parser::parse_statement(&this): &AST {
             node.u.loop.body = body
         }
         TokenType::For => {
-            node = AST::new(ASTType::For, .token().span);
-            .consume(TokenType::For);
+            node = AST::new(ASTType::For, .token().span)
+            .consume(TokenType::For)
 
             if not .token_is(TokenType::Semicolon) {
-                let init = .parse_statement();
+                let init = .parse_statement()
                 // FIXME: This doesn't seem very robust...
                 if init.type != ASTType::Assignment and
                     init.type != ASTType::VarDeclaration {
-                    error_span(init.span, "Invalid for loop initializer");
+                    error_span(init.span, "Invalid for loop initializer")
                 }
-                node.u.loop.init = init;
+                node.u.loop.init = init
 
                 // This is a hack
                 let prev = .tokens.at(.curr - 1) as &Token
                 if prev.type == TokenType::Semicolon { .curr -= 1; }
             }
-            .consume(TokenType::Semicolon);
+            .consume(TokenType::Semicolon)
             if not .token_is(TokenType::Semicolon)
                 node.u.loop.cond = .parse_expression(TokenType::Semicolon)
-            .consume(TokenType::Semicolon);
+            .consume(TokenType::Semicolon)
 
             // FIXME: Should we always require a curly?
             if not .token_is(TokenType::CloseCurly)
-                node.u.loop.incr = .parse_expression(TokenType::Newline);
+                node.u.loop.incr = .parse_expression(TokenType::Newline)
 
-            node.u.loop.body = .parse_statement();
-            node.span = node.span.join(node.u.loop.body.span);
+            node.u.loop.body = .parse_statement()
+            node.span = node.span.join(node.u.loop.body.span)
         }
         TokenType::Let => {
             .consume(TokenType::Let)
@@ -674,7 +674,7 @@ def Parser::parse_statement(&this): &AST {
                 init = .parse_expression(TokenType::Newline)
                 end_span = init.span
             }
-            .consume_newline_or(TokenType::Semicolon);
+            .consume_newline_or(TokenType::Semicolon)
 
             node = AST::new(ASTType::VarDeclaration, start_span.join(end_span))
             node.u.var_decl.var = Variable::new(name.text, type, name.span)
@@ -701,7 +701,7 @@ def Parser::parse_block(&this): &AST {
     node.u.block.statements = statements
 
     .consume(TokenType::CloseCurly)
-    return node;
+    return node
 }
 
 def Parser::parse_function(&this): &Function {
@@ -743,7 +743,7 @@ def Parser::parse_function(&this): &Function {
                     type = Type::new_link(BaseType::Pointer, type, name.span)
                 }
             } else if found_amp {
-                error_span(var_name.span, "Expected 'this' over here");
+                error_span(var_name.span, "Expected 'this' over here")
             } else {
                 is_static = true
             }
@@ -761,7 +761,7 @@ def Parser::parse_function(&this): &Function {
     }
     .consume(TokenType::CloseParen)
     if is_method and func.params.size == 0 {
-        is_static = true;
+        is_static = true
     }
     func.is_static = is_static
 
@@ -885,7 +885,7 @@ def Parser::parse_global_var(&this): &AST {
     node.u.var_decl.var = var
 
     if .consume_if(TokenType::Extern) {
-        var.is_extern = true;
+        var.is_extern = true
         if .consume_if(TokenType::OpenParen) {
             let name = .consume(TokenType::StringLiteral)
             var.extern_name = name.text
@@ -895,7 +895,7 @@ def Parser::parse_global_var(&this): &AST {
         }
 
         if not type? {
-            error_span(name.span, "Extern variables must have a type");
+            error_span(name.span, "Extern variables must have a type")
         }
     } else {
         var.is_extern = false
@@ -903,8 +903,8 @@ def Parser::parse_global_var(&this): &AST {
             node.u.var_decl.init = .parse_expression(TokenType::Newline)
         }
     }
-    .consume_newline_or(TokenType::Semicolon);
-    return node;
+    .consume_newline_or(TokenType::Semicolon)
+    return node
 }
 
 def Parser::find_file_path(&this, filename: string): string {

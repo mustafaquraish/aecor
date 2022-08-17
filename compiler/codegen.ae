@@ -48,7 +48,7 @@ def CodeGenerator::pop_scope(&this) {
 
 def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST, indent: i32) {
     if body.type == ASTType::Block {
-        .gen_block(body, indent);
+        .gen_block(body, indent)
         .out.puts(" ")
 
     } else {
@@ -59,33 +59,33 @@ def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST, indent: i32) 
         if node.etype? and body.type != ASTType::Yield {
             .gen_yield_expression(body, indent+1)
         } else {
-            .gen_statement(body, indent);
+            .gen_statement(body, indent)
         }
-        .indent(indent);
+        .indent(indent)
     }
 }
 
 def CodeGenerator::gen_enum_value(&this, enum_name: string, value_name: string) {
-  .out.puts(`{enum_name}__{value_name}`);
+  .out.puts(`{enum_name}__{value_name}`)
 }
 
 def CodeGenerator::gen_enum(&this, struc: &Structure) {
     if not struc.is_extern {
-        .out.puts(`enum {struc.name}`);
+        .out.puts(`enum {struc.name}`)
         .out.puts(" {\n")
         for let i = 0; i < struc.fields.size; i += 1 {
             let field = struc.fields.at(i) as &Variable
             .indent(1)
-            .gen_enum_value(struc.name, field.name);
-            .out.puts(",\n");
+            .gen_enum_value(struc.name, field.name)
+            .out.puts(",\n")
         }
-        .out.puts("};\n\n");
+        .out.puts("};\n\n")
     }
 }
 
 def CodeGenerator::gen_struct(&this, struc: &Structure) {
     if not struc.is_extern {
-        let name = struc.type.name;
+        let name = struc.type.name
         if struc.is_union {
             .out.puts("union ")
         } else {
@@ -96,7 +96,7 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
         for let i = 0; i < struc.fields.size; i += 1 {
             let field = struc.fields.at(i) as &Variable
             .indent(1)
-            .gen_type_and_name(field.type, field.name);
+            .gen_type_and_name(field.type, field.name)
             .out.puts(";\n")
         }
         .out.puts("};\n\n")
@@ -235,16 +235,16 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
         }
         Call => {
-            let newline_after_first = false;
+            let newline_after_first = false
             if node.callee_is("print") {
                 .out.puts("printf")
             } else if node.callee_is("println") {
                 .out.puts("printf")
-                newline_after_first = true;
+                newline_after_first = true
             } else if not node.u.call.func? {
-                .gen_expression(node.u.call.callee);
+                .gen_expression(node.u.call.callee)
             } else {
-                .gen_function_name(node.u.call.func);
+                .gen_function_name(node.u.call.func)
             }
             .out.puts("(")
             let args = node.u.call.args
@@ -543,9 +543,9 @@ def CodeGenerator::gen_block(&this, node: &AST, indent: i32) {
     .push_scope()
     .out.puts("{\n")
 
-    let statements = node.u.block.statements;
+    let statements = node.u.block.statements
     for let i = 0; i < statements.size; i += 1 {
-        let statement = statements.at(i) as &AST;
+        let statement = statements.at(i) as &AST
         .gen_statement(statement, indent + 1)
     }
 
@@ -568,10 +568,10 @@ def CodeGenerator::gen_block(&this, node: &AST, indent: i32) {
 def CodeGenerator::gen_struct_decls(&this, program: &Program) {
     .out.puts("/* struct declarations */\n")
     for let i = 0; i < program.structures.size; i += 1 {
-        let struc = program.structures.at(i) as &Structure;
+        let struc = program.structures.at(i) as &Structure
         if struc.is_extern continue
 
-        let name = struc.name;
+        let name = struc.name
         if struc.is_enum {
             .out.puts("typedef enum ")
         } else if struc.is_union {

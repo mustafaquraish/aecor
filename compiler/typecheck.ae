@@ -102,12 +102,12 @@ def TypeChecker::check_method_call(&this, method_type: &Type, node: &AST) {
     // on the same node. This is fine, but we need to make sure we don't double
     // add the method argument twice implicitly.
     if node.u.call.added_method_arg return
-    node.u.call.added_method_arg = true;
+    node.u.call.added_method_arg = true
 
     if callee.type != ASTType::Member return
     if method.params.size == 0 {
         // This should ideally never happen.
-        error_span(callee.span, "Instance method should have `this` argument, internal error");
+        error_span(callee.span, "Instance method should have `this` argument, internal error")
     }
     let method_param = (method.params.at(0) as &Variable).type
 
@@ -123,10 +123,10 @@ def TypeChecker::check_method_call(&this, method_type: &Type, node: &AST) {
 
 def TypeChecker::check_call(&this, node: &AST): &Type {
     // This is a hack to avoid typechecking of `print` and `println`
-    let callee = node.u.call.callee;
+    let callee = node.u.call.callee
     if callee.type == ASTType::Identifier {
-        callee.u.ident.is_function = false;
-        let name = callee.u.ident.name;
+        callee.u.ident.is_function = false
+        let name = callee.u.ident.name
         if name.eq("print") or name.eq("println") {
             for let i = 0; i < node.u.call.args.size; i += 1 {
                 let arg = node.u.call.args.at(i) as &AST
@@ -136,9 +136,9 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         }
     }
 
-    let func_type = .check_expression(callee);
-    let func_def = func_type.func_def;
-    node.u.call.func = func_def;
+    let func_type = .check_expression(callee)
+    let func_def = func_type.func_def
+    node.u.call.func = func_def
 
     if func_def? and func_def.exits {
         node.returns = true
@@ -174,13 +174,13 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         }
     }
 
-    return func_type.return_type;
+    return func_type.return_type
 }
 
 def TypeChecker::check_format_string(&this, node: &AST): &Type {
     // FIXME: Refactor this with string builder, this is inefficient
-    let parts = node.u.fmt_str.parts;
-    let exprs = node.u.fmt_str.exprs;
+    let parts = node.u.fmt_str.parts
+    let exprs = node.u.fmt_str.exprs
 
     if parts.size != exprs.size + 1 {
         error_span(node.span, "Number of format string parts does not match number of expressions")
@@ -253,7 +253,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = Type::new(BaseType::I32, node.span)
         }
         Identifier => {
-            let ident = &node.u.ident;
+            let ident = &node.u.ident
             let var = .find_var(ident.name)
             let func = .functions.get(ident.name) as &Function
 
@@ -415,7 +415,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = lhs
         }
         Assignment => {
-            // TODO: Only allow assignments to l-values, reject literals;
+            // TODO: Only allow assignments to l-values, reject literals
             let lhs = .check_expression(node.u.binary.lhs)
             let rhs = .check_expression(node.u.binary.rhs)
             if not lhs.eq(rhs) {
@@ -444,9 +444,9 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             if struc.is_enum and var? {
                 // FIXME: This is a hack, we're modifying the AST Node type
                 // This is an enum value
-                node.type                = ASTType::EnumValue;
-                node.u.enum_val.struct_def = struc;
-                node.u.enum_val.name     = field_name;
+                node.type = ASTType::EnumValue
+                node.u.enum_val.struct_def = struc
+                node.u.enum_val.name = field_name
                 etype = struc.type
             } else if method? {
                 etype = method.type
@@ -475,7 +475,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             let method = s_methods.get(field_name) as &Function
 
             if struc? and field? and not struc.is_enum {
-                etype = field.type;
+                etype = field.type
             } else if method? {
                 if method.is_static {
                     error_span_note_span(
@@ -494,7 +494,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         Cast => {
             let lhs_type = .check_expression(node.u.cast.lhs)
             if not .type_is_valid(node.u.cast.to) {
-                error_span(node.u.cast.to.span, "Type does not exist");
+                error_span(node.u.cast.to.span, "Type does not exist")
             }
             etype = node.u.cast.to
         }
@@ -575,9 +575,9 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
             }
 
             // FIXME: This is a hack, we're modifying the AST Node type
-            cond.type = ASTType::EnumValue;
-            cond.u.enum_val.struct_def = struc;
-            cond.u.enum_val.name = name;
+            cond.type = ASTType::EnumValue
+            cond.u.enum_val.struct_def = struc
+            cond.u.enum_val.name = name
             cond.etype = struc.type
 
         } else {
@@ -765,10 +765,10 @@ def TypeChecker::check_statement(&this, node: &AST) {
                 }
             } else {
                 if not var_decl.var.type? {
-                    error_span(var_decl.var.span, "Variable type cannot be inferred, specify explicitly");
+                    error_span(var_decl.var.span, "Variable type cannot be inferred, specify explicitly")
                 }
                 if not .type_is_valid(var_decl.var.type) {
-                    error_span(var_decl.var.type.span, "Invalid variable type");
+                    error_span(var_decl.var.type.span, "Invalid variable type")
                 }
             }
             .push_var(var_decl.var)
@@ -820,11 +820,11 @@ def TypeChecker::check_block(&this, node: &AST, can_yield: bool) {
 
     let yield_span: Span
 
-    .push_scope();
-    let statements = node.u.block.statements;
+    .push_scope()
+    let statements = node.u.block.statements
     for let i = 0; i < statements.size; i += 1 {
         let statement = statements.at(i) as &AST
-        .check_statement(statement);
+        .check_statement(statement)
         if statement.returns {
             node.returns = true
         }
@@ -840,14 +840,14 @@ def TypeChecker::check_block(&this, node: &AST, can_yield: bool) {
         }
     }
 
-    .pop_scope();
+    .pop_scope()
     .can_yield = could_yield
 }
 
 def TypeChecker::check_function(&this, func: &Function) {
     let prev_func = .cur_func
     .cur_func = func
-    .push_scope();
+    .push_scope()
 
     // The types of parameters and return are checked in decl-pass
     for let i = 0; i < func.params.size; i += 1 {
@@ -871,7 +871,7 @@ def TypeChecker::check_function(&this, func: &Function) {
 def TypeChecker::check_all_functions(&this, program: &Program) {
     for let i = 0; i < program.functions.size; i += 1 {
         let func = program.functions.at(i) as &Function
-        let name        = func.name;
+        let name        = func.name
         let struct_name = func.method_struct_name
         let func_type = null as &Type
 
@@ -908,7 +908,7 @@ def TypeChecker::check_all_functions(&this, program: &Program) {
                 )
             }
         }
-        func_type.func_def = func;
+        func_type.func_def = func
 
         func_type.params = Vector::new()
         for let j = 0; j < func.params.size; j += 1 {
@@ -916,13 +916,13 @@ def TypeChecker::check_all_functions(&this, program: &Program) {
             if not .type_is_valid(param.type) {
                 error_span(param.type.span, "Invalid parameter type")
             }
-            func_type.params.push(param.type);
+            func_type.params.push(param.type)
         }
         if not .type_is_valid(func.return_type) {
             error_span(func.return_type.span, "Invalid return type")
         }
-        func_type.return_type = func.return_type;
-        func.type             = func_type;
+        func_type.return_type = func.return_type
+        func.type             = func_type
 
         if func.is_method {
             let s_methods = .methods.get(struct_name) as &Map
@@ -943,7 +943,7 @@ def TypeChecker::dfs_structs(&this, struc: &Structure, results: &Vector, done: &
     for let i = 0; i < struc.fields.size; i += 1 {
         let field = struc.fields.at(i) as &Variable
         if not .type_is_valid(field.type) {
-            error_span(field.type.span, "Type of field is undefined");
+            error_span(field.type.span, "Type of field is undefined")
         }
 
         // Don't need to ensure dependency order for externs
@@ -991,14 +991,14 @@ def TypeChecker::check_all_structs(&this, program: &Program) {
 }
 
 def TypeChecker::check_program(&this, program: &Program) {
-    .check_all_structs(program);
+    .check_all_structs(program)
 
-    .push_scope();
+    .push_scope()
     for let i = 0; i < program.global_vars.size; i += 1 {
         let var = program.global_vars.at(i) as &AST
         .check_statement(var)
     }
 
-    .check_all_functions(program);
-    .pop_scope();
+    .check_all_functions(program)
+    .pop_scope()
 }
