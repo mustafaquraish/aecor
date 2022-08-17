@@ -552,7 +552,7 @@ def CodeGenerator::gen_block(&this, node: &AST, indent: i32) {
     let defers = .scope()
     if defers.size > 0 {
         .out.puts("\n")
-        .indent(indent)
+        .indent(indent + 1)
         .out.puts("/* defers */\n")
         for let i = defers.size - 1; i >= 0; i -= 1 {
             let node = defers.at(i) as &AST

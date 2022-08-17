@@ -3,11 +3,38 @@ use "@/tokens.ae"
 
 def strsep(s: &string, delim: string): string extern
 
-def error_loc(loc: Location, msg: string) exits {
-    error_span(Span::make(loc, loc), msg)
+enum MessageType {
+    Error
+    Warning
+    Note
 }
 
-def error_span(span: Span, msg: string) exits {
+def MessageType::to_color(this): string {
+    return match this {
+        Error => "\x1b[31m"
+        Warning => "\x1b[33m"
+        Note => "\x1b[32m"
+    }
+}
+
+def MessageType::str(this): string {
+    return match this {
+        Error => "Error"
+        Warning => "Warning"
+        Note => "Note"
+    }
+}
+
+def display_message(type: MessageType, span: Span, msg: string) {
+    println("---------------------------------------------------------------")
+    println("%s: %s: %s", span.start.str(), type.str(), msg)
+    println("---------------------------------------------------------------")
+}
+
+def display_message_with_span(type: MessageType, span: Span, msg: string) {
+    let color = MessageType::to_color(type)
+    let reset = "\x1b[0m"
+
     let filename = span.start.filename;
     let file = File::open(filename, "r")
     defer file.close()
@@ -15,12 +42,11 @@ def error_span(span: Span, msg: string) exits {
     let contents = file.slurp()
     defer free(contents)
 
-    let min_line = max(span.start.line - 2, 1)
-    let max_line = span.end.line + 2
+    let around_offset = 1
+    let min_line = max(span.start.line - around_offset, 1)
+    let max_line = span.end.line + around_offset
 
-    println("---------------------------------------------------------------")
-    println("%s: %s", span.start.str(), msg)
-    println("---------------------------------------------------------------")
+    display_message(type, span, msg)
     let lines = contents
     let cur = strsep(&lines, "\n")
     let line_no = 1
@@ -36,12 +62,12 @@ def error_span(span: Span, msg: string) exits {
                 for let i = 0; i < start_col; i += 1 {
                     print("%c", cur[i])
                 }
-                print("\x1b[31m")
+                print("%s", color)
                 for let i = start_col; i < end_col; i += 1 {
                     print("%c", cur[i])
                 }
-                println("\x1b[0m%s", cur + end_col)
-                println("%*s\x1b[31m^ %s\x1b[0m", start_col + 7, "", msg)
+                println("%s%s", reset, cur + end_col)
+                println("%*s%s^ %s%s", start_col + 7, "", color, msg, reset)
             } else {
                 println("%s", cur)
             }
@@ -49,6 +75,31 @@ def error_span(span: Span, msg: string) exits {
         line_no += 1
         cur = strsep(&lines, "\n")
     }
+}
+
+def error_loc(loc: Location, msg: string) exits {
+    error_span(Span::make(loc, loc), msg)
+}
+
+// Just shows the line with the error
+def error_span(span: Span, msg: string) exits {
+    display_message_with_span(MessageType::Error, span, msg)
     println("---------------------------------------------------------------")
     exit(1)
 }
+
+// Shows the line with the error and an additional note
+def error_span_note(span: Span, msg: string, note: string) exits {
+    display_message_with_span(MessageType::Error, span, msg)
+    display_message(MessageType::Note, span, note)
+    exit(1)
+}
+
+// Shows the line with the error and an additional note at a different location
+def error_span_note_span(msg_span: Span, msg: string, note_span: Span, note: string) exits {
+    display_message_with_span(MessageType::Error, msg_span, msg)
+    display_message_with_span(MessageType::Note, note_span, note)
+    println("---------------------------------------------------------------")
+    exit(1)
+}
+

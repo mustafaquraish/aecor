@@ -1,4 +1,4 @@
-/// fail: Match expression must be enum/integer/char/string
+/// fail: This type cannot be matched on
 
 def main() {
     match 3.14159 {

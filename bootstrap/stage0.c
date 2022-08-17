@@ -55,6 +55,7 @@ typedef struct MatchCase MatchCase;
 typedef struct Match Match;
 typedef union ASTUnion ASTUnion;
 typedef struct AST AST;
+typedef enum MessageType MessageType;
 typedef struct ParserContext ParserContext;
 typedef struct Parser Parser;
 typedef struct TypeChecker TypeChecker;
@@ -416,6 +417,12 @@ struct AST {
   bool returns;
 };
 
+enum MessageType {
+  MessageType__Error,
+  MessageType__Warning,
+  MessageType__Note,
+};
+
 struct ParserContext {
   Vector* tokens;
   int offset;
@@ -524,8 +531,14 @@ float clampf(float x, float min, float max);
 float clamp01(float x);
 float degrees(float radians);
 float radians(float degrees);
+char* MessageType__to_color(MessageType this);
+char* MessageType__str(MessageType this);
+void display_message(MessageType type, Span span, char* msg);
+void display_message_with_span(MessageType type, Span span, char* msg);
 __attribute__((noreturn)) void error_loc(Location loc, char* msg);
 __attribute__((noreturn)) void error_span(Span span, char* msg);
+__attribute__((noreturn)) void error_span_note(Span span, char* msg, char* note);
+__attribute__((noreturn)) void error_span_note_span(Span msg_span, char* msg, Span note_span, char* note);
 ParserContext* ParserContext__new(Vector* tokens, int offset);
 Parser* Parser__new(Vector* tokens, char* filename);
 void Parser__push_context(Parser* this, Vector* tokens);
@@ -2034,21 +2047,56 @@ float radians(float degrees) {
   return ((degrees * M_PI) / 180.0);
 }
 
-__attribute__((noreturn)) void error_loc(Location loc, char* msg) {
-  error_span(Span__make(loc, loc), msg);
+char* MessageType__to_color(MessageType this) {
+  return ({ char* __yield_0;
+  switch (this) {
+    case MessageType__Error: {
+      __yield_0 = "\x1b[31m";
+} break;
+    case MessageType__Warning: {
+      __yield_0 = "\x1b[33m";
+} break;
+    case MessageType__Note: {
+      __yield_0 = "\x1b[32m";
+} break;
+  }
+;__yield_0; });
 }
 
-__attribute__((noreturn)) void error_span(Span span, char* msg) {
+char* MessageType__str(MessageType this) {
+  return ({ char* __yield_0;
+  switch (this) {
+    case MessageType__Error: {
+      __yield_0 = "Error";
+} break;
+    case MessageType__Warning: {
+      __yield_0 = "Warning";
+} break;
+    case MessageType__Note: {
+      __yield_0 = "Note";
+} break;
+  }
+;__yield_0; });
+}
+
+void display_message(MessageType type, Span span, char* msg) {
+  printf("---------------------------------------------------------------" "\n");
+  printf("%s: %s: %s" "\n", Location__str(span.start), MessageType__str(type), msg);
+  printf("---------------------------------------------------------------" "\n");
+}
+
+void display_message_with_span(MessageType type, Span span, char* msg) {
+  char* color = MessageType__to_color(type);
+  char* reset = "\x1b[0m";
   char* filename = span.start.filename;
   FILE* file = File__open(filename, "r");
   ;
   char* contents = File__slurp(file);
   ;
-  int min_line = max((span.start.line - 2), 1);
-  int max_line = (span.end.line + 2);
-  printf("---------------------------------------------------------------" "\n");
-  printf("%s: %s" "\n", Location__str(span.start), msg);
-  printf("---------------------------------------------------------------" "\n");
+  int around_offset = 1;
+  int min_line = max((span.start.line - around_offset), 1);
+  int max_line = (span.end.line + around_offset);
+  display_message(type, span, msg);
   char* lines = contents;
   char* cur = strsep((&lines), "\n");
   int line_no = 1;
@@ -2064,12 +2112,12 @@ __attribute__((noreturn)) void error_span(Span span, char* msg) {
         for (int i = 0; (i < start_col); i += 1) {
           printf("%c", cur[i]);
         } 
-        printf("\x1b[31m");
+        printf("%s", color);
         for (int i = start_col; (i < end_col); i += 1) {
           printf("%c", cur[i]);
         } 
-        printf("\x1b[0m%s" "\n", (cur + end_col));
-        printf("%*s\x1b[31m^ %s\x1b[0m" "\n", (start_col + 7), "", msg);
+        printf("%s%s" "\n", reset, (cur + end_col));
+        printf("%*s%s^ %s%s" "\n", (start_col + 7), "", color, msg, reset);
       }  else {
         printf("%s" "\n", cur);
       } 
@@ -2077,12 +2125,33 @@ __attribute__((noreturn)) void error_span(Span span, char* msg) {
     line_no += 1;
     cur = strsep((&lines), "\n");
   } 
-  printf("---------------------------------------------------------------" "\n");
-  exit(1);
 
-/* defers */
+  /* defers */
   free(contents);
   fclose(file);
+}
+
+__attribute__((noreturn)) void error_loc(Location loc, char* msg) {
+  error_span(Span__make(loc, loc), msg);
+}
+
+__attribute__((noreturn)) void error_span(Span span, char* msg) {
+  display_message_with_span(MessageType__Error, span, msg);
+  printf("---------------------------------------------------------------" "\n");
+  exit(1);
+}
+
+__attribute__((noreturn)) void error_span_note(Span span, char* msg, char* note) {
+  display_message_with_span(MessageType__Error, span, msg);
+  display_message(MessageType__Note, span, note);
+  exit(1);
+}
+
+__attribute__((noreturn)) void error_span_note_span(Span msg_span, char* msg, Span note_span, char* note) {
+  display_message_with_span(MessageType__Error, msg_span, msg);
+  display_message_with_span(MessageType__Note, note_span, note);
+  printf("---------------------------------------------------------------" "\n");
+  exit(1);
 }
 
 ParserContext* ParserContext__new(Vector* tokens, int offset) {
@@ -2300,7 +2369,7 @@ AST* Parser__parse_format_string(Parser* this) {
   node->u.fmt_str.exprs = expr_nodes;
   return node;
 
-/* defers */
+  /* defers */
   Vector__free(expr_start);
   Vector__free(expr_parts);
 }
@@ -3082,8 +3151,9 @@ void TypeChecker__pop_scope(TypeChecker* this) {
 
 void TypeChecker__push_var(TypeChecker* this, Variable* var) {
   Map* scope = TypeChecker__scope(this);
-  if (Map__exists(scope, var->name)) {
-    error_span(var->span, "Variable is already defined in scope");
+  Variable* existing = ((Variable*)Map__get(scope, var->name));
+  if (((bool)existing)) {
+    error_span_note_span(var->span, "Variable is already defined in scope", existing->span, "Previous definition here");
   } 
   Map__insert(TypeChecker__scope(this), var->name, var);
 }
@@ -3181,21 +3251,21 @@ Type* TypeChecker__check_call(TypeChecker* this, AST* node) {
     node->returns = true;
   } 
   if (((func_type->base != BaseType__Function) && (func_type->base != BaseType__Method))) {
-    error_span(callee->span, "Cannot call a non-function type");
+    error_span_note(callee->span, "Cannot call a non-function type", format_string("Type for expression is '%s'", Type__str(func_type)));
   } 
   if (func_type->base == BaseType__Method) {
     TypeChecker__check_method_call(this, func_type, node);
   } 
   Vector* params = func_type->params;
   if ((params->size != node->u.call.args->size)) {
-    error_span(node->span, "Number of arguments does not match function signature");
+    error_span_note_span(node->span, "Number of arguments does not match function signature", func_type->span, format_string("This function expects %d arguments, got %d", params->size, node->u.call.args->size));
   } 
   for (int i = 0; (i < params->size); i += 1) {
     Type* param = ((Type*)Vector__at(params, i));
     AST* arg = ((AST*)Vector__at(node->u.call.args, i));
     Type* arg_type = TypeChecker__check_expression(this, arg);
     if ((!Type__eq(param, arg_type))) {
-      error_span(arg->span, "Argument type does not match function parameter type");
+      error_span_note_span(arg->span, "Argument type does not match function parameter type", param->span, format_string("Expected '%s', got '%s'", Type__str(param), Type__str(arg_type)));
     } 
   } 
   return func_type->return_type;
@@ -3328,9 +3398,9 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       if ((lhs->base == BaseType__Pointer || rhs->base == BaseType__Pointer)) {
         etype = TypeChecker__check_pointer_arith(this, node, lhs, rhs);
       }  else       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
-        error_span(node->span, "Operator requires numeric types");
+        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       }  else       if ((!Type__eq(lhs, rhs))) {
-        error_span(node->span, "Operands must be be of the same type");
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       }  else {
         etype = lhs;
       } 
@@ -3344,10 +3414,10 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
-        error_span(node->span, "Operator requires numeric types");
+        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       if ((!Type__eq(lhs, rhs))) {
-        error_span(node->span, "Operands must be be of the same type");
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       etype = Type__new(BaseType__Bool, node->span);
     } break;
@@ -3356,7 +3426,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
       if ((!Type__eq(lhs, rhs))) {
-        error_span(node->span, "Operands must be be of the same type");
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       if (lhs->base == BaseType__Structure) {
         Structure* struc = ((Structure*)Map__get(this->structures, lhs->name));
@@ -3371,14 +3441,14 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
       if (((!Type__eq(lhs, rhs)) || (lhs->base != BaseType__Bool))) {
-        error_span(node->span, "Operands must be boolean");
+        error_span_note(node->span, "Operands must be boolean", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       etype = Type__new(BaseType__Bool, node->span);
     } break;
     case ASTType__Not: {
       Type* rhs = TypeChecker__check_expression(this, node->u.unary);
       if ((rhs->base != BaseType__Bool)) {
-        error_span(node->u.unary->span, "Expression must be boolean");
+        error_span_note(node->u.unary->span, "Expression must be boolean", format_string("Got type '%s'", Type__str(rhs)));
       } 
       etype = Type__new(BaseType__Bool, node->span);
     } break;
@@ -3389,14 +3459,14 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
       if (((lhs->base != BaseType__I32) || (rhs->base != BaseType__I32))) {
-        error_span(node->span, "Operator requires integer types");
+        error_span_note(node->span, "Operator requires integer types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       etype = lhs;
     } break;
     case ASTType__UnaryMinus: {
       etype = TypeChecker__check_expression(this, node->u.unary);
       if ((!Type__is_numeric(etype))) {
-        error_span(node->u.unary->span, "Expression must be a number");
+        error_span_note(node->u.unary->span, "Expression must be a number", format_string("Got type '%s'", Type__str(etype)));
       } 
     } break;
     case ASTType__Address: {
@@ -3406,18 +3476,18 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
     case ASTType__Dereference: {
       Type* expr_type = TypeChecker__check_expression(this, node->u.unary);
       if ((expr_type->base != BaseType__Pointer)) {
-        error_span(node->u.unary->span, "Expression must be a pointer-type");
+        error_span_note(node->u.unary->span, "Expression must be a pointer-type", format_string("Got type '%s'", Type__str(expr_type)));
       } 
       etype = expr_type->ptr;
     } break;
     case ASTType__Index: {
       Type* expr_type = TypeChecker__check_expression(this, node->u.binary.lhs);
       if ((expr_type->base != BaseType__Pointer)) {
-        error_span(node->u.binary.lhs->span, "Expression must be a pointer-type");
+        error_span_note(node->u.binary.lhs->span, "Expression must be a pointer-type", format_string("Got type '%s'", Type__str(expr_type)));
       } 
       Type* index_type = TypeChecker__check_expression(this, node->u.binary.rhs);
       if ((index_type->base != BaseType__I32)) {
-        error_span(node->u.binary.rhs->span, "Index must be an integer");
+        error_span_note(node->u.binary.rhs->span, "Index must be an integer", format_string("Got type '%s'", Type__str(index_type)));
       } 
       etype = expr_type->ptr;
     } break;
@@ -3428,10 +3498,10 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
-        error_span(node->u.binary.lhs->span, "Operator requires numeric types");
+        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       if ((!Type__eq(lhs, rhs))) {
-        error_span(node->span, "Operands must be be of the same type");
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       etype = lhs;
     } break;
@@ -3439,7 +3509,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       Type* lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type* rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
       if ((!Type__eq(lhs, rhs))) {
-        error_span(node->span, "Variable type does not match assignment type");
+        error_span_note(node->span, "Variable type does not match assignment type", format_string("Expected type '%s', got '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       etype = lhs;
     } break;
@@ -3471,7 +3541,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
     case ASTType__Member: {
       Type* lhs_type = TypeChecker__check_expression(this, node->u.member.lhs);
       if (((!Type__is_struct_or_ptr(lhs_type)) && (!Type__is_string(lhs_type)))) {
-        error_span(node->u.member.lhs->span, "LHS of member access must be a (pointer to) struct");
+        error_span_note(node->u.member.lhs->span, "LHS of member access must be a struct / string", format_string("Got type '%s'", Type__str(lhs_type)));
       } 
       node->u.member.is_pointer = lhs_type->name == NULL;
       Type* struct_type = (((bool)lhs_type->name) ? lhs_type : lhs_type->ptr);
@@ -3485,11 +3555,11 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
         etype = field->type;
       }  else       if (((bool)method)) {
         if (method->is_static) {
-          error_span(node->span, "Member access requires a non-static method");
+          error_span_note_span(node->span, "Member access requires a non-static method", method->span, "This is a static method");
         } 
         etype = method->type;
       }  else {
-        error_span(node->span, "Type has no member with this name");
+        error_span_note(node->span, "Type has no member with this name", format_string("LHS type is '%s'", Type__str(struct_type)));
       } 
       
     } break;
@@ -3503,7 +3573,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
     case ASTType__IsNotNull: {
       Type* lhs_type = TypeChecker__check_expression(this, node->u.unary);
       if ((lhs_type->base != BaseType__Pointer)) {
-        error_span(node->u.unary->span, "Can only use ? on pointer types");
+        error_span_note(node->span, "Can only use ? on pointer types", format_string("Type of expression is '%s'", Type__str(lhs_type)));
       } 
       etype = Type__new(BaseType__Bool, node->span);
     } break;
@@ -3547,7 +3617,7 @@ void TypeChecker__check_expression_statement(TypeChecker* this, AST* node, AST* 
     }  else     if ((!((bool)node->etype))) {
       node->etype = ret;
     }  else     if ((!Type__eq(node->etype, ret))) {
-      error_span(body->span, "Yield type doesn't match previous branches");
+      error_span_note(body->span, "Yield type doesn't match previous branches", format_string("Expected type '%s', got '%s'", Type__str(node->etype), Type__str(ret)));
     } 
     
     
@@ -3577,12 +3647,13 @@ void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST*
     }  else {
       Type* cond_type = TypeChecker__check_expression(this, cond);
       if ((!Type__eq(cond_type, struc->type))) {
-        error_span(cond->span, "Condition does not match expression type");
+        error_span_note_span(cond->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(struc->type)));
       } 
       name = cond->u.enum_val.name;
     } 
-    if (Map__exists(mapping, name)) {
-      error_span(cond->span, "Duplicate condition name in match");
+    MatchCase* prev = ((MatchCase*)Map__get(mapping, name));
+    if (((bool)prev)) {
+      error_span_note_span(cond->span, "Duplicate condition name in match", prev->cond->span, "This condition was previously used here");
     } 
     Map__insert(mapping, name, _case);
     if (((bool)_case->body)) {
@@ -3592,7 +3663,7 @@ void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST*
   AST* defolt = node->u.match_stmt.defolt;
   if ((mapping->num_items != struc->fields->size)) {
     if ((!((bool)defolt))) {
-      error_span(node->span, "Match does not cover all cases");
+      error_span_note(node->span, "Match does not cover all cases", format_string("Only %d of %d cases are covered", mapping->num_items, struc->fields->size));
     } 
     TypeChecker__check_expression_statement(this, node, defolt, is_expr);
   }  else {
@@ -3604,7 +3675,7 @@ void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST*
     error_span(node->span, "Expression-match must yield a value");
   } 
 
-/* defers */
+  /* defers */
   Map__free(mapping);
 }
 
@@ -3620,7 +3691,7 @@ void TypeChecker__check_match(TypeChecker* this, AST* node, bool is_expr) {
     } 
   } 
   if ((((expr_type->base != BaseType__I32) && (expr_type->base != BaseType__Char)) && (!Type__is_string(expr_type)))) {
-    error_span(expr->span, "Match expression must be enum/integer/char/string");
+    error_span_note(expr->span, "This type cannot be matched on", format_string("Expression type is '%s'", Type__str(expr_type)));
   } 
   Vector* cases = node->u.match_stmt.cases;
   node->returns = (cases->size > 0);
@@ -3628,7 +3699,7 @@ void TypeChecker__check_match(TypeChecker* this, AST* node, bool is_expr) {
     MatchCase* _case = ((MatchCase*)Vector__at(cases, i));
     Type* cond_type = TypeChecker__check_expression(this, _case->cond);
     if ((!Type__eq(cond_type, expr_type))) {
-      error_span(_case->cond->span, "Condition does not match expression type");
+      error_span_note_span(cond_type->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(struc->type)));
     } 
     if ((((_case->cond->type != ASTType__IntLiteral) && (_case->cond->type != ASTType__CharLiteral)) && (_case->cond->type != ASTType__StringLiteral))) {
       error_span(_case->cond->span, "Match condition must use only literals");
@@ -3650,7 +3721,7 @@ void TypeChecker__check_match(TypeChecker* this, AST* node, bool is_expr) {
 void TypeChecker__check_if(TypeChecker* this, AST* node, bool is_expr) {
   Type* cond_type = TypeChecker__check_expression(this, node->u.if_stmt.cond);
   if ((cond_type->base != BaseType__Bool)) {
-    error_span(node->u.if_stmt.cond->span, "Condition must be boolean");
+    error_span_note(node->u.if_stmt.cond->span, "Condition must be a boolean", format_string("Got type '%s'", Type__str(cond_type)));
   } 
   TypeChecker__check_expression_statement(this, node, node->u.if_stmt.body, is_expr);
   if (((bool)node->u.if_stmt.els)) {
@@ -3691,15 +3762,15 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
       } 
       if ((!((bool)node->u.unary))) {
         if ((this->cur_func->return_type->base != BaseType__Void)) {
-          error_span(node->span, "Cannot have empty return in non-void function");
+          error_span_note_span(node->span, "Cannot have empty return in non-void function", this->cur_func->return_type->span, format_string("This function returns '%s'", Type__str(this->cur_func->return_type)));
         } 
       }  else {
-        if (this->cur_func->return_type->base == BaseType__Void) {
-          error_span(node->span, "Cannot return value in void function");
-        } 
         Type* ret_type = TypeChecker__check_expression(this, node->u.unary);
+        if (this->cur_func->return_type->base == BaseType__Void) {
+          error_span_note_span(node->u.unary->span, format_string("Cannot return '%s' in void function", Type__str(ret_type)), this->cur_func->span, "This function does not return a value");
+        } 
         if ((!Type__eq(ret_type, this->cur_func->return_type))) {
-          error_span(node->span, "Return type does not match function return type");
+          error_span_note_span(node->u.unary->span, format_string("Return type '%s' is incorrect", Type__str(ret_type)), this->cur_func->return_type->span, format_string("This function returns '%s'", Type__str(this->cur_func->return_type)));
         } 
       } 
       node->returns = true;
@@ -3720,7 +3791,7 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
         if ((!((bool)var_decl->var->type))) {
           var_decl->var->type = init_type;
         }  else         if ((!Type__eq(var_decl->var->type, init_type))) {
-          error_span(var_decl->init->span, "Variable type does not match initializer type");
+          error_span_note(var_decl->init->span, "Variable type does not match initializer type", format_string("Expected '%s' but got '%s'", Type__str(var_decl->var->type), Type__str(init_type)));
         } 
         
       }  else {
@@ -3738,7 +3809,7 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
       this->in_loop = true;
       Type* cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
       if ((cond_type->base != BaseType__Bool)) {
-        error_span(node->u.loop.cond->span, "Condition must be boolean");
+        error_span_note(node->u.loop.cond->span, "Condition must be boolean", format_string("Got type '%s'", Type__str(cond_type)));
       } 
       TypeChecker__check_statement(this, node->u.loop.body);
       this->in_loop = was_in_loop;
@@ -3753,7 +3824,7 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
       if (((bool)node->u.loop.init)) {
         Type* cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
         if ((cond_type->base != BaseType__Bool)) {
-          error_span(node->u.loop.cond->span, "Condition must be boolean");
+          error_span_note(node->u.loop.cond->span, "Condition must be boolean", format_string("Got type '%s'", Type__str(cond_type)));
         } 
       } 
       if (((bool)node->u.loop.incr)) {
@@ -3775,6 +3846,7 @@ void TypeChecker__check_statement(TypeChecker* this, AST* node) {
 void TypeChecker__check_block(TypeChecker* this, AST* node, bool can_yield) {
   bool could_yield = this->can_yield;
   this->can_yield = can_yield;
+  Span yield_span;
   TypeChecker__push_scope(this);
   Vector* statements = node->u.block.statements;
   for (int i = 0; (i < statements->size); i += 1) {
@@ -3785,9 +3857,10 @@ void TypeChecker__check_block(TypeChecker* this, AST* node, bool can_yield) {
     } 
     if (statement->type == ASTType__Yield) {
       if (((bool)node->etype)) {
-        error_span(statement->span, "Cannot yield multiple times in a block");
+        error_span_note_span(statement->span, "Cannot yield multiple times in a block", yield_span, "Previously yield here is here");
       } 
       node->etype = statement->etype;
+      yield_span = statement->span;
     } 
   } 
   TypeChecker__pop_scope(this);
@@ -3826,17 +3899,20 @@ void TypeChecker__check_all_functions(TypeChecker* this, Program* program) {
         error_span(func->span, "Type for method does not exist");
       } 
       if (Map__exists(s_methods, name)) {
-        error_span(func->span, "Method is already defined for this type");
+        Function* method = ((Function*)Map__get(s_methods, name));
+        error_span_note_span(func->span, "Method is already defined for this type", method->span, "Previous definition here");
       } 
-      if (((bool)TypeChecker__get_struct_member(this, struct_name, name))) {
-        error_span(func->span, "Type already has a field with this name");
+      Variable* var = TypeChecker__get_struct_member(this, struct_name, name);
+      if (((bool)var)) {
+        error_span_note_span(func->span, "Type already has a field with this name", var->span, "Previous definition here");
       } 
       func_type = Type__new(BaseType__Method, func->span);
       func_type->name = struct_name;
     }  else {
       func_type = Type__new(BaseType__Function, func->span);
       if (Map__exists(this->functions, name)) {
-        error_span(func->span, "Function is already defined");
+        Function* prev = ((Function*)Map__get(this->functions, name));
+        error_span_note_span(func->span, "Function is already defined", prev->span, "Previous definition here");
       } 
     } 
     func_type->func_def = func;
@@ -3888,7 +3964,8 @@ void TypeChecker__check_all_structs(TypeChecker* this, Program* program) {
     Structure* struc = ((Structure*)Vector__at(program->structures, i));
     char* name = struc->name;
     if (Map__exists(this->structures, name)) {
-      error_span(struc->span, "Struct has already been defined");
+      Structure* prev = ((Structure*)Map__get(this->structures, name));
+      error_span_note_span(struc->span, "Struct has already been defined", prev->span, "Previous definition here");
     } 
     Map__insert(this->structures, name, struc);
     Map__insert(this->methods, name, Map__new());
@@ -4529,7 +4606,7 @@ void CodeGenerator__gen_block(CodeGenerator* this, AST* node, int indent) {
   Vector* defers = CodeGenerator__scope(this);
   if ((defers->size > 0)) {
     File__puts(this->out, "\n");
-    CodeGenerator__indent(this, indent);
+    CodeGenerator__indent(this, (indent + 1));
     File__puts(this->out, "/* defers */\n");
     for (int i = (defers->size - 1); (i >= 0); i -= 1) {
       AST* node = ((AST*)Vector__at(defers, i));
@@ -4654,7 +4731,7 @@ void CodeGenerator__gen_embed_headers(CodeGenerator* this, Program* program) {
       File__puts(this->out, contents);
       File__puts(this->out, "\n\n");
 
-    /* defers */
+      /* defers */
       free(contents);
       fclose(file);
     } 
