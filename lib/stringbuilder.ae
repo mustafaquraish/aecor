@@ -1,0 +1,40 @@
+
+// Maybe abstract away the resizing with a `Buffer` type, 
+// and share this with `Vector`
+struct StringBuilder {
+    data: string
+    size: i32
+    capacity: i32
+}
+
+def StringBuilder::make(): StringBuilder {
+    let builder: StringBuilder
+    builder.size = 0
+    builder.capacity = 16
+    builder.data = calloc(builder.capacity, sizeof(char)) as string
+    return builder
+}
+
+def StringBuilder::puts(&this, s: string) {
+    let len = s.len()
+    if .size + len > .capacity {
+        let new_capacity = max(.capacity * 2, .size + len + 2)
+        .data = realloc(.data, new_capacity) as string
+    }
+    copy_memory(.data + .size, s, len + 1) // Copy over null terminator
+    .size += len
+}
+
+// Put and free the string
+def StringBuilder::putsf(&this, s: string) {
+    .puts(s)
+    free(s)
+}
+
+def StringBuilder::str(&this): string {
+    return .data
+}
+
+def StringBuilder::new_str(&this): string {
+    return .data.copy()
+}
