@@ -239,7 +239,7 @@ def Parser::parse_format_string(&this): &AST {
 
         let lexer = Lexer::make(part, fstr_start.filename)
         lexer.loc = fstr_start
-        lexer.loc.col += start
+        lexer.loc.col += start + 1
 
         let tokens = lexer.lex()
 

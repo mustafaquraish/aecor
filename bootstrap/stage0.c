@@ -2359,7 +2359,7 @@ AST* Parser__parse_format_string(Parser* this) {
     int start = (((char*)Vector__at(expr_start, i)) - fstr->text);
     Lexer lexer = Lexer__make(part, fstr_start.filename);
     lexer.loc = fstr_start;
-    lexer.loc.col += start;
+    lexer.loc.col += (start + 1);
     Vector* tokens = Lexer__lex((&lexer));
     Parser__push_context(this, tokens);
     AST* expr = Parser__parse_expression(this, TokenType__CloseCurly);
