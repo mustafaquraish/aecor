@@ -199,6 +199,7 @@ enum BaseType {
   BaseType__Structure,
   BaseType__Function,
   BaseType__Method,
+  BaseType__Array,
 };
 
 struct Type {
@@ -206,6 +207,7 @@ struct Type {
   Type* ptr;
   char* name;
   Span span;
+  AST* size_expr;
   Structure* struct_def;
   Function* func_def;
   Type* return_type;
@@ -503,6 +505,7 @@ void Map__resize(Map* this);
 void Map__print_keys(Map* this);
 void Map__push_keys(Map* this, Vector* vec);
 void Map__free(Map* this);
+char* BaseType__str(BaseType this);
 Type* Type__new(BaseType base, Span span);
 Type* Type__new_link(BaseType base, Type* next, Span span);
 Type* Type__ptr_to(BaseType base, Span span);
@@ -512,6 +515,7 @@ bool Type__eq(Type* this, Type* other);
 char* Type__str(Type* this);
 Type* Type__reverse(Type* this);
 bool Type__is_string(Type* this);
+Type* Type__decay_array(Type* this);
 char* ASTType__str(ASTType this);
 ASTType ASTType__from_token(TokenType type);
 Variable* Variable__new(char* name, Type* type, Span span);
@@ -1552,6 +1556,46 @@ void Map__free(Map* this) {
   free(this->buckets);
 }
 
+char* BaseType__str(BaseType this) {
+  return ({ char* __yield_0;
+  switch (this) {
+    case BaseType__Char: {
+      __yield_0 = "char";
+} break;
+    case BaseType__I32: {
+      __yield_0 = "i32";
+} break;
+    case BaseType__F32: {
+      __yield_0 = "f32";
+} break;
+    case BaseType__Bool: {
+      __yield_0 = "bool";
+} break;
+    case BaseType__U8: {
+      __yield_0 = "u8";
+} break;
+    case BaseType__Void: {
+      __yield_0 = "void";
+} break;
+    case BaseType__Pointer: {
+      __yield_0 = "&";
+} break;
+    case BaseType__Structure: {
+      __yield_0 = "structure";
+} break;
+    case BaseType__Function: {
+      __yield_0 = "function";
+} break;
+    case BaseType__Method: {
+      __yield_0 = "method";
+} break;
+    case BaseType__Array: {
+      __yield_0 = "[]";
+} break;
+  }
+;__yield_0; });
+}
+
 Type* Type__new(BaseType base, Span span) {
   Type* type = ((Type*)calloc(1, sizeof(Type)));
   type->base = base;
@@ -1652,6 +1696,9 @@ char* Type__str(Type* this) {
     case BaseType__Pointer: {
       __yield_0 = format_string("&%s", Type__str(this->ptr));
 } break;
+    case BaseType__Array: {
+      __yield_0 = format_string("[%s]", Type__str(this->ptr));
+} break;
     case BaseType__Structure: {
       __yield_0 = this->name;
 } break;
@@ -1679,6 +1726,13 @@ Type* Type__reverse(Type* this) {
 
 bool Type__is_string(Type* this) {
   return (this->base == BaseType__Pointer && this->ptr->base == BaseType__Char);
+}
+
+Type* Type__decay_array(Type* this) {
+  if ((this->base != BaseType__Array)) 
+  return this;
+  
+  return Type__new_link(BaseType__Pointer, this->ptr, this->span);
 }
 
 char* ASTType__str(ASTType this) {
@@ -2380,7 +2434,19 @@ Type* Parser__parse_type(Parser* this) {
       Parser__unhandled_type(this, "parse_type");
     } break;
   }
-  return Type__reverse(type);
+  type = Type__reverse(type);
+  while (true) {
+    if (Parser__token_is(this, TokenType__OpenSquare)) {
+      Parser__consume(this, TokenType__OpenSquare);
+      AST* size = Parser__parse_expression(this, TokenType__CloseSquare);
+      type = Type__new_link(BaseType__Array, type, Span__join(start_span, Parser__token(this)->span));
+      Parser__consume(this, TokenType__CloseSquare);
+      type->size_expr = size;
+    }  else {
+      break;
+    } 
+  } 
+  return type;
 }
 
 AST* Parser__parse_format_string(Parser* this) {
@@ -3677,6 +3743,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       exit(1);
     } break;
   }
+  etype = Type__decay_array(etype);
   node->etype = etype;
   return etype;
 }
@@ -4737,10 +4804,19 @@ void CodeGenerator__gen_type_and_name(CodeGenerator* this, Type* type, char* nam
       CodeGenerator__gen_type(this, ((Type*)Vector__at(type->params, i)));
     } 
     File__puts(this->out, ")");
+  }  else   if (type->base == BaseType__Array) {
+    CodeGenerator__gen_type_and_name(this, type->ptr, name);
+    File__puts(this->out, "[");
+    CodeGenerator__gen_expression(this, type->size_expr);
+    File__puts(this->out, "]");
   }  else {
+    if ((type->base == BaseType__Pointer && type->ptr->base == BaseType__Array)) {
+      error_span_note(type->span, "(Internal) Pointers to arrays not supported", "This may have happened with a decayed array type");
+    } 
     CodeGenerator__gen_type(this, type);
     File__puts(this->out, format_string(" %s", name));
   } 
+  
 }
 
 void CodeGenerator__gen_function_name(CodeGenerator* this, Function* func) {

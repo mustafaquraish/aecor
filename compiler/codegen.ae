@@ -593,7 +593,22 @@ def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
             .gen_type(type.params.at(i) as &Type)
         }
         .out.puts(")")
+
+    } else if type.base == BaseType::Array {
+        // Good luck if you have pointers to arrays...
+        .gen_type_and_name(type.ptr, name)
+        .out.puts("[")
+        .gen_expression(type.size_expr)
+        .out.puts("]")
+
     } else {
+        if type.base == BaseType::Pointer and type.ptr.base == BaseType::Array {
+            error_span_note(
+                type.span, "(Internal) Pointers to arrays not supported",
+                "This may have happened with a decayed array type"
+            )
+        }
+
         .gen_type(type)
         .out.puts(` {name}`)
     }

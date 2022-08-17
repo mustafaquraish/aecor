@@ -186,7 +186,21 @@ def Parser::parse_type(&this): &Type {
         else => .unhandled_type("parse_type")
     }
 
-    return type.reverse()
+    type = type.reverse()
+
+    while true {
+        if .token_is(TokenType::OpenSquare) {
+            .consume(TokenType::OpenSquare)
+            let size = .parse_expression(TokenType::CloseSquare)
+            type = Type::new_link(BaseType::Array, type, start_span.join(.token().span))
+            .consume(TokenType::CloseSquare)
+            type.size_expr = size
+        } else {
+            break
+        }
+    }
+
+    return type
 }
 
 def Parser::parse_format_string(&this): &AST {

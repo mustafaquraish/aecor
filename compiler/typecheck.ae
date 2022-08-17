@@ -540,6 +540,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             exit(1)
         }
     }
+    etype = etype.decay_array()
     node.etype = etype
     return etype
 }
