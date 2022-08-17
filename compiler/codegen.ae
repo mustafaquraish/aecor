@@ -1,7 +1,8 @@
+use "lib/stringbuilder.ae"
 use "compiler/ast.ae"
 
 struct CodeGenerator {
-    out: &File
+    out: StringBuilder
     scopes: &Vector  // Vector<Vector<AST>>
     debug: bool
 
@@ -9,9 +10,9 @@ struct CodeGenerator {
     yield_count: i32
 }
 
-def CodeGenerator::make(filename: string, debug: bool): CodeGenerator {
+def CodeGenerator::make(debug: bool): CodeGenerator {
     let gen: CodeGenerator
-    gen.out = File::open(filename, "w")
+    gen.out = StringBuilder::make()
     gen.scopes = Vector::new()
     gen.yield_vars = Vector::new()
     gen.yield_count = 0
@@ -691,7 +692,7 @@ def CodeGenerator::gen_embed_headers(&this, program: &Program) {
     }
 }
 
-def CodeGenerator::gen_program(&this, program: &Program) {
+def CodeGenerator::gen_program(&this, program: &Program): string {
     for let i = 0; i < program.c_includes.size; i += 1 {
         let include = program.c_includes.at(i) as string
         .out.puts(`#include \"{include}\"\n`)
@@ -716,5 +717,5 @@ def CodeGenerator::gen_program(&this, program: &Program) {
         let func = program.functions.at(i) as &Function
         .gen_function(func)
     }
-    .out.close()
+    return .out.str()
 }
