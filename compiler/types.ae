@@ -83,8 +83,10 @@ def Type::eq(&this, other: &Type): bool {
     if .base != other.base return false
 
     match .base {
-        // Not _technically_ right, but we shouldn't really ever be comparing these.
-        Method | Array => return false
+        // Not _technically_ right, but we shouldn't really ever be comparing methods
+        Method => return false
+        // FIXME: have some way of checking the size...
+        Array => return .ptr.eq(other.ptr)
         Function => {
             if not .return_type.eq(other.return_type) return false
             if .params.size != other.params.size return false
