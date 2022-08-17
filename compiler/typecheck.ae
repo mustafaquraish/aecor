@@ -782,11 +782,16 @@ def TypeChecker::check_statement(&this, node: &AST) {
                 }
                 if not var_decl.var.type? {
                     var_decl.var.type = init_type
-                } else if not var_decl.var.type.eq(init_type) {
-                    error_span_note(
-                        var_decl.init.span, "Variable type does not match initializer type",
-                        `Expected '{var_decl.var.type.str()}' but got '{init_type.str()}'`
-                    )
+                } else {
+                    if not .type_is_valid(var_decl.var.type) {
+                        error_span(var_decl.var.span, "Invalid type")
+                    }
+                    if not var_decl.var.type.eq(init_type) {
+                        error_span_note(
+                            var_decl.init.span, "Variable type does not match initializer type",
+                            `Expected '{var_decl.var.type.str()}' but got '{init_type.str()}'`
+                        )
+                    }
                 }
             } else {
                 if not var_decl.var.type? {
