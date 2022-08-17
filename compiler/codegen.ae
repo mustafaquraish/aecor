@@ -138,32 +138,6 @@ def CodeGenerator::get_op(type: ASTType): string {
     }
 }
 
-def CodeGenerator::gen_type(&this, type: &Type) {
-    match type.base {
-        BaseType::Void => this.out.puts("void")
-        BaseType::Char => this.out.puts("char")
-        BaseType::I32 => this.out.puts("int")
-        BaseType::F32 => this.out.puts("float")
-        BaseType::Bool => this.out.puts("bool")
-        BaseType::U8 => this.out.puts("unsigned char")
-        BaseType::Pointer => {
-            .gen_type(type.ptr)
-            .out.puts("*")
-        }
-        BaseType::Structure => {
-            if type.struct_def.is_extern {
-                .out.puts(type.struct_def.extern_name)
-            } else {
-                .out.puts(type.struct_def.name)
-            }
-        }
-        else => {
-            println("Unknown type in gen_type: %s", type.str())
-            exit(1)
-        }
-    }
-}
-
 def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     // Using a GCC extension for the compound statement
     let yield_var = `__yield_{.yield_count}`
@@ -228,7 +202,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Identifier => {
             let ident = node.u.ident
             if ident.is_function {
-                .gen_function_name(ident.func)
+                .out.puts(.get_function_name(ident.func))
             } else if ident.var.is_extern {
                 .out.puts(ident.var.extern_name)
             } else {
@@ -245,7 +219,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             } else if not node.u.call.func? {
                 .gen_expression(node.u.call.callee)
             } else {
-                .gen_function_name(node.u.call.func)
+                .out.puts(.get_function_name(node.u.call.func))
             }
             .out.puts("(")
             let args = node.u.call.args
@@ -585,43 +559,97 @@ def CodeGenerator::gen_struct_decls(&this, program: &Program) {
     .out.puts("\n")
 }
 
-def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
-    if type.base == BaseType::Function {
-        .gen_type(type.return_type)
-        .out.puts(`(*{name})(`)
-        for let i = 0; i < type.params.size; i += 1 {
-            if i > 0 { .out.puts(", "); }
-            .gen_type(type.params.at(i) as &Type)
-        }
-        .out.puts(")")
-
-    } else if type.base == BaseType::Array {
-        // Good luck if you have pointers to arrays...
-        .gen_type_and_name(type.ptr, name)
-        .out.puts("[")
-        .gen_expression(type.size_expr)
-        .out.puts("]")
-
-    } else {
-        if type.base == BaseType::Pointer and type.ptr.base == BaseType::Array {
-            error_span_note(
-                type.span, "(Internal) Pointers to arrays not supported",
-                "This may have happened with a decayed array type"
-            )
-        }
-
-        .gen_type(type)
-        .out.puts(` {name}`)
-    }
+def string::replace(&this, other: string) {
+    let s: string = *this
+    free(s)
+    *this = other
 }
 
-def CodeGenerator::gen_function_name(&this, func: &Function) {
-    if func.is_extern {
-        .out.puts(func.extern_name)
+def CodeGenerator::get_type_name_string(&this, type: &Type, name: string): string {
+    // This is a bit weird because of how C expects type names to be written.
+    // There's possibly a better way to do this, but I'll leave that for another day.
+    let final = name.copy()
+
+    // We should avoid outer parens if we can, since we also use this for generating functions
+    let needs_parens = false
+    for let cur = type; cur?; cur = cur.ptr {
+        match cur.base {
+            Array | Function => needs_parens = true
+            else => {}
+        }
+    }
+
+    for let cur = type; cur?; cur = cur.ptr {
+        match cur.base {
+            // These should all be terminal types
+            Void => final.replace(`void {final}`)
+            Bool => final.replace(`bool {final}`)
+            I32 => final.replace(`int {final}`)
+            F32 => final.replace(`float {final}`)
+            U8 => final.replace(`uint8_t {final}`)
+            Char => final.replace(`char {final}`)
+            Structure => {
+                let struct_name = if cur.struct_def.is_extern {
+                    yield cur.struct_def.extern_name
+                } else {
+                    yield cur.struct_def.name
+                }
+                final.replace(`{struct_name} {final}`)
+            }
+
+            Pointer => {
+                if needs_parens {
+                    final.replace(`(*{final})`)
+                } else {
+                    final.replace(`*{final}`)
+                }
+            }
+            Array => {
+                // Need to evaluate the expression into a string...
+                let prev_builder: StringBuilder = .out
+
+                .out = StringBuilder::make()
+                .gen_expression(cur.size_expr)
+                final.replace(`{final}[{.out.str()}]`)
+                free(.out.data)
+                .out = prev_builder
+            }
+            Function => {
+                let acc = StringBuilder::make()
+                let params = cur.params
+
+                if params.size == 0 then acc.puts("void")
+                for let i = 0; i < params.size; i += 1 {
+                    if i != 0 then acc.puts(", ")
+                    let arg_str = .get_type_name_string(params.at(i), "")
+                    acc.putsf(arg_str)
+                }
+                final.replace(`(*{final})({acc.str()})`)
+                free(acc.data)
+                final.replace(.get_type_name_string(cur.return_type, final))
+            }
+            Method => final.replace(`<method>`)
+        }
+    }
+    final.strip_trailing_whitespace()
+    return final
+}
+
+def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
+    .out.putsf(.get_type_name_string(type, name))
+}
+
+def CodeGenerator::gen_type(&this, type: &Type) {
+    .gen_type_and_name(type, "")
+}
+
+def CodeGenerator::get_function_name(&this, func: &Function): string {
+    return if func.is_extern {
+        yield func.extern_name
     } else if func.is_method {
-        .out.puts(`{func.method_struct_name}__{func.name}`)
+        yield `{func.method_struct_name}__{func.name}`
     } else {
-        .out.puts(func.name)
+        yield func.name
     }
 }
 
@@ -629,9 +657,8 @@ def CodeGenerator::gen_function_decl(&this, func: &Function) {
     if func.exits
         .out.puts("__attribute__((noreturn)) ")
 
-    .gen_type(func.return_type)
-    .out.puts(" ")
-    .gen_function_name(func)
+    let func_name = .get_function_name(func)
+    .gen_type_and_name(func.return_type, func_name)
     .out.puts("(")
 
     for let i = 0; i < func.params.size; i += 1 {
