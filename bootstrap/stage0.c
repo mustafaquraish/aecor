@@ -4,8 +4,8 @@
 #include "stdint.h"
 #include "string.h"
 #include "errno.h"
-#include "ctype.h"
 #include "math.h"
+#include "ctype.h"
 #include "libgen.h"
 
 /***************** embed './lib/prelude.h' *****************/
@@ -30,6 +30,7 @@ typedef struct Location Location;
 typedef struct Span Span;
 typedef enum TokenType TokenType;
 typedef struct Token Token;
+typedef enum MessageType MessageType;
 typedef struct Lexer Lexer;
 typedef struct MapNode MapNode;
 typedef struct Map Map;
@@ -55,7 +56,6 @@ typedef struct MatchCase MatchCase;
 typedef struct Match Match;
 typedef union ASTUnion ASTUnion;
 typedef struct AST AST;
-typedef enum MessageType MessageType;
 typedef struct ParserContext ParserContext;
 typedef struct Parser Parser;
 typedef struct TypeChecker TypeChecker;
@@ -164,6 +164,12 @@ struct Token {
   Span span;
   char* text;
   bool seen_newline;
+};
+
+enum MessageType {
+  MessageType__Error,
+  MessageType__Warning,
+  MessageType__Note,
 };
 
 struct Lexer {
@@ -420,12 +426,6 @@ struct AST {
   bool returns;
 };
 
-enum MessageType {
-  MessageType__Error,
-  MessageType__Warning,
-  MessageType__Note,
-};
-
 struct ParserContext {
   Vector* tokens;
   int offset;
@@ -486,6 +486,24 @@ Token* Token__from_ident(char* text, Span span);
 char* Token__str(Token* this);
 TokenType TokenType__from_text(char* text);
 char* TokenType__str(TokenType this);
+int min(int a, int b);
+float minf(float a, float b);
+int max(int a, int b);
+float maxf(float a, float b);
+float clampf(float x, float min, float max);
+float clamp01(float x);
+float degrees(float radians);
+float radians(float degrees);
+int edit_distance(char* str1, char* str2);
+char* find_word_suggestion(char* s, Vector* options);
+char* MessageType__to_color(MessageType this);
+char* MessageType__str(MessageType this);
+void display_message(MessageType type, Span span, char* msg);
+void display_message_with_span(MessageType type, Span span, char* msg);
+__attribute__((noreturn)) void error_loc(Location loc, char* msg);
+__attribute__((noreturn)) void error_span(Span span, char* msg);
+__attribute__((noreturn)) void error_span_note(Span span, char* msg, char* note);
+__attribute__((noreturn)) void error_span_note_span(Span msg_span, char* msg, Span note_span, char* note);
 Lexer Lexer__make(char* source, char* filename);
 void Lexer__push(Lexer* this, Token* token);
 void Lexer__push_type(Lexer* this, TokenType type, int len);
@@ -530,24 +548,6 @@ AST* AST__new(ASTType type, Span span);
 AST* AST__new_unop(ASTType type, Span span, AST* expr);
 AST* AST__new_binop(ASTType type, AST* lhs, AST* rhs);
 bool AST__callee_is(AST* this, char* expected);
-int min(int a, int b);
-float minf(float a, float b);
-int max(int a, int b);
-float maxf(float a, float b);
-float clampf(float x, float min, float max);
-float clamp01(float x);
-float degrees(float radians);
-float radians(float degrees);
-int edit_distance(char* str1, char* str2);
-char* find_word_suggestion(char* s, Vector* options);
-char* MessageType__to_color(MessageType this);
-char* MessageType__str(MessageType this);
-void display_message(MessageType type, Span span, char* msg);
-void display_message_with_span(MessageType type, Span span, char* msg);
-__attribute__((noreturn)) void error_loc(Location loc, char* msg);
-__attribute__((noreturn)) void error_span(Span span, char* msg);
-__attribute__((noreturn)) void error_span_note(Span span, char* msg, char* note);
-__attribute__((noreturn)) void error_span_note_span(Span msg_span, char* msg, Span note_span, char* note);
 ParserContext* ParserContext__new(Vector* tokens, int offset);
 Parser* Parser__new(Vector* tokens, char* filename);
 void Parser__push_context(Parser* this, Vector* tokens);
@@ -1139,6 +1139,211 @@ char* TokenType__str(TokenType this) {
 } break;
   }
 ;__yield_0; });
+}
+
+int min(int a, int b) {
+  if ((a < b)) 
+  return a;
+   else 
+  return b;
+  
+}
+
+float minf(float a, float b) {
+  if ((a < b)) 
+  return a;
+   else 
+  return b;
+  
+}
+
+int max(int a, int b) {
+  if ((a > b)) 
+  return a;
+   else 
+  return b;
+  
+}
+
+float maxf(float a, float b) {
+  if ((a > b)) 
+  return a;
+   else 
+  return b;
+  
+}
+
+float clampf(float x, float min, float max) {
+  return maxf(minf(x, max), min);
+}
+
+float clamp01(float x) {
+  return clampf(x, 0.0, 1.0);
+}
+
+float degrees(float radians) {
+  return ((radians * 180.0) / M_PI);
+}
+
+float radians(float degrees) {
+  return ((degrees * M_PI) / 180.0);
+}
+
+int edit_distance(char* str1, char* str2) {
+  int n = strlen(str1);
+  int m = strlen(str2);
+  int stride = (m + 1);
+  int* d = ((int*)calloc(((n + 1) * (m + 1)), sizeof(int)));
+  for (int i = 0; (i <= n); i += 1) {
+    d[(i * stride)] = i;
+  } 
+  for (int j = 0; (j <= m); j += 1) {
+    d[j] = j;
+  } 
+  for (int i = 1; (i <= n); i += 1) {
+    for (int j = 1; (j <= m); j += 1) {
+      int x = (d[(((i - 1) * stride) + j)] + 1);
+      int y = (d[(((i * stride) + j) - 1)] + 1);
+      int z;
+      if (str1[(i - 1)] == str2[(j - 1)]) {
+        z = d[((((i - 1) * stride) + j) - 1)];
+      }  else {
+        z = (d[((((i - 1) * stride) + j) - 1)] + 1);
+      } 
+      d[((i * stride) + j)] = min(x, min(y, z));
+    } 
+  } 
+  int result = d[((n * stride) + m)];
+  free(d);
+  return result;
+}
+
+char* find_word_suggestion(char* s, Vector* options) {
+  int threshold = 5;
+  if (options->size == 0) 
+  return NULL;
+  
+  char* closest = ((char*)Vector__at(options, 0));
+  int closest_distance = edit_distance(s, closest);
+  for (int i = 1; (i < options->size); i += 1) {
+    char* option = ((char*)Vector__at(options, i));
+    int distance = edit_distance(s, option);
+    if ((distance < closest_distance)) {
+      closest = option;
+      closest_distance = distance;
+    } 
+  } 
+  if ((closest_distance > threshold)) 
+  return NULL;
+  
+  return closest;
+}
+
+char* MessageType__to_color(MessageType this) {
+  return ({ char* __yield_0;
+  switch (this) {
+    case MessageType__Error: {
+      __yield_0 = "\x1b[31m";
+} break;
+    case MessageType__Warning: {
+      __yield_0 = "\x1b[33m";
+} break;
+    case MessageType__Note: {
+      __yield_0 = "\x1b[32m";
+} break;
+  }
+;__yield_0; });
+}
+
+char* MessageType__str(MessageType this) {
+  return ({ char* __yield_0;
+  switch (this) {
+    case MessageType__Error: {
+      __yield_0 = "Error";
+} break;
+    case MessageType__Warning: {
+      __yield_0 = "Warning";
+} break;
+    case MessageType__Note: {
+      __yield_0 = "Note";
+} break;
+  }
+;__yield_0; });
+}
+
+void display_message(MessageType type, Span span, char* msg) {
+  printf("---------------------------------------------------------------" "\n");
+  printf("%s: %s: %s" "\n", Location__str(span.start), MessageType__str(type), msg);
+  printf("---------------------------------------------------------------" "\n");
+}
+
+void display_message_with_span(MessageType type, Span span, char* msg) {
+  char* color = MessageType__to_color(type);
+  char* reset = "\x1b[0m";
+  char* filename = span.start.filename;
+  FILE* file = File__open(filename, "r");
+  ;
+  char* contents = File__slurp(file);
+  ;
+  int around_offset = 1;
+  int min_line = max((span.start.line - around_offset), 1);
+  int max_line = (span.end.line + around_offset);
+  display_message(type, span, msg);
+  char* lines = contents;
+  char* cur = strsep((&lines), "\n");
+  int line_no = 1;
+  while ((((bool)cur) && (line_no <= max_line))) {
+    if (((line_no >= min_line) && (line_no <= max_line))) {
+      printf("%4d | ", line_no);
+      if (line_no == span.start.line) {
+        int start_col = (span.start.col - 1);
+        int end_col = (span.end.col - 1);
+        if ((span.end.line != span.start.line)) {
+          end_col = strlen(cur);
+        } 
+        for (int i = 0; (i < start_col); i += 1) {
+          printf("%c", cur[i]);
+        } 
+        printf("%s", color);
+        for (int i = start_col; (i < end_col); i += 1) {
+          printf("%c", cur[i]);
+        } 
+        printf("%s%s" "\n", reset, (cur + end_col));
+        printf("%*s%s^ %s%s" "\n", (start_col + 7), "", color, msg, reset);
+      }  else {
+        printf("%s" "\n", cur);
+      } 
+    } 
+    line_no += 1;
+    cur = strsep((&lines), "\n");
+  } 
+
+  /* defers */
+  free(contents);
+  fclose(file);
+}
+
+__attribute__((noreturn)) void error_loc(Location loc, char* msg) {
+  error_span(Span__make(loc, loc), msg);
+}
+
+__attribute__((noreturn)) void error_span(Span span, char* msg) {
+  display_message_with_span(MessageType__Error, span, msg);
+  printf("---------------------------------------------------------------" "\n");
+  exit(1);
+}
+
+__attribute__((noreturn)) void error_span_note(Span span, char* msg, char* note) {
+  display_message_with_span(MessageType__Error, span, msg);
+  display_message(MessageType__Note, span, note);
+  exit(1);
+}
+
+__attribute__((noreturn)) void error_span_note_span(Span msg_span, char* msg, Span note_span, char* note) {
+  display_message_with_span(MessageType__Error, msg_span, msg);
+  display_message_with_span(MessageType__Note, note_span, note);
+  printf("---------------------------------------------------------------" "\n");
+  exit(1);
 }
 
 Lexer Lexer__make(char* source, char* filename) {
@@ -2071,211 +2276,6 @@ bool AST__callee_is(AST* this, char* expected) {
   
   char* name = this->u.call.callee->u.ident.name;
   return string__eq(name, expected);
-}
-
-int min(int a, int b) {
-  if ((a < b)) 
-  return a;
-   else 
-  return b;
-  
-}
-
-float minf(float a, float b) {
-  if ((a < b)) 
-  return a;
-   else 
-  return b;
-  
-}
-
-int max(int a, int b) {
-  if ((a > b)) 
-  return a;
-   else 
-  return b;
-  
-}
-
-float maxf(float a, float b) {
-  if ((a > b)) 
-  return a;
-   else 
-  return b;
-  
-}
-
-float clampf(float x, float min, float max) {
-  return maxf(minf(x, max), min);
-}
-
-float clamp01(float x) {
-  return clampf(x, 0.0, 1.0);
-}
-
-float degrees(float radians) {
-  return ((radians * 180.0) / M_PI);
-}
-
-float radians(float degrees) {
-  return ((degrees * M_PI) / 180.0);
-}
-
-int edit_distance(char* str1, char* str2) {
-  int n = strlen(str1);
-  int m = strlen(str2);
-  int stride = (m + 1);
-  int* d = ((int*)calloc(((n + 1) * (m + 1)), sizeof(int)));
-  for (int i = 0; (i <= n); i += 1) {
-    d[(i * stride)] = i;
-  } 
-  for (int j = 0; (j <= m); j += 1) {
-    d[j] = j;
-  } 
-  for (int i = 1; (i <= n); i += 1) {
-    for (int j = 1; (j <= m); j += 1) {
-      int x = (d[(((i - 1) * stride) + j)] + 1);
-      int y = (d[(((i * stride) + j) - 1)] + 1);
-      int z;
-      if (str1[(i - 1)] == str2[(j - 1)]) {
-        z = d[((((i - 1) * stride) + j) - 1)];
-      }  else {
-        z = (d[((((i - 1) * stride) + j) - 1)] + 1);
-      } 
-      d[((i * stride) + j)] = min(x, min(y, z));
-    } 
-  } 
-  int result = d[((n * stride) + m)];
-  free(d);
-  return result;
-}
-
-char* find_word_suggestion(char* s, Vector* options) {
-  int threshold = 5;
-  if (options->size == 0) 
-  return NULL;
-  
-  char* closest = ((char*)Vector__at(options, 0));
-  int closest_distance = edit_distance(s, closest);
-  for (int i = 1; (i < options->size); i += 1) {
-    char* option = ((char*)Vector__at(options, i));
-    int distance = edit_distance(s, option);
-    if ((distance < closest_distance)) {
-      closest = option;
-      closest_distance = distance;
-    } 
-  } 
-  if ((closest_distance > threshold)) 
-  return NULL;
-  
-  return closest;
-}
-
-char* MessageType__to_color(MessageType this) {
-  return ({ char* __yield_0;
-  switch (this) {
-    case MessageType__Error: {
-      __yield_0 = "\x1b[31m";
-} break;
-    case MessageType__Warning: {
-      __yield_0 = "\x1b[33m";
-} break;
-    case MessageType__Note: {
-      __yield_0 = "\x1b[32m";
-} break;
-  }
-;__yield_0; });
-}
-
-char* MessageType__str(MessageType this) {
-  return ({ char* __yield_0;
-  switch (this) {
-    case MessageType__Error: {
-      __yield_0 = "Error";
-} break;
-    case MessageType__Warning: {
-      __yield_0 = "Warning";
-} break;
-    case MessageType__Note: {
-      __yield_0 = "Note";
-} break;
-  }
-;__yield_0; });
-}
-
-void display_message(MessageType type, Span span, char* msg) {
-  printf("---------------------------------------------------------------" "\n");
-  printf("%s: %s: %s" "\n", Location__str(span.start), MessageType__str(type), msg);
-  printf("---------------------------------------------------------------" "\n");
-}
-
-void display_message_with_span(MessageType type, Span span, char* msg) {
-  char* color = MessageType__to_color(type);
-  char* reset = "\x1b[0m";
-  char* filename = span.start.filename;
-  FILE* file = File__open(filename, "r");
-  ;
-  char* contents = File__slurp(file);
-  ;
-  int around_offset = 1;
-  int min_line = max((span.start.line - around_offset), 1);
-  int max_line = (span.end.line + around_offset);
-  display_message(type, span, msg);
-  char* lines = contents;
-  char* cur = strsep((&lines), "\n");
-  int line_no = 1;
-  while ((((bool)cur) && (line_no <= max_line))) {
-    if (((line_no >= min_line) && (line_no <= max_line))) {
-      printf("%4d | ", line_no);
-      if (line_no == span.start.line) {
-        int start_col = (span.start.col - 1);
-        int end_col = (span.end.col - 1);
-        if ((span.end.line != span.start.line)) {
-          end_col = strlen(cur);
-        } 
-        for (int i = 0; (i < start_col); i += 1) {
-          printf("%c", cur[i]);
-        } 
-        printf("%s", color);
-        for (int i = start_col; (i < end_col); i += 1) {
-          printf("%c", cur[i]);
-        } 
-        printf("%s%s" "\n", reset, (cur + end_col));
-        printf("%*s%s^ %s%s" "\n", (start_col + 7), "", color, msg, reset);
-      }  else {
-        printf("%s" "\n", cur);
-      } 
-    } 
-    line_no += 1;
-    cur = strsep((&lines), "\n");
-  } 
-
-  /* defers */
-  free(contents);
-  fclose(file);
-}
-
-__attribute__((noreturn)) void error_loc(Location loc, char* msg) {
-  error_span(Span__make(loc, loc), msg);
-}
-
-__attribute__((noreturn)) void error_span(Span span, char* msg) {
-  display_message_with_span(MessageType__Error, span, msg);
-  printf("---------------------------------------------------------------" "\n");
-  exit(1);
-}
-
-__attribute__((noreturn)) void error_span_note(Span span, char* msg, char* note) {
-  display_message_with_span(MessageType__Error, span, msg);
-  display_message(MessageType__Note, span, note);
-  exit(1);
-}
-
-__attribute__((noreturn)) void error_span_note_span(Span msg_span, char* msg, Span note_span, char* note) {
-  display_message_with_span(MessageType__Error, msg_span, msg);
-  display_message_with_span(MessageType__Note, note_span, note);
-  printf("---------------------------------------------------------------" "\n");
-  exit(1);
 }
 
 ParserContext* ParserContext__new(Vector* tokens, int offset) {
@@ -3739,6 +3739,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
       etype = node->etype;
     } break;
     default: {
+      printf("%s: " "\n", Span__str(node->span));
       printf("Unhandled type in check_expression: %s" "\n", ASTType__str(node->type));
       exit(1);
     } break;

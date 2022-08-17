@@ -1,5 +1,5 @@
-use "@/ast.ae"
-use "@/utils.ae"
+use "compiler/ast.ae"
+use "compiler/utils.ae"
 
 // Don't think this is used enough to include in the prelude.
 @compiler c_include "libgen.h"

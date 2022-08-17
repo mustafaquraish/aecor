@@ -1,0 +1,267 @@
+// This just reuses the lexer from the compiler,
+// since that's already capable of lexing JSON.
+use "compiler/lexer.ae"
+use "lib/vector.ae"
+use "lib/map.ae"
+
+enum JSONType {
+    Null
+    Bool
+    Number
+    String
+    Array
+    Object
+}
+
+def JSONType::str(this): string {
+    return match this {
+        Null => "Null"
+        Bool => "Bool"
+        Number => "Number"
+        String => "String"
+        Array => "Array"
+        Object => "Object"
+    }
+}
+
+union JSONUnion {
+    bul: bool
+    num: i32
+    str: string
+    arr: &Vector // &Vector<JSONValue>
+    obj: &Map    // &Map<string, JSONValue>
+}
+
+struct JSON {
+    type: JSONType
+    u: JSONUnion
+}
+
+def JSON::new(type: JSONType): &JSON {
+    let json = calloc(1, sizeof(JSON)) as &JSON
+    json.type = type
+    match type {
+        Object => json.u.obj = Map::new()
+        Array => json.u.arr = Vector::new()
+        else => {}
+    }
+    return json
+}
+
+def JSON::ensure(&this, type: JSONType) {
+    if .type != type {
+        println("JSON type mismatch, expected %s but got %s", .type.str(), type.str())
+        exit(1)
+    }
+}
+
+def JSON::is(this, type: JSONType): bool {
+    return .type == type
+}
+
+def JSON::at(&this, idx: i32): &JSON {
+    .ensure(JSONType::Array)
+    return this.u.arr.at(idx)
+}
+
+def JSON::set(&this, idx: i32, value: &JSON) {
+    .ensure(JSONType::Array)
+    this.u.arr.data[idx] = value
+}
+
+def JSON::push(&this, value: &JSON) {
+    .ensure(JSONType::Array)
+    this.u.arr.push(value)
+}
+
+def JSON::get(&this, key: string): &JSON {
+    .ensure(JSONType::Object)
+    return this.u.obj.get(key)
+}
+
+def JSON::insert(&this, key: string, value: &JSON) {
+    .ensure(JSONType::Object)
+    this.u.obj.insert(key, value)
+}
+
+def JSON::as_bool(&this): bool {
+    .ensure(JSONType::Bool)
+    return this.u.bul
+}
+
+def JSON::as_num(&this): i32 {
+    .ensure(JSONType::Number)
+    return this.u.num
+}
+
+def JSON::as_str(&this): string {
+    .ensure(JSONType::String)
+    return this.u.str
+}
+
+def JSON::as_arr(&this): &Vector {
+    .ensure(JSONType::Array)
+    return this.u.arr
+}
+
+def JSON::as_obj(&this): &Map {
+    .ensure(JSONType::Object)
+    return this.u.obj
+}
+
+struct JSONParser {
+    tokens: &Vector
+    curr: i32
+}
+
+def JSONParser::make(tokens: &Vector): JSONParser {
+    let parser: JSONParser
+    parser.tokens = tokens
+    parser.curr = 0
+    return parser
+}
+
+def JSONParser::token(&this): &Token {
+    return .tokens.at(.curr)
+}
+
+def JSONParser::consume(&this, type: TokenType): &Token {
+    if .token().type != type {
+        println("Expected %s but got %s", type.str(), .token().type.str())
+        exit(1)
+    }
+    let tok = .token()
+    .curr += 1
+    return tok
+}
+
+def JSONParser::parse_object(&this): &JSON {
+    .consume(TokenType::OpenCurly)
+    let json = JSON::new(JSONType::Object)
+    while .token().type != TokenType::CloseCurly {
+        let key = .consume(TokenType::StringLiteral)
+        .consume(TokenType::Colon)
+        let value = .parse_value()
+        json.u.obj.insert(key.text, value)
+        if .token().type == TokenType::Comma {
+            .consume(TokenType::Comma)
+        }
+    }
+    .consume(TokenType::CloseCurly)
+    return json
+}
+
+def JSONParser::parse_array(&this): &JSON {
+    .consume(TokenType::OpenSquare)
+    let json = JSON::new(JSONType::Array)
+    while .token().type != TokenType::CloseSquare {
+        let value = .parse_value()
+        json.u.arr.push(value)
+        if .token().type == TokenType::Comma {
+            .consume(TokenType::Comma)
+        }
+    }
+    .consume(TokenType::CloseSquare)
+    return json
+}
+
+def string::to_i32(this): i32 extern("atoi")
+
+def JSONParser::parse_value(&this): &JSON {
+    return match .token().type {
+        Null => {
+            .consume(TokenType::Null)
+            yield JSON::new(JSONType::Null)
+        }
+        True | False => {
+            let json = JSON::new(JSONType::Bool)
+            let tok = .token()
+            json.u.bul = tok.text.eq("true")
+            .curr += 1
+            yield json
+        }
+        IntLiteral => {
+            let json = JSON::new(JSONType::Number)
+            let tok = .consume(TokenType::IntLiteral)
+            json.u.num = tok.text.to_i32()
+            yield json
+        }
+        StringLiteral => {
+            let json = JSON::new(JSONType::String)
+            json.u.str = .consume(TokenType::StringLiteral).text
+            yield json
+        }
+        OpenCurly => .parse_object()
+        OpenSquare => .parse_array()
+        else => {
+            println("Unexpected token in JSONParser::parse_value: %s", .token().type.str())
+            exit(1)
+        }
+    }
+}
+
+def JSONParser::parse(&this): &JSON {
+    return match .token().type {
+        OpenCurly => .parse_object()
+        OpenSquare => .parse_array()
+        else => {
+            println("Expected { or [ at JSON top level")
+            exit(1)
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+def JSON::parse(source: string, filename: string): &JSON {
+    let lexer = Lexer::make(source, filename)
+    let tokens = lexer.lex()
+    let parser = JSONParser::make(tokens)
+    return parser.parse()
+}
+
+def JSON::parse_from_string(json_str: string): &JSON {
+    return JSON::parse(json_str, "<anonymous>")
+}
+
+def JSON::parse_from_file(filename: string): &JSON {
+    let file = File::open(filename, "r")
+    let source = file.slurp()
+    file.close()
+    return JSON::parse(source, filename)
+}
+
+def JSON::print(&this) {
+    match .type {
+        Null => print("null")
+        Bool => print("%s", if .u.bul "true" else "false")
+        Number => print("%d", .u.num)
+        String => print("\"%s\"", .u.str)
+        Array => {
+            print("[")
+            for let i = 0; i < .u.arr.size; i += 1 {
+                let value = .u.arr.at(i) as &JSON
+                if i > 0 {
+                    print(", ")
+                }
+                value.print()
+            }
+            print("]")
+        }
+        Object => {
+            print("{")
+            // This is a hack
+            let keys = Vector::new()
+            .u.obj.push_keys(keys)
+            for let i = 0; i < keys.size; i += 1 {
+                let value = .u.obj.get(keys.at(i) as string) as &JSON
+                if i > 0 {
+                    print(", ")
+                }
+                value.print()
+            }
+            keys.free()
+            print("}")
+        }
+    }
+}

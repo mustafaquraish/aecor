@@ -1,5 +1,6 @@
 use "lib/vector.ae"
-use "@/tokens.ae"
+use "compiler/tokens.ae"
+use "compiler/utils.ae"
 
 @compiler c_include "ctype.h"
 def is_alpha(c: char): bool extern("isalpha")

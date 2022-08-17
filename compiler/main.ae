@@ -1,7 +1,7 @@
-use "@/lexer.ae"
-use "@/parser.ae"
-use "@/typecheck.ae"
-use "@/codegen.ae"
+use "compiler/lexer.ae"
+use "compiler/parser.ae"
+use "compiler/typecheck.ae"
+use "compiler/codegen.ae"
 
 def usage(code: i32) {
     println("--------------------------------------------------------")

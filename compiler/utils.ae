@@ -1,5 +1,5 @@
 use "lib/math.ae"
-use "@/tokens.ae"
+use "compiler/tokens.ae"
 
 def strsep(s: &string, delim: string): string extern
 

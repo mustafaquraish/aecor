@@ -1,4 +1,4 @@
-use "@/ast.ae"
+use "compiler/ast.ae"
 use "lib/map.ae"
 
 struct TypeChecker {
@@ -536,6 +536,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = node.etype
         }
         else => {
+            println("%s: ", node.span.str())
             println("Unhandled type in check_expression: %s", node.type.str())
             exit(1)
         }
