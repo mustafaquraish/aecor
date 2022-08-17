@@ -80,30 +80,31 @@ def Type::is_numeric(&this): bool {
 def Type::eq(&this, other: &Type): bool {
     if (this == null and other == null) return true
     if (this == null or other == null) return false
-
     if .base != other.base return false
-    if .base == BaseType::Method return false
 
-    if .base == BaseType::Function {
-        if not .return_type.eq(other.return_type) return false
-        if .params.size != other.params.size return false
-        for let i = 0; i < .params.size; i += 1 {
-            let a = .params.at(i) as &Type
-            let b = other.params.at(i) as &Type
-            if not a.eq(b) return false
-        }
-        return true
-    }
-
-    if .base == BaseType::Structure return .name.eq(other.name)
-    if .base == BaseType::Pointer {
-        // EXPERIMENTAL: `untyped_ptr` is equivalent to any pointer type.
-        if .ptr.base == BaseType::Void or other.ptr.base == BaseType::Void {
+    match .base {
+        // Not _technically_ right, but we shouldn't really ever be comparing these.
+        Method | Array => return false
+        Function => {
+            if not .return_type.eq(other.return_type) return false
+            if .params.size != other.params.size return false
+            for let i = 0; i < .params.size; i += 1 {
+                let a = .params.at(i) as &Type
+                let b = other.params.at(i) as &Type
+                if not a.eq(b) return false
+            }
             return true
         }
-        return .ptr.eq(other.ptr)
+        Structure => return .name.eq(other.name)
+        Pointer => {
+            // EXPERIMENTAL: `untyped_ptr` is equivalent to any pointer type.
+            if .ptr.base == BaseType::Void or other.ptr.base == BaseType::Void {
+                return true
+            }
+            return .ptr.eq(other.ptr)
+        }
+        U8 | I32 | F32 | Bool | Char | Void => return true
     }
-    return true
 }
 
 def Type::str(&this): string {
@@ -120,18 +121,6 @@ def Type::str(&this): string {
         Function => "<function>"
         Method => "<method>"
     }
-}
-
-def Type::reverse(&this): &Type {
-    let rev = null as &Type
-    let cur = this
-    while cur? {
-        let tmp = cur.ptr
-        cur.ptr = rev
-        rev = cur
-        cur = tmp
-    }
-    return rev
 }
 
 def Type::is_string(&this): bool {

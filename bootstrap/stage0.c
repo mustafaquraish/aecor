@@ -531,7 +531,6 @@ bool Type__is_struct_or_ptr(Type* this);
 bool Type__is_numeric(Type* this);
 bool Type__eq(Type* this, Type* other);
 char* Type__str(Type* this);
-Type* Type__reverse(Type* this);
 bool Type__is_string(Type* this);
 Type* Type__decay_array(Type* this);
 char* ASTType__str(ASTType this);
@@ -560,6 +559,7 @@ bool Parser__token_is(Parser* this, TokenType type);
 bool Parser__consume_if(Parser* this, TokenType type);
 void Parser__consume_newline_or(Parser* this, TokenType type);
 Token* Parser__consume(Parser* this, TokenType type);
+Type* Parser__parse_type_with_parent(Parser* this, Type* parent);
 Type* Parser__parse_type(Parser* this);
 AST* Parser__parse_format_string(Parser* this);
 AST* Parser__parse_factor(Parser* this, TokenType end_type);
@@ -1846,35 +1846,45 @@ bool Type__eq(Type* this, Type* other) {
   if ((this->base != other->base)) 
   return false;
   
-  if (this->base == BaseType__Method) 
-  return false;
-  
-  if (this->base == BaseType__Function) {
-    if ((!Type__eq(this->return_type, other->return_type))) 
-    return false;
-    
-    if ((this->params->size != other->params->size)) 
-    return false;
-    
-    for (int i = 0; (i < this->params->size); i += 1) {
-      Type* a = ((Type*)Vector__at(this->params, i));
-      Type* b = ((Type*)Vector__at(other->params, i));
-      if ((!Type__eq(a, b))) 
+  switch (this->base) {
+    case BaseType__Method:
+    case BaseType__Array: {
+      return false;
+    } break;
+    case BaseType__Function: {
+      if ((!Type__eq(this->return_type, other->return_type))) 
       return false;
       
-    } 
-    return true;
-  } 
-  if (this->base == BaseType__Structure) 
-  return string__eq(this->name, other->name);
-  
-  if (this->base == BaseType__Pointer) {
-    if ((this->ptr->base == BaseType__Void || other->ptr->base == BaseType__Void)) {
+      if ((this->params->size != other->params->size)) 
+      return false;
+      
+      for (int i = 0; (i < this->params->size); i += 1) {
+        Type* a = ((Type*)Vector__at(this->params, i));
+        Type* b = ((Type*)Vector__at(other->params, i));
+        if ((!Type__eq(a, b))) 
+        return false;
+        
+      } 
       return true;
-    } 
-    return Type__eq(this->ptr, other->ptr);
-  } 
-  return true;
+    } break;
+    case BaseType__Structure: {
+      return string__eq(this->name, other->name);
+    } break;
+    case BaseType__Pointer: {
+      if ((this->ptr->base == BaseType__Void || other->ptr->base == BaseType__Void)) {
+        return true;
+      } 
+      return Type__eq(this->ptr, other->ptr);
+    } break;
+    case BaseType__U8:
+    case BaseType__I32:
+    case BaseType__F32:
+    case BaseType__Bool:
+    case BaseType__Char:
+    case BaseType__Void: {
+      return true;
+    } break;
+  }
 }
 
 char* Type__str(Type* this) {
@@ -1915,18 +1925,6 @@ char* Type__str(Type* this) {
 } break;
   }
 ;__yield_0; });
-}
-
-Type* Type__reverse(Type* this) {
-  Type* rev = ((Type*)NULL);
-  Type* cur = this;
-  while (((bool)cur)) {
-    Type* tmp = cur->ptr;
-    cur->ptr = rev;
-    rev = cur;
-    cur = tmp;
-  } 
-  return rev;
 }
 
 bool Type__is_string(Type* this) {
@@ -2362,51 +2360,46 @@ Token* Parser__consume(Parser* this, TokenType type) {
   return tok;
 }
 
-Type* Parser__parse_type(Parser* this) {
+Type* Parser__parse_type_with_parent(Parser* this, Type* parent) {
   Type* type = ((Type*)NULL);
-  Span start_span = Parser__token(this)->span;
-  while (true) {
-    if (Parser__token_is(this, TokenType__Ampersand)) {
-      type = Type__new_link(BaseType__Pointer, type, Parser__token(this)->span);
-      this->curr += 1;
-    }  else {
-      break;
-    } 
-  } 
+  Span span = Parser__token(this)->span;
   switch (Parser__token(this)->type) {
+    case TokenType__Ampersand: {
+      type = Type__new(BaseType__Pointer, span);
+      this->curr += 1;
+      Parser__parse_type_with_parent(this, type);
+    } break;
     case TokenType__I32: {
-      type = Type__new_link(BaseType__I32, type, Span__join(start_span, Parser__token(this)->span));
+      type = Type__new(BaseType__I32, span);
       this->curr += 1;
     } break;
     case TokenType__Bool: {
-      type = Type__new_link(BaseType__Bool, type, Span__join(start_span, Parser__token(this)->span));
+      type = Type__new(BaseType__Bool, span);
       this->curr += 1;
     } break;
     case TokenType__Char: {
-      type = Type__new_link(BaseType__Char, type, Span__join(start_span, Parser__token(this)->span));
+      type = Type__new(BaseType__Char, span);
       this->curr += 1;
     } break;
     case TokenType__U8: {
-      type = Type__new_link(BaseType__U8, type, Span__join(start_span, Parser__token(this)->span));
+      type = Type__new(BaseType__U8, span);
       this->curr += 1;
     } break;
     case TokenType__F32: {
-      type = Type__new_link(BaseType__F32, type, Span__join(start_span, Parser__token(this)->span));
+      type = Type__new(BaseType__F32, span);
       this->curr += 1;
     } break;
     case TokenType__String: {
-      Span span = Span__join(start_span, Parser__token(this)->span);
-      type = Type__new_link(BaseType__Char, Type__new_link(BaseType__Pointer, type, span), span);
+      type = Type__ptr_to(BaseType__Char, span);
       type->ptr->name = "string";
       this->curr += 1;
     } break;
     case TokenType__UntypedPtr: {
-      Span span = Span__join(start_span, Parser__token(this)->span);
-      type = Type__new_link(BaseType__Void, Type__new_link(BaseType__Pointer, type, span), span);
+      type = Type__ptr_to(BaseType__Void, span);
       this->curr += 1;
     } break;
     case TokenType__Identifier: {
-      type = Type__new_link(BaseType__Structure, type, Span__join(start_span, Parser__token(this)->span));
+      type = Type__new(BaseType__Structure, span);
       type->name = Parser__consume(this, TokenType__Identifier)->text;
     } break;
     case TokenType__Fn: {
@@ -2426,27 +2419,32 @@ Type* Parser__parse_type(Parser* this) {
       }  else {
         return_type = Type__new(BaseType__Void, Parser__token(this)->span);
       } 
-      type = Type__new_link(BaseType__Function, type, Span__join(start_span, Parser__token(this)->span));
+      type = Type__new(BaseType__Function, Span__join(span, Parser__token(this)->span));
       type->params = params;
       type->return_type = return_type;
+    } break;
+    case TokenType__OpenSquare: {
+      Parser__consume(this, TokenType__OpenSquare);
+      type = Type__new(BaseType__Array, span);
+      Parser__parse_type_with_parent(this, type);
+      Parser__consume(this, TokenType__Semicolon);
+      type->size_expr = Parser__parse_expression(this, TokenType__CloseSquare);
+      type->span = Span__join(type->span, Parser__token(this)->span);
+      Parser__consume(this, TokenType__CloseSquare);
     } break;
     default: {
       Parser__unhandled_type(this, "parse_type");
     } break;
   }
-  type = Type__reverse(type);
-  while (true) {
-    if (Parser__token_is(this, TokenType__OpenSquare)) {
-      Parser__consume(this, TokenType__OpenSquare);
-      AST* size = Parser__parse_expression(this, TokenType__CloseSquare);
-      type = Type__new_link(BaseType__Array, type, Span__join(start_span, Parser__token(this)->span));
-      Parser__consume(this, TokenType__CloseSquare);
-      type->size_expr = size;
-    }  else {
-      break;
-    } 
+  if (((bool)parent)) {
+    parent->ptr = type;
+    parent->span = Span__join(parent->span, type->span);
   } 
   return type;
+}
+
+Type* Parser__parse_type(Parser* this) {
+  return Parser__parse_type_with_parent(this, NULL);
 }
 
 AST* Parser__parse_format_string(Parser* this) {
@@ -2454,8 +2452,6 @@ AST* Parser__parse_format_string(Parser* this) {
   int fstr_len = strlen(fstr->text);
   Vector* expr_parts = Vector__new();
   Vector* expr_start = Vector__new();
-  ;
-  ;
   Vector* format_parts = Vector__new();
   int count = 0;
   int cur_start = 0;
@@ -2503,11 +2499,9 @@ AST* Parser__parse_format_string(Parser* this) {
     Vector__push(expr_nodes, expr);
   } 
   node->u.fmt_str.exprs = expr_nodes;
-  return node;
-
-  /* defers */
-  Vector__free(expr_start);
   Vector__free(expr_parts);
+  Vector__free(expr_start);
+  return node;
 }
 
 AST* Parser__parse_factor(Parser* this, TokenType end_type) {
@@ -3317,7 +3311,8 @@ bool TypeChecker__type_is_valid(TypeChecker* this, Type* type) {
     case BaseType__Pointer: {
       return TypeChecker__type_is_valid(this, type->ptr);
     } break;
-    case BaseType__Function: {
+    case BaseType__Function:
+    case BaseType__Method: {
       for (int i = 0; (i < type->params->size); i += 1) {
         if ((!TypeChecker__type_is_valid(this, ((Type*)Vector__at(type->params, i))))) {
           return false;
@@ -3333,7 +3328,16 @@ bool TypeChecker__type_is_valid(TypeChecker* this, Type* type) {
       } 
       return false;
     } break;
-    default: {
+    case BaseType__Array: {
+      Type* expr_type = TypeChecker__check_expression(this, type->size_expr);
+      return (TypeChecker__type_is_valid(this, type->ptr) && TypeChecker__type_is_valid(this, expr_type));
+    } break;
+    case BaseType__Char:
+    case BaseType__I32:
+    case BaseType__F32:
+    case BaseType__Bool:
+    case BaseType__U8:
+    case BaseType__Void: {
       return true;
     } break;
   }

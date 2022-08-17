@@ -66,8 +66,8 @@ def TypeChecker::get_struct_member(&this, lhs: string, rhs: string): &Variable {
 
 def TypeChecker::type_is_valid(&this, type: &Type): bool {
     match type.base {
-        BaseType::Pointer => return .type_is_valid(type.ptr)
-        BaseType::Function => {
+        Pointer => return .type_is_valid(type.ptr)
+        Function | Method => {
             for let i = 0; i < type.params.size; i += 1 {
                 if not .type_is_valid(type.params.at(i) as &Type) {
                     return false
@@ -75,7 +75,7 @@ def TypeChecker::type_is_valid(&this, type: &Type): bool {
             }
             return .type_is_valid(type.return_type)
         }
-        BaseType::Structure => {
+        Structure => {
             let struc = .structures.get(type.name) as &Structure
             if struc? {
                 type.struct_def = struc
@@ -83,7 +83,11 @@ def TypeChecker::type_is_valid(&this, type: &Type): bool {
             }
             return false
         }
-        else => return true
+        Array => {
+            let expr_type = .check_expression(type.size_expr)
+            return .type_is_valid(type.ptr) and .type_is_valid(expr_type)
+        }
+        Char | I32 | F32 | Bool | U8 | Void => return true
     }
 }
 

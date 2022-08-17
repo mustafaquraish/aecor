@@ -7,7 +7,7 @@ def add_one(a: &i32) {
 }
 
 def main() {
-    let y: i32[3][3]
+    let y: [[i32; 3]; 3]
     y[1][0] = 1
     y[1][1] = 2
     y[1][2] = 3

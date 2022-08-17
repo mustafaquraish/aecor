@@ -113,53 +113,47 @@ def Parser::consume(&this, type: TokenType): &Token {
 }
 
 
-def Parser::parse_type(&this): &Type {
+def Parser::parse_type_with_parent(&this, parent: &Type): &Type {
     let type = null as &Type
-    let start_span = .token().span
-
-    while true {
-        if .token_is(TokenType::Ampersand) {
-            type = Type::new_link(BaseType::Pointer, type, .token().span)
-            .curr += 1
-        } else {
-            break
-        }
-    }
+    let span = .token().span
 
     match .token().type {
+        TokenType::Ampersand => {
+            type = Type::new(BaseType::Pointer, span)
+            .curr += 1
+            .parse_type_with_parent(type)
+        }
         TokenType::I32 => {
-            type = Type::new_link(BaseType::I32, type, start_span.join(.token().span))
+            type = Type::new(BaseType::I32, span)
             .curr += 1
         }
         TokenType::Bool => {
-            type = Type::new_link(BaseType::Bool, type, start_span.join(.token().span))
+            type = Type::new(BaseType::Bool, span)
             .curr += 1
         }
         TokenType::Char => {
-            type = Type::new_link(BaseType::Char, type, start_span.join(.token().span))
+            type = Type::new(BaseType::Char, span)
             .curr += 1
         }
         TokenType::U8 => {
-            type = Type::new_link(BaseType::U8, type, start_span.join(.token().span))
+            type = Type::new(BaseType::U8, span)
             .curr += 1
         }
         TokenType::F32 => {
-            type = Type::new_link(BaseType::F32, type, start_span.join(.token().span))
+            type = Type::new(BaseType::F32, span)
             .curr += 1
         }
         TokenType::String => {
-            let span = start_span.join(.token().span)
-            type = Type::new_link(BaseType::Char, Type::new_link(BaseType::Pointer, type, span), span)
+            type = Type::ptr_to(BaseType::Char, span)
             type.ptr.name = "string"
             .curr += 1
         }
         TokenType::UntypedPtr => {
-            let span = start_span.join(.token().span)
-            type = Type::new_link(BaseType::Void, Type::new_link(BaseType::Pointer, type, span),span)
+            type = Type::ptr_to(BaseType::Void, span)
             .curr += 1
         }
         TokenType::Identifier => {
-            type = Type::new_link(BaseType::Structure, type, start_span.join(.token().span))
+            type = Type::new(BaseType::Structure, span)
             type.name = .consume(TokenType::Identifier).text
         }
         TokenType::Fn => {
@@ -179,28 +173,34 @@ def Parser::parse_type(&this): &Type {
             } else {
                 return_type = Type::new(BaseType::Void, .token().span)
             }
-            type = Type::new_link(BaseType::Function, type, start_span.join(.token().span))
+            type = Type::new(BaseType::Function, span.join(.token().span))
             type.params = params
             type.return_type = return_type
+        }
+        TokenType::OpenSquare => {
+            .consume(TokenType::OpenSquare)
+
+            type = Type::new(BaseType::Array, span)
+            .parse_type_with_parent(type)
+
+            .consume(TokenType::Semicolon)
+            type.size_expr = .parse_expression(TokenType::CloseSquare)
+
+            type.span = type.span.join(.token().span)
+            .consume(TokenType::CloseSquare)
         }
         else => .unhandled_type("parse_type")
     }
 
-    type = type.reverse()
-
-    while true {
-        if .token_is(TokenType::OpenSquare) {
-            .consume(TokenType::OpenSquare)
-            let size = .parse_expression(TokenType::CloseSquare)
-            type = Type::new_link(BaseType::Array, type, start_span.join(.token().span))
-            .consume(TokenType::CloseSquare)
-            type.size_expr = size
-        } else {
-            break
-        }
+    if parent? {
+        parent.ptr = type
+        parent.span = parent.span.join(type.span)
     }
-
     return type
+}
+
+def Parser::parse_type(&this): &Type {
+    return .parse_type_with_parent(null)
 }
 
 def Parser::parse_format_string(&this): &AST {
@@ -209,8 +209,6 @@ def Parser::parse_format_string(&this): &AST {
 
     let expr_parts = Vector::new()    // Vector<string>
     let expr_start = Vector::new()    // Vector<i32>
-    defer expr_parts.free()
-    defer expr_start.free()
 
     let format_parts = Vector::new()  // Vector<string>
     let count = 0
@@ -264,6 +262,8 @@ def Parser::parse_format_string(&this): &AST {
         expr_nodes.push(expr)
     }
     node.u.fmt_str.exprs = expr_nodes
+    expr_parts.free()
+    expr_start.free()
     return node
 }
 
