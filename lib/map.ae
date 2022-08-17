@@ -1,5 +1,7 @@
 // A simple hash-map that maps strings to arbitrary objects.
 
+use "lib/vector.ae"
+
 struct MapNode {
     key: string
     value: untyped_ptr
@@ -122,6 +124,16 @@ def Map::print_keys(&this) {
         let node = .buckets[i]
         while node? {
             println("- '%s'\n", node.key)
+            node = node.next
+        }
+    }
+}
+
+def Map::push_keys(&this, vec: &Vector) {
+    for let i = 0; i < .num_buckets; i += 1 {
+        let node = .buckets[i]
+        while node? {
+            vec.push(node.key)
             node = node.next
         }
     }

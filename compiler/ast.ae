@@ -292,6 +292,7 @@ struct FuncCall {
 struct Member {
     lhs: &AST
     name: string
+    name_span: Span
     is_method: bool
     is_pointer: bool
 }

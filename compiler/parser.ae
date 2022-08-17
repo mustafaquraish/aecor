@@ -298,6 +298,7 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
             node = AST::new(ASTType::Member, lhs.span.join(rhs.span))
             node.u.member.lhs = lhs
             node.u.member.name = rhs.text
+            node.u.member.name_span = rhs.span
         }
         TokenType::Minus => {
             let op = .consume(TokenType::Minus)
@@ -380,6 +381,7 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
                 let member = AST::new(ASTType::Member, node.span.join(name.span))
                 member.u.member.lhs = node
                 member.u.member.name = name.text
+                member.u.member.name_span = name.span
                 node = member
             }
             TokenType::ColonColon => {

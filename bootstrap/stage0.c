@@ -344,6 +344,7 @@ struct FuncCall {
 struct Member {
   AST* lhs;
   char* name;
+  Span name_span;
   bool is_method;
   bool is_pointer;
 };
@@ -462,6 +463,7 @@ void File__puts(FILE* this, char* str);
 bool string__starts_with(char* this, char* prefix);
 bool string__eq(char* this, char* str2);
 char* string__substring(char* this, int start, int len);
+Vector* Vector__new_sized(int capacity);
 Vector* Vector__new();
 void Vector__resize(Vector* this, int new_capacity);
 void Vector__push(Vector* this, void* val);
@@ -499,6 +501,7 @@ bool Map__exists(Map* this, char* key);
 void Map__insert(Map* this, char* key, void* value);
 void Map__resize(Map* this);
 void Map__print_keys(Map* this);
+void Map__push_keys(Map* this, Vector* vec);
 void Map__free(Map* this);
 Type* Type__new(BaseType base, Span span);
 Type* Type__new_link(BaseType base, Type* next, Span span);
@@ -531,6 +534,8 @@ float clampf(float x, float min, float max);
 float clamp01(float x);
 float degrees(float radians);
 float radians(float degrees);
+int edit_distance(char* str1, char* str2);
+char* find_word_suggestion(char* s, Vector* options);
 char* MessageType__to_color(MessageType this);
 char* MessageType__str(MessageType this);
 void display_message(MessageType type, Span span, char* msg);
@@ -589,6 +594,7 @@ void TypeChecker__check_method_call(TypeChecker* this, Type* method_type, AST* n
 Type* TypeChecker__check_call(TypeChecker* this, AST* node);
 Type* TypeChecker__check_format_string(TypeChecker* this, AST* node);
 Type* TypeChecker__check_pointer_arith(TypeChecker* this, AST* node, Type* lhs, Type* rhs);
+__attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker* this, Span span, char* name);
 Type* TypeChecker__check_expression(TypeChecker* this, AST* node);
 void TypeChecker__check_expression_statement(TypeChecker* this, AST* node, AST* body, bool is_expr);
 void TypeChecker__check_match_for_enum(TypeChecker* this, Structure* struc, AST* node, bool is_expr);
@@ -687,12 +693,16 @@ char* string__substring(char* this, int start, int len) {
   return new_str;
 }
 
-Vector* Vector__new() {
+Vector* Vector__new_sized(int capacity) {
   Vector* vec = ((Vector*)calloc(1, sizeof(Vector)));
   vec->size = 0;
-  vec->capacity = 16;
+  vec->capacity = capacity;
   vec->data = ((void**)calloc(vec->capacity, sizeof(void*)));
   return vec;
+}
+
+Vector* Vector__new() {
+  return Vector__new_sized(16);
 }
 
 void Vector__resize(Vector* this, int new_capacity) {
@@ -1525,6 +1535,16 @@ void Map__print_keys(Map* this) {
   } 
 }
 
+void Map__push_keys(Map* this, Vector* vec) {
+  for (int i = 0; (i < this->num_buckets); i += 1) {
+    MapNode* node = this->buckets[i];
+    while (((bool)node)) {
+      Vector__push(vec, node->key);
+      node = node->next;
+    } 
+  } 
+}
+
 void Map__free(Map* this) {
   for (int i = 0; (i < this->num_buckets); i += 1) {
     MapNode__free_list(this->buckets[i]);
@@ -2047,6 +2067,56 @@ float radians(float degrees) {
   return ((degrees * M_PI) / 180.0);
 }
 
+int edit_distance(char* str1, char* str2) {
+  int n = strlen(str1);
+  int m = strlen(str2);
+  int stride = (m + 1);
+  int* d = ((int*)calloc(((n + 1) * (m + 1)), sizeof(int)));
+  for (int i = 0; (i <= n); i += 1) {
+    d[(i * stride)] = i;
+  } 
+  for (int j = 0; (j <= m); j += 1) {
+    d[j] = j;
+  } 
+  for (int i = 1; (i <= n); i += 1) {
+    for (int j = 1; (j <= m); j += 1) {
+      int x = (d[(((i - 1) * stride) + j)] + 1);
+      int y = (d[(((i * stride) + j) - 1)] + 1);
+      int z;
+      if (str1[(i - 1)] == str2[(j - 1)]) {
+        z = d[((((i - 1) * stride) + j) - 1)];
+      }  else {
+        z = (d[((((i - 1) * stride) + j) - 1)] + 1);
+      } 
+      d[((i * stride) + j)] = min(x, min(y, z));
+    } 
+  } 
+  int result = d[((n * stride) + m)];
+  free(d);
+  return result;
+}
+
+char* find_word_suggestion(char* s, Vector* options) {
+  int threshold = 5;
+  if (options->size == 0) 
+  return NULL;
+  
+  char* closest = ((char*)Vector__at(options, 0));
+  int closest_distance = edit_distance(s, closest);
+  for (int i = 1; (i < options->size); i += 1) {
+    char* option = ((char*)Vector__at(options, i));
+    int distance = edit_distance(s, option);
+    if ((distance < closest_distance)) {
+      closest = option;
+      closest_distance = distance;
+    } 
+  } 
+  if ((closest_distance > threshold)) 
+  return NULL;
+  
+  return closest;
+}
+
 char* MessageType__to_color(MessageType this) {
   return ({ char* __yield_0;
   switch (this) {
@@ -2419,6 +2489,7 @@ AST* Parser__parse_factor(Parser* this, TokenType end_type) {
       node = AST__new(ASTType__Member, Span__join(lhs->span, rhs->span));
       node->u.member.lhs = lhs;
       node->u.member.name = rhs->text;
+      node->u.member.name_span = rhs->span;
     } break;
     case TokenType__Minus: {
       Token* op = Parser__consume(this, TokenType__Minus);
@@ -2505,6 +2576,7 @@ AST* Parser__parse_factor(Parser* this, TokenType end_type) {
         AST* member = AST__new(ASTType__Member, Span__join(node->span, name->span));
         member->u.member.lhs = node;
         member->u.member.name = name->text;
+        member->u.member.name_span = name->span;
         node = member;
       } break;
       case TokenType__ColonColon: {
@@ -3336,6 +3408,21 @@ Type* TypeChecker__check_pointer_arith(TypeChecker* this, AST* node, Type* lhs, 
   return ((Type*)NULL);
 }
 
+__attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker* this, Span span, char* name) {
+  Vector* options = Vector__new();
+  for (int i = 0; (i < this->scopes->size); i += 1) {
+    Map* scope = ((Map*)Vector__at(this->scopes, i));
+    Map__push_keys(scope, options);
+  } 
+  Map__push_keys(this->functions, options);
+  char* suggestion = find_word_suggestion(name, options);
+  if (((bool)suggestion)) {
+    error_span_note(span, "Unknown Identifier", format_string("Possible alternative: \x1b[32m%s\x1b[0m", suggestion));
+  }  else {
+    error_span(span, "Unknown Identifier");
+  } 
+}
+
 Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
   Type* etype = ((Type*)NULL);
   switch (node->type) {
@@ -3384,7 +3471,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
         ident->func = func;
         etype = func->type;
       }  else {
-        error_span(node->span, "Unknown Identifier");
+        TypeChecker__error_unknown_identifier(this, node->span, ident->name);
       } 
       
       
@@ -3559,7 +3646,7 @@ Type* TypeChecker__check_expression(TypeChecker* this, AST* node) {
         } 
         etype = method->type;
       }  else {
-        error_span_note(node->span, "Type has no member with this name", format_string("LHS type is '%s'", Type__str(struct_type)));
+        error_span_note_span(node->u.member.name_span, "Type has no member with this name", node->u.member.lhs->span, format_string("LHS type is '%s'", Type__str(struct_type)));
       } 
       
     } break;

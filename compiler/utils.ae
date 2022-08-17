@@ -3,6 +3,59 @@ use "@/tokens.ae"
 
 def strsep(s: &string, delim: string): string extern
 
+def edit_distance(str1: string, str2: string): i32 {
+    let n = str1.len()
+    let m = str2.len()
+    let stride = m + 1
+
+    let d = calloc((n + 1) * (m + 1), sizeof(i32)) as &i32
+
+    for let i = 0; i <= n; i += 1 {
+        d[i * stride] = i
+    }
+    for let j = 0; j <= m; j += 1 {
+        d[j] = j
+    }
+    for let i = 1; i <= n; i += 1 {
+        for let j = 1; j <= m; j += 1 {
+            let x = d[(i - 1) * stride + j] + 1
+            let y = d[i * stride + j - 1] + 1
+            let z: i32
+            if str1[i - 1] == str2[j - 1] {
+                z = d[(i - 1) * stride + j - 1]
+            } else {
+                z = d[(i - 1) * stride + j - 1] + 1
+            }
+            d[i * stride + j] = min(x, min(y, z))
+        }
+    }
+    let result = d[n * stride + m]
+    free(d)
+    return result
+}
+
+def find_word_suggestion(s: string, options: &Vector): string {
+    let threshold = 5 // edit distance threshold
+
+    if options.size == 0 return null
+
+    let closest = options.at(0) as string
+    let closest_distance = edit_distance(s, closest)
+
+    for let i = 1; i < options.size; i += 1 {
+        let option = options.at(i) as string
+        let distance = edit_distance(s, option)
+        if distance < closest_distance {
+            closest = option
+            closest_distance = distance
+        }
+    }
+    if closest_distance > threshold return null
+    return closest
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 enum MessageType {
     Error
     Warning

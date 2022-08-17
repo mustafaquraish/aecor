@@ -235,6 +235,25 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, lhs: &Type, rhs: &Type):
     return null as &Type
 }
 
+def TypeChecker::error_unknown_identifier(&this, span: Span, name: string) exits {
+    let options = Vector::new()
+    for let i = 0; i < .scopes.size; i += 1 {
+        let scope = .scopes.at(i) as &Map
+        scope.push_keys(options)
+    }
+    .functions.push_keys(options)
+
+    let suggestion = find_word_suggestion(name, options)
+    if suggestion? {
+        error_span_note(
+            span, "Unknown Identifier",
+            `Possible alternative: \x1b[32m{suggestion}\x1b[0m`
+        )
+    } else {
+        error_span(span, "Unknown Identifier")
+    }
+}
+
 def TypeChecker::check_expression(&this, node: &AST): &Type {
     let etype = null as &Type
     match node.type {
@@ -268,7 +287,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 ident.func = func
                 etype = func.type
             } else {
-                error_span(node.span, "Unknown Identifier")
+                .error_unknown_identifier(node.span, ident.name)
             }
         }
         Plus | Minus | Multiply | Divide => {
@@ -485,9 +504,9 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 }
                 etype = method.type
             } else {
-                error_span_note(
-                    node.span, "Type has no member with this name",
-                    `LHS type is '{struct_type.str()}'`
+                error_span_note_span(
+                    node.u.member.name_span, "Type has no member with this name",
+                    node.u.member.lhs.span, `LHS type is '{struct_type.str()}'`
                 )
             }
         }
