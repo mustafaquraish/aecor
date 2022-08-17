@@ -8,29 +8,29 @@ def edit_distance(str1: string, str2: string): i32 {
     let m = str2.len()
     let stride = m + 1
 
-    let d = calloc((n + 1) * (m + 1), sizeof(i32)) as &i32
+    // The stack _should_ be large enough to hold the entire matrix.
+    let d: [[i32; m + 1]; n + 1]
 
     for let i = 0; i <= n; i += 1 {
-        d[i * stride] = i
+        d[i][0] = i
     }
     for let j = 0; j <= m; j += 1 {
-        d[j] = j
+        d[0][j] = j
     }
     for let i = 1; i <= n; i += 1 {
         for let j = 1; j <= m; j += 1 {
-            let x = d[(i - 1) * stride + j] + 1
-            let y = d[i * stride + j - 1] + 1
+            let x = d[i - 1][j] + 1
+            let y = d[i][j - 1] + 1
             let z: i32
             if str1[i - 1] == str2[j - 1] {
-                z = d[(i - 1) * stride + j - 1]
+                z = d[i - 1][j - 1]
             } else {
-                z = d[(i - 1) * stride + j - 1] + 1
+                z = d[i - 1][j - 1] + 1
             }
-            d[i * stride + j] = min(x, min(y, z))
+            d[i][j] = min(x, min(y, z))
         }
     }
-    let result = d[n * stride + m]
-    free(d)
+    let result = d[n][m]
     return result
 }
 

@@ -1193,28 +1193,27 @@ int edit_distance(char* str1, char* str2) {
   int n = strlen(str1);
   int m = strlen(str2);
   int stride = (m + 1);
-  int* d = ((int*)calloc(((n + 1) * (m + 1)), sizeof(int)));
+  int d[(m + 1)][(n + 1)];
   for (int i = 0; (i <= n); i += 1) {
-    d[(i * stride)] = i;
+    d[i][0] = i;
   } 
   for (int j = 0; (j <= m); j += 1) {
-    d[j] = j;
+    d[0][j] = j;
   } 
   for (int i = 1; (i <= n); i += 1) {
     for (int j = 1; (j <= m); j += 1) {
-      int x = (d[(((i - 1) * stride) + j)] + 1);
-      int y = (d[(((i * stride) + j) - 1)] + 1);
+      int x = (d[(i - 1)][j] + 1);
+      int y = (d[i][(j - 1)] + 1);
       int z;
       if (str1[(i - 1)] == str2[(j - 1)]) {
-        z = d[((((i - 1) * stride) + j) - 1)];
+        z = d[(i - 1)][(j - 1)];
       }  else {
-        z = (d[((((i - 1) * stride) + j) - 1)] + 1);
+        z = (d[(i - 1)][(j - 1)] + 1);
       } 
-      d[((i * stride) + j)] = min(x, min(y, z));
+      d[i][j] = min(x, min(y, z));
     } 
   } 
-  int result = d[((n * stride) + m)];
-  free(d);
+  int result = d[n][m];
   return result;
 }
 
