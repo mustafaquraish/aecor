@@ -145,3 +145,46 @@ def Map::free(&this) {
     }
     free(.buckets)
 }
+
+def Map::iter(&this): MapIterator {
+    return MapIterator::make(this)
+}
+
+struct MapIterator {
+    idx: i32
+    cur: &MapNode
+    map: &Map
+}
+
+def MapIterator::key(&this): string {
+    return .cur.key
+}
+
+def MapIterator::value(&this): untyped_ptr {
+    return .cur.value
+}
+
+def MapIterator::make(map: &Map): MapIterator {
+    let it: MapIterator
+    it.map = map
+    it.idx = -1
+    it.cur = null
+    it.next()
+    return it
+}
+
+def MapIterator::next(&this) {
+    while .idx < .map.num_buckets {
+        while .cur? {
+            .cur = .cur.next
+            if .cur? return
+        }
+        .idx += 1
+        .cur = if .idx < .map.num_buckets {
+            yield .map.buckets[.idx]
+        } else {
+            yield null
+        }
+        if .cur? return
+    }
+}
