@@ -10,17 +10,17 @@
 
 /***************** embed './lib/prelude.h' *****************/
 #include "stdarg.h"
-#include "stddef.h"
-#include "stdio.h"
-#include "stdlib.h"
-
 char* format_string(const char* format, ...) {
   va_list args;
   va_start(args, format);
-  char *formatted;
-  vasprintf(&formatted, format, args);
+  int size = vsnprintf(NULL, 0, format, args);
   va_end(args);
-  return formatted;
+  va_start(args, format);
+  char* s = calloc(1, size + 1);
+  vsprintf(s, format, args);
+  s[size] = '\0';
+  va_end(args);
+  return s;
 }
 
 
@@ -476,7 +476,7 @@ void string__strip_trailing_whitespace(char *this);
 int min(int a, int b);
 int max(int a, int b);
 Vector *Vector__new_sized(int capacity);
-Vector *Vector__new();
+Vector *Vector__new(void);
 void Vector__resize(Vector *this, int new_capacity);
 void Vector__push(Vector *this, void *val);
 void Vector__push_front(Vector *this, void *val);
@@ -521,7 +521,7 @@ void Lexer__lex_string_literal(Lexer *this);
 Vector *Lexer__lex(Lexer *this);
 MapNode *MapNode__new(char *key, void *value, MapNode *next);
 void MapNode__free_list(MapNode *node);
-Map *Map__new();
+Map *Map__new(void);
 int Map__hash(Map *this, char *s);
 MapNode *Map__get_node(Map *this, char *key);
 void *Map__get(Map *this, char *key);
@@ -547,7 +547,7 @@ Variable *Variable__new(char *name, Type *type, Span span);
 Function *Function__new(Span span);
 Structure *Structure__new(Span span);
 Variable *Structure__find_field(Structure *this, char *name);
-Program *Program__new();
+Program *Program__new(void);
 bool Program__is_file_included(Program *this, char *filename);
 void Program__add_included_file(Program *this, char *filename);
 MatchCase *MatchCase__new(AST *cond, AST *body);
@@ -594,7 +594,7 @@ void Parser__parse_use(Parser *this, Program *program);
 void Parser__parse_compiler_option(Parser *this, Program *program);
 void Parser__parse_into_program(Parser *this, Program *program);
 Program *Parser__parse_program(Parser *this);
-TypeChecker *TypeChecker__new();
+TypeChecker *TypeChecker__new(void);
 void TypeChecker__push_scope(TypeChecker *this);
 Map *TypeChecker__scope(TypeChecker *this);
 void TypeChecker__pop_scope(TypeChecker *this);
@@ -619,7 +619,7 @@ void TypeChecker__check_all_functions(TypeChecker *this, Program *program);
 void TypeChecker__dfs_structs(TypeChecker *this, Structure *struc, Vector *results, Map *done);
 void TypeChecker__check_all_structs(TypeChecker *this, Program *program);
 void TypeChecker__check_program(TypeChecker *this, Program *program);
-StringBuilder StringBuilder__make();
+StringBuilder StringBuilder__make(void);
 void StringBuilder__puts(StringBuilder *this, char *s);
 void StringBuilder__putsf(StringBuilder *this, char *s);
 char *StringBuilder__str(StringBuilder *this);
@@ -646,7 +646,7 @@ void CodeGenerator__gen_statement(CodeGenerator *this, AST *node, int indent);
 void CodeGenerator__gen_block(CodeGenerator *this, AST *node, int indent);
 void CodeGenerator__gen_struct_decls(CodeGenerator *this, Program *program);
 void string__replace(char **this, char *other);
-char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char *name);
+char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char *name, bool is_func_def);
 void CodeGenerator__gen_type_and_name(CodeGenerator *this, Type *type, char *name);
 void CodeGenerator__gen_type(CodeGenerator *this, Type *type);
 char *CodeGenerator__get_function_name(CodeGenerator *this, Function *func);
@@ -737,7 +737,7 @@ Vector *Vector__new_sized(int capacity) {
   return vec;
 }
 
-Vector *Vector__new() {
+Vector *Vector__new(void) {
   return Vector__new_sized(16);
 }
 
@@ -1662,7 +1662,7 @@ void MapNode__free_list(MapNode *node) {
   } 
 }
 
-Map *Map__new() {
+Map *Map__new(void) {
   Map *map = ((Map *)calloc(1, sizeof(Map)));
   map->num_buckets = 4;
   map->buckets = ((MapNode **)calloc(map->num_buckets, sizeof(MapNode *)));
@@ -1876,9 +1876,9 @@ bool Type__eq(Type *this, Type *other) {
       return false;
       
       for (int i = 0; (i < this->params->size); i += 1) {
-        Type *a = ((Type *)Vector__at(this->params, i));
-        Type *b = ((Type *)Vector__at(other->params, i));
-        if ((!Type__eq(a, b))) 
+        Variable *a = ((Variable *)Vector__at(this->params, i));
+        Variable *b = ((Variable *)Vector__at(other->params, i));
+        if ((!Type__eq(a->type, b->type))) 
         return false;
         
       } 
@@ -2224,7 +2224,7 @@ Variable *Structure__find_field(Structure *this, char *name) {
   return NULL;
 }
 
-Program *Program__new() {
+Program *Program__new(void) {
   Program *prog = ((Program *)calloc(1, sizeof(Program)));
   prog->functions = Vector__new();
   prog->structures = Vector__new();
@@ -2424,7 +2424,8 @@ Type *Parser__parse_type_with_parent(Parser *this, Type *parent) {
       Parser__consume(this, TokenType__OpenParen);
       Vector *params = Vector__new();
       while ((!Parser__token_is(this, TokenType__CloseParen))) {
-        Vector__push(params, Parser__parse_type(this));
+        Type *param_type = Parser__parse_type(this);
+        Vector__push(params, Variable__new("", param_type, param_type->span));
         if ((!Parser__token_is(this, TokenType__CloseParen))) {
           Parser__consume(this, TokenType__Comma);
         } 
@@ -3274,7 +3275,7 @@ Program *Parser__parse_program(Parser *this) {
   return program;
 }
 
-TypeChecker *TypeChecker__new() {
+TypeChecker *TypeChecker__new(void) {
   TypeChecker *checker = ((TypeChecker *)calloc(1, sizeof(TypeChecker)));
   checker->scopes = Vector__new();
   checker->functions = Map__new();
@@ -3331,7 +3332,8 @@ bool TypeChecker__type_is_valid(TypeChecker *this, Type *type) {
     case BaseType__Function:
     case BaseType__Method: {
       for (int i = 0; (i < type->params->size); i += 1) {
-        if ((!TypeChecker__type_is_valid(this, ((Type *)Vector__at(type->params, i))))) {
+        Variable *var = ((Variable *)Vector__at(type->params, i));
+        if ((!TypeChecker__type_is_valid(this, var->type))) {
           return false;
         } 
       } 
@@ -3420,11 +3422,11 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
     error_span_note_span(node->span, "Number of arguments does not match function signature", func_type->span, format_string("This function expects %d arguments, got %d", params->size, node->u.call.args->size));
   } 
   for (int i = 0; (i < params->size); i += 1) {
-    Type *param = ((Type *)Vector__at(params, i));
+    Variable *param = ((Variable *)Vector__at(params, i));
     AST *arg = ((AST *)Vector__at(node->u.call.args, i));
     Type *arg_type = TypeChecker__check_expression(this, arg);
-    if ((!Type__eq(param, arg_type))) {
-      error_span_note_span(arg->span, "Argument type does not match function parameter type", param->span, format_string("Expected '%s', got '%s'", Type__str(param), Type__str(arg_type)));
+    if ((!Type__eq(param->type, arg_type))) {
+      error_span_note_span(arg->span, "Argument type does not match function parameter type", param->span, format_string("Expected '%s', got '%s'", Type__str(param->type), Type__str(arg_type)));
     } 
   } 
   return func_type->return_type;
@@ -4096,14 +4098,13 @@ void TypeChecker__check_all_functions(TypeChecker *this, Program *program) {
       } 
     } 
     func_type->func_def = func;
-    func_type->params = Vector__new();
     for (int j = 0; (j < func->params->size); j += 1) {
       Variable *param = ((Variable *)Vector__at(func->params, j));
       if ((!TypeChecker__type_is_valid(this, param->type))) {
         error_span(param->type->span, "Invalid parameter type");
       } 
-      Vector__push(func_type->params, param->type);
     } 
+    func_type->params = func->params;
     if ((!TypeChecker__type_is_valid(this, func->return_type))) {
       error_span(func->return_type->span, "Invalid return type");
     } 
@@ -4174,7 +4175,7 @@ void TypeChecker__check_program(TypeChecker *this, Program *program) {
   TypeChecker__pop_scope(this);
 }
 
-StringBuilder StringBuilder__make() {
+StringBuilder StringBuilder__make(void) {
   StringBuilder builder;
   builder.size = 0;
   builder.capacity = 16;
@@ -4184,8 +4185,9 @@ StringBuilder StringBuilder__make() {
 
 void StringBuilder__puts(StringBuilder *this, char *s) {
   int len = strlen(s);
-  if (((this->size + len) > this->capacity)) {
-    int new_capacity = max((this->capacity * 2), ((this->size + len) + 2));
+  int needed = ((this->size + len) + 1);
+  if ((needed >= this->capacity)) {
+    int new_capacity = max((this->capacity * 2), needed);
     this->data = ((char *)realloc(this->data, new_capacity));
   } 
   memcpy((this->data + this->size), s, (len + 1));
@@ -4818,19 +4820,8 @@ void string__replace(char **this, char *other) {
   (*this) = other;
 }
 
-char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char *name) {
+char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char *name, bool is_func_def) {
   char *final = strdup(name);
-  bool needs_parens = false;
-  for (Type *cur = type; ((bool)cur); cur = cur->ptr) {
-    switch (cur->base) {
-      case BaseType__Array:
-      case BaseType__Function: {
-        needs_parens = true;
-      } break;
-      default: {
-      } break;
-    }
-  } 
   for (Type *cur = type; ((bool)cur); cur = cur->ptr) {
     switch (cur->base) {
       case BaseType__Void: {
@@ -4862,6 +4853,7 @@ char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char 
         string__replace((&final), format_string("%s %s", struct_name, final));
       } break;
       case BaseType__Pointer: {
+        bool needs_parens = (((bool)cur->ptr) && (cur->ptr->base == BaseType__Array || cur->ptr->base == BaseType__Function));
         if (needs_parens) {
           string__replace((&final), format_string("(*%s)", final));
         }  else {
@@ -4876,7 +4868,8 @@ char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char 
         free(this->out.data);
         this->out = prev_builder;
       } break;
-      case BaseType__Function: {
+      case BaseType__Function:
+      case BaseType__Method: {
         StringBuilder acc = StringBuilder__make();
         Vector *params = cur->params;
         if (params->size == 0) 
@@ -4886,15 +4879,17 @@ char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char 
           if ((i != 0)) 
           StringBuilder__puts((&acc), ", ");
           
-          char *arg_str = CodeGenerator__get_type_name_string(this, Vector__at(params, i), "");
+          Variable *var = ((Variable *)Vector__at(params, i));
+          char *arg_str = CodeGenerator__get_type_name_string(this, var->type, var->name, false);
           StringBuilder__putsf((&acc), arg_str);
         } 
-        string__replace((&final), format_string("(*%s)(%s)", final, StringBuilder__str((&acc))));
+        if ((is_func_def && cur == type)) {
+          string__replace((&final), format_string("%s(%s)", final, StringBuilder__str((&acc))));
+        }  else {
+          string__replace((&final), format_string("(*%s)(%s)", final, StringBuilder__str((&acc))));
+        } 
         free(acc.data);
-        string__replace((&final), CodeGenerator__get_type_name_string(this, cur->return_type, final));
-      } break;
-      case BaseType__Method: {
-        string__replace((&final), format_string("<method>"));
+        string__replace((&final), CodeGenerator__get_type_name_string(this, cur->return_type, final, false));
       } break;
     }
   } 
@@ -4903,7 +4898,7 @@ char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char 
 }
 
 void CodeGenerator__gen_type_and_name(CodeGenerator *this, Type *type, char *name) {
-  StringBuilder__putsf((&this->out), CodeGenerator__get_type_name_string(this, type, name));
+  StringBuilder__putsf((&this->out), CodeGenerator__get_type_name_string(this, type, name, false));
 }
 
 void CodeGenerator__gen_type(CodeGenerator *this, Type *type) {
@@ -4930,16 +4925,8 @@ void CodeGenerator__gen_function_decl(CodeGenerator *this, Function *func) {
   StringBuilder__puts((&this->out), "__attribute__((noreturn)) ");
   
   char *func_name = CodeGenerator__get_function_name(this, func);
-  CodeGenerator__gen_type_and_name(this, func->return_type, func_name);
-  StringBuilder__puts((&this->out), "(");
-  for (int i = 0; (i < func->params->size); i += 1) {
-    Variable *param = ((Variable *)Vector__at(func->params, i));
-    if ((i > 0)) {
-      StringBuilder__puts((&this->out), ", ");
-    } 
-    CodeGenerator__gen_type_and_name(this, param->type, param->name);
-  } 
-  StringBuilder__puts((&this->out), ")");
+  char *s = CodeGenerator__get_type_name_string(this, func->type, func_name, true);
+  StringBuilder__putsf((&this->out), s);
 }
 
 void CodeGenerator__gen_function_decls(CodeGenerator *this, Program *program) {
