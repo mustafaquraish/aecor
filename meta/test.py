@@ -102,6 +102,9 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
 
     process = run([exec_name], stdout=PIPE, stderr=PIPE)
 
+    if process.returncode != 0 and expected.type != Result.EXIT_WITH_CODE:
+        return False, f"Expected exit code 0, but got {process.returncode}", path
+
     if expected.type == Result.EXIT_WITH_CODE:
         if process.returncode != expected.value:
             return False, "Expected exit code {expected.value}, but got {process.returncode}", path

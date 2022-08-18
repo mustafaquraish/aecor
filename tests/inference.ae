@@ -7,5 +7,5 @@ def main() : i32 {
     {
         let p = 3
     }
-    return x
+    return x - x
 }
