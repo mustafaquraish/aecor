@@ -570,15 +570,6 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string): strin
     // There's possibly a better way to do this, but I'll leave that for another day.
     let final = name.copy()
 
-    // We should avoid outer parens if we can, since we also use this for generating functions
-    let needs_parens = false
-    for let cur = type; cur?; cur = cur.ptr {
-        match cur.base {
-            Array | Function => needs_parens = true
-            else => {}
-        }
-    }
-
     for let cur = type; cur?; cur = cur.ptr {
         match cur.base {
             // These should all be terminal types
@@ -598,6 +589,9 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string): strin
             }
 
             Pointer => {
+                let needs_parens = (cur.ptr? and
+                    (cur.ptr.base == BaseType::Array or
+                     cur.ptr.base == BaseType::Function))
                 if needs_parens {
                     final.replace(`(*{final})`)
                 } else {
