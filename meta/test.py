@@ -10,6 +10,7 @@ from pathlib import Path
 from sys import argv
 from typing import Union, Optional, Tuple
 import multiprocessing
+import textwrap
 
 class ExpectedOutputType(Enum):
     EXIT_WITH_CODE = 1
@@ -80,9 +81,11 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
                 remaining = error_line.split("Error: ")[1]
             except:
                 remaining = error_line
-            return False, f"Did not find expected error message: {expected_error}, got '{remaining}'", path
+            return False, f"Did not find expected error message\n  expected: {expected_error}\n  got: '{remaining}'", path
     elif process.returncode != 0:
-        return False, "Compilation failed", path
+        stdout = textwrap.indent(process.stdout.decode("utf-8"), " "*10).strip()
+        stderr = textwrap.indent(process.stderr.decode("utf-8"), " "*10).strip()
+        return False, f"Compilation failed:\n  code: {process.returncode}\n  stdout: {stdout}\n  stderr: {stderr}", path
     elif expected.type == ExpectedOutputType.COMPILE_SUCCESS:
         return True, "(Success)", path
 
@@ -96,7 +99,7 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
         output = process.stdout.decode('utf-8').strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
-            return False, f'Expected output {repr(expected_out)}, got {repr(output)}', path
+            return False, f'Incorrect output produced\n  expected: {repr(expected_out)}\n  got: {repr(output)}', path
 
     return True, "(Success)", path
 
