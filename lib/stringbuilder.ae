@@ -17,8 +17,9 @@ def StringBuilder::make(): StringBuilder {
 
 def StringBuilder::puts(&this, s: string) {
     let len = s.len()
-    if .size + len > .capacity {
-        let new_capacity = max(.capacity * 2, .size + len + 2)
+    let needed = .size + len + 1 // +1 for the null terminator
+    if needed >= .capacity {
+        let new_capacity = max(.capacity * 2, needed)
         .data = realloc(.data, new_capacity) as string
     }
     copy_memory(.data + .size, s, len + 1) // Copy over null terminator

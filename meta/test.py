@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import shutil
-import subprocess
+from subprocess import run, PIPE
 import argparse
 from ast import literal_eval
 from dataclasses import dataclass
@@ -12,7 +12,7 @@ from typing import Union, Optional, Tuple
 import multiprocessing
 import textwrap
 
-class ExpectedOutputType(Enum):
+class Result(Enum):
     EXIT_WITH_CODE = 1
     EXIT_WITH_OUTPUT = 2
     COMPILE_FAIL = 3
@@ -23,7 +23,7 @@ class ExpectedOutputType(Enum):
 
 @dataclass(frozen=True)
 class Expected:
-    type: ExpectedOutputType
+    type: Result
     value: Union[int, str, None]
 
 
@@ -37,9 +37,9 @@ def get_expected(filename) -> Optional[Expected]:
 
             # Commands with no arguments
             if line == "skip":
-                return Expected(ExpectedOutputType.SKIP_SILENTLY, None)
+                return Expected(Result.SKIP_SILENTLY, None)
             if line == "compile":
-                return Expected(ExpectedOutputType.COMPILE_SUCCESS, None)
+                return Expected(Result.COMPILE_SUCCESS, None)
             if line == "":
                 continue
 
@@ -51,21 +51,26 @@ def get_expected(filename) -> Optional[Expected]:
             name, value = map(str.strip, line.split(":", 1))
 
             if name == "exit":
-                return Expected(ExpectedOutputType.EXIT_WITH_CODE, int(value))
+                return Expected(Result.EXIT_WITH_CODE, int(value))
             if name == "out":
-                return Expected(ExpectedOutputType.EXIT_WITH_OUTPUT, value)
+                return Expected(Result.EXIT_WITH_OUTPUT, value)
             if name == "fail":
-                return Expected(ExpectedOutputType.COMPILE_FAIL, value)
+                return Expected(Result.COMPILE_FAIL, value)
 
             print(f'[-] Invalid parameter in {filename}: {line}')
             break
 
-    return Expected(ExpectedOutputType.SKIP_REPORT, None)
+    return Expected(Result.SKIP_REPORT, None)
 
 def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tuple[bool, str, Path]:
     exec_name = f'./build/tests/{path.stem}-{num}'
-    process = subprocess.run([compiler, str(path), '-o', exec_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if expected.type == ExpectedOutputType.COMPILE_FAIL:
+    process = run(
+        [compiler, str(path), '-o', exec_name],
+        stdout=PIPE,
+        stderr=PIPE
+    )
+
+    if expected.type == Result.COMPILE_FAIL:
         if process.returncode == 0:
             return False, "Expected compilation failure, but succeeded", path
 
@@ -73,29 +78,35 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
         expected_error = expected.value
 
         # The error message from the compiler should be on the second line
-        error_line = error.splitlines()[1]
+        try:
+            error_line = error.splitlines()[1]
+        except IndexError:
+            error_line = error
+
         if expected_error in error_line:
             return True, "(Success)", path
         else:
             try:
                 remaining = error_line.split("Error: ")[1]
-            except:
+            except IndexError:
                 remaining = error_line
             return False, f"Did not find expected error message\n  expected: {expected_error}\n  got: '{remaining}'", path
+
     elif process.returncode != 0:
         stdout = textwrap.indent(process.stdout.decode("utf-8"), " "*10).strip()
         stderr = textwrap.indent(process.stderr.decode("utf-8"), " "*10).strip()
         return False, f"Compilation failed:\n  code: {process.returncode}\n  stdout: {stdout}\n  stderr: {stderr}", path
-    elif expected.type == ExpectedOutputType.COMPILE_SUCCESS:
+
+    elif expected.type == Result.COMPILE_SUCCESS:
         return True, "(Success)", path
 
-    process = subprocess.run([exec_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = run([exec_name], stdout=PIPE, stderr=PIPE)
 
-    if expected.type == ExpectedOutputType.EXIT_WITH_CODE:
+    if expected.type == Result.EXIT_WITH_CODE:
         if process.returncode != expected.value:
             return False, "Expected exit code {expected.value}, but got {process.returncode}", path
 
-    if expected.type == ExpectedOutputType.EXIT_WITH_OUTPUT:
+    if expected.type == Result.EXIT_WITH_OUTPUT:
         output = process.stdout.decode('utf-8').strip()
         expected_out = literal_eval(expected.value).strip()
         if output != expected_out:
@@ -137,9 +148,9 @@ def main():
 
         for file in files:
             expected = get_expected(file)
-            if expected.type == ExpectedOutputType.SKIP_SILENTLY:
+            if expected.type == Result.SKIP_SILENTLY:
                 continue
-            if expected.type == ExpectedOutputType.SKIP_REPORT:
+            if expected.type == Result.SKIP_REPORT:
                 print(f'[-] Skipping {file}')
                 continue
             tests_to_run.append((file, expected))
@@ -153,7 +164,10 @@ def main():
         for num, (test_path, expected) in enumerate(tests_to_run)
     ]
 
+    # Clear out existing test directories
+    shutil.rmtree("build/tests", ignore_errors=True)
     makedirs("build/tests", exist_ok=True)
+
     with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
         for passed, message, path in pool.imap_unordered(pool_helper, arguments):
             print(f" \33[2K[\033[92m{num_passed:3d}\033[0m", end="")
@@ -170,7 +184,6 @@ def main():
     print(f"Tests passed: \033[92m{num_passed}\033[0m")
     print(f"Tests failed: \033[91m{num_failed}\033[0m")
 
-    shutil.rmtree("build/tests", ignore_errors=True)
     if num_failed > 0:
         exit(1)
 
