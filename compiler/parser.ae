@@ -161,7 +161,9 @@ def Parser::parse_type_with_parent(&this, parent: &Type): &Type {
             .consume(TokenType::OpenParen)
             let params = Vector::new()
             while not .token_is(TokenType::CloseParen) {
-                params.push(.parse_type())
+                let param_type = .parse_type()
+                // No names for parameters needed for function types
+                params.push(Variable::new("", param_type, param_type.span))
                 if not .token_is(TokenType::CloseParen) {
                     .consume(TokenType::Comma)
                 }

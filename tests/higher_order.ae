@@ -9,8 +9,16 @@ def do_op(x: i32, op: fn(i32): i32): i32 {
     return op(x);
 }
 
+def add(x: i32, y: i32): i32 {
+    return x + y
+}
+
+def retadd(none: i32): fn(i32,i32): i32 {
+    return add
+}
+
 def main() {
-    print("%d ", do_op(1, plus_one))
+    print("%d ", do_op(1, plus_one) + retadd(0)(1, -1));
     print("%d ", do_op(1, times_two))
     print("%d ", do_op(3, minus_one))
     print("%d ", do_op(4, divide_by_two))

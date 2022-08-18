@@ -565,7 +565,7 @@ def string::replace(&this, other: string) {
     *this = other
 }
 
-def CodeGenerator::get_type_name_string(&this, type: &Type, name: string): string {
+def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_func_def: bool): string {
     // This is a bit weird because of how C expects type names to be written.
     // There's possibly a better way to do this, but I'll leave that for another day.
     let final = name.copy()
@@ -608,21 +608,26 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string): strin
                 free(.out.data)
                 .out = prev_builder
             }
-            Function => {
+            Function | Method => {
                 let acc = StringBuilder::make()
                 let params = cur.params
 
                 if params.size == 0 then acc.puts("void")
                 for let i = 0; i < params.size; i += 1 {
                     if i != 0 then acc.puts(", ")
-                    let arg_str = .get_type_name_string(params.at(i), "")
+                    let var = params.at(i) as &Variable
+                    let arg_str = .get_type_name_string(var.type, var.name, false)
                     acc.putsf(arg_str)
                 }
-                final.replace(`(*{final})({acc.str()})`)
+                if is_func_def and cur == type {
+                    // This allows us to also create function declarations
+                    final.replace(`{final}({acc.str()})`)
+                } else {
+                    final.replace(`(*{final})({acc.str()})`)
+                }
                 free(acc.data)
-                final.replace(.get_type_name_string(cur.return_type, final))
+                final.replace(.get_type_name_string(cur.return_type, final, false))
             }
-            Method => final.replace(`<method>`)
         }
     }
     final.strip_trailing_whitespace()
@@ -630,7 +635,7 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string): strin
 }
 
 def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
-    .out.putsf(.get_type_name_string(type, name))
+    .out.putsf(.get_type_name_string(type, name, false))
 }
 
 def CodeGenerator::gen_type(&this, type: &Type) {
@@ -652,15 +657,8 @@ def CodeGenerator::gen_function_decl(&this, func: &Function) {
         .out.puts("__attribute__((noreturn)) ")
 
     let func_name = .get_function_name(func)
-    .gen_type_and_name(func.return_type, func_name)
-    .out.puts("(")
-
-    for let i = 0; i < func.params.size; i += 1 {
-        let param = func.params.at(i) as &Variable
-        if i > 0 { .out.puts(", "); }
-        .gen_type_and_name(param.type, param.name)
-    }
-    .out.puts(")")
+    let s = .get_type_name_string(func.type, func_name, true)
+    .out.putsf(s)
 }
 
 def CodeGenerator::gen_function_decls(&this, program: &Program) {

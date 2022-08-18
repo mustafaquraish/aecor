@@ -69,7 +69,8 @@ def TypeChecker::type_is_valid(&this, type: &Type): bool {
         Pointer => return .type_is_valid(type.ptr)
         Function | Method => {
             for let i = 0; i < type.params.size; i += 1 {
-                if not .type_is_valid(type.params.at(i) as &Type) {
+                let var = type.params.at(i) as &Variable
+                if not .type_is_valid(var.type) {
                     return false
                 }
             }
@@ -167,13 +168,13 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         )
     }
     for let i = 0; i < params.size; i += 1 {
-        let param = params.at(i) as &Type
+        let param = params.at(i) as &Variable
         let arg = node.u.call.args.at(i) as &AST
         let arg_type = .check_expression(arg)
-        if not param.eq(arg_type) {
+        if not param.type.eq(arg_type) {
             error_span_note_span(
                 arg.span, "Argument type does not match function parameter type",
-                param.span, `Expected '{param.str()}', got '{arg_type.str()}'`
+                param.span, `Expected '{param.type.str()}', got '{arg_type.str()}'`
             )
         }
     }
@@ -940,14 +941,14 @@ def TypeChecker::check_all_functions(&this, program: &Program) {
         }
         func_type.func_def = func
 
-        func_type.params = Vector::new()
         for let j = 0; j < func.params.size; j += 1 {
             let param = func.params.at(j) as &Variable
             if not .type_is_valid(param.type) {
                 error_span(param.type.span, "Invalid parameter type")
             }
-            func_type.params.push(param.type)
         }
+        func_type.params = func.params
+
         if not .type_is_valid(func.return_type) {
             error_span(func.return_type.span, "Invalid return type")
         }

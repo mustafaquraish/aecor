@@ -41,7 +41,7 @@ struct Type {
 
     func_def: &Function
     return_type: &Type
-    params: &Vector      // Vector<&Type>
+    params: &Vector      // Vector<&Variable>
 }
 
 def Type::new(base: BaseType, span: Span): &Type {
@@ -91,9 +91,9 @@ def Type::eq(&this, other: &Type): bool {
             if not .return_type.eq(other.return_type) return false
             if .params.size != other.params.size return false
             for let i = 0; i < .params.size; i += 1 {
-                let a = .params.at(i) as &Type
-                let b = other.params.at(i) as &Type
-                if not a.eq(b) return false
+                let a = .params.at(i) as &Variable
+                let b = other.params.at(i) as &Variable
+                if not a.type.eq(b.type) return false
             }
             return true
         }
