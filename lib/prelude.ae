@@ -70,6 +70,8 @@ def string::copy_n_from(this, src: string, n: i32): string extern("strncpy")
 def string::copy(this): string extern("strdup")
 def string::concat(this, src: string): string extern("strcat")
 
+def copy_memory(dest: untyped_ptr, src: untyped_ptr, size: i32) extern("memcpy")
+
 def string::starts_with(this, prefix: string): bool {
     let prefix_len = prefix.len()
     if .len() < prefix_len {
@@ -88,7 +90,21 @@ def string::substring(this, start: i32, len: i32): string {
     return new_str
 }
 
+def string::strip_trailing_whitespace(this) {
+    for let i = .len() - 1; i >= 0; i -= 1 {
+        if this[i] != ' ' break
+        this[i] = '\0'
+    }
+}
+
 def strerror(errno: i32): string extern
 
 def puts(str: string) extern
 def system(str: string): i32 extern
+
+def min(a: i32, b: i32): i32 {
+    return if a < b then a else b
+}
+def max(a: i32, b: i32): i32 {
+    return if a > b then a else b
+}
