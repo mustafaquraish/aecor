@@ -42,6 +42,11 @@ def Parser::new(tokens: &Vector, filename: string): &Parser {
     parser.project_root = dirname(tmp_filename).copy()
     free(tmp_filename)
 
+    let aecor_root = get_environment_variable("AECOR_ROOT")
+    if aecor_root? {
+        parser.add_include_dir(aecor_root)
+    }
+
     parser.context_stack = Vector::new()
     return parser
 }
