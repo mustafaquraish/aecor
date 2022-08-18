@@ -62,7 +62,8 @@ def get_expected(filename) -> Optional[Expected]:
     return Expected(ExpectedOutputType.SKIP_REPORT, None)
 
 def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tuple[bool, str, Path]:
-    process = subprocess.run([compiler, str(path), '-o', f'build/tests/{num}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    exec_name = f'./build/tests/{path.stem}-{num}'
+    process = subprocess.run([compiler, str(path), '-o', exec_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if expected.type == ExpectedOutputType.COMPILE_FAIL:
         if process.returncode == 0:
             return False, "Expected compilation failure, but succeeded", path
@@ -85,7 +86,7 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
     elif expected.type == ExpectedOutputType.COMPILE_SUCCESS:
         return True, "(Success)", path
 
-    process = subprocess.run([f'./build/tests/{num}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.run([exec_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     if expected.type == ExpectedOutputType.EXIT_WITH_CODE:
         if process.returncode != expected.value:
