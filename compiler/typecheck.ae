@@ -100,7 +100,9 @@ def TypeChecker::check_method_call(&this, method_type: &Type, node: &AST) {
     }
 
     let s_methods = .methods.get(method_type.name) as &Map
-    let method = s_methods.get(callee.u.member.name) as &Function
+
+    let rhs = callee.u.member.rhs
+    let method = s_methods.get(rhs.u.ident.name) as &Function
     node.u.call.func = method
 
     // Due to the way we handle typechecking, we might run this function twice
@@ -460,7 +462,8 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 error_span(node.u.member.lhs.span, "Unknown struct with this name")
             }
 
-            let field_name = node.u.member.name
+            let rhs = node.u.member.rhs
+            let field_name = rhs.u.ident.name
             let var = .get_struct_member(struct_name, field_name)
 
             let s_methods = .methods.get(struct_name) as &Map
@@ -489,8 +492,9 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             node.u.member.is_pointer = (lhs_type.name == null)
             let struct_type = if lhs_type.name? then lhs_type else lhs_type.ptr
 
+            let rhs = node.u.member.rhs
             let struct_name = struct_type.name
-            let field_name = node.u.member.name
+            let field_name = rhs.u.ident.name
 
             let struc = .structures.get(struct_name) as &Structure
             let field = .get_struct_member(struct_name, field_name)
@@ -510,7 +514,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 etype = method.type
             } else {
                 error_span_note_span(
-                    node.u.member.name_span, "Type has no member with this name",
+                    node.u.member.rhs.span, "Type has no member with this name",
                     node.u.member.lhs.span, `LHS type is '{struct_type.str()}'`
                 )
             }

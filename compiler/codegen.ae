@@ -266,7 +266,9 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Member => {
             .gen_expression(node.u.member.lhs)
             .out.puts(if node.u.member.is_pointer "->" else ".")
-            .out.puts(node.u.member.name)
+
+            let rhs = node.u.member.rhs
+            .out.puts(rhs.u.ident.name)
         }
         EnumValue => {
             let enum_value = node.u.enum_val

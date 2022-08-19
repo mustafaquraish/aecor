@@ -34,6 +34,7 @@ typedef enum MessageType MessageType;
 typedef struct Lexer Lexer;
 typedef struct MapNode MapNode;
 typedef struct Map Map;
+typedef struct MapIterator MapIterator;
 typedef enum BaseType BaseType;
 typedef struct Type Type;
 typedef enum ASTType ASTType;
@@ -195,6 +196,12 @@ struct Map {
   int num_collisions;
 };
 
+struct MapIterator {
+  int idx;
+  MapNode *cur;
+  Map *map;
+};
+
 enum BaseType {
   BaseType__Char,
   BaseType__I32,
@@ -352,8 +359,7 @@ struct FuncCall {
 
 struct Member {
   AST *lhs;
-  char *name;
-  Span name_span;
+  AST *rhs;
   bool is_method;
   bool is_pointer;
 };
@@ -486,10 +492,12 @@ void *Vector__at(Vector *this, int i);
 bool Vector__empty(Vector *this);
 void Vector__free(Vector *this);
 Location Location__make(char *filename, int line, int col);
-char *Location__str(Location this);
+char *Location__str(Location *this);
+bool Location__is_before(Location *this, Location other);
 Span Span__make(Location start, Location end);
 char *Span__str(Span this);
 Span Span__join(Span this, Span other);
+bool Span__contains_loc(Span this, Location loc);
 Token *Token__new(TokenType type, Span span, char *text);
 Token *Token__from_type(TokenType type, Span span);
 Token *Token__from_ident(char *text, Span span);
@@ -531,6 +539,11 @@ void Map__resize(Map *this);
 void Map__print_keys(Map *this);
 void Map__push_keys(Map *this, Vector *vec);
 void Map__free(Map *this);
+MapIterator Map__iter(Map *this);
+char *MapIterator__key(MapIterator *this);
+void *MapIterator__value(MapIterator *this);
+MapIterator MapIterator__make(Map *map);
+void MapIterator__next(MapIterator *this);
 char *BaseType__str(BaseType this);
 Type *Type__new(BaseType base, Span span);
 Type *Type__new_link(BaseType base, Type *next, Span span);
@@ -807,8 +820,18 @@ Location Location__make(char *filename, int line, int col) {
   return loc;
 }
 
-char *Location__str(Location this) {
-  return format_string("%s:%d:%d", this.filename, this.line, this.col);
+char *Location__str(Location *this) {
+  return format_string("%s:%d:%d", this->filename, this->line, this->col);
+}
+
+bool Location__is_before(Location *this, Location other) {
+  if ((this->line > other.line)) 
+  return false;
+  
+  if ((this->line < other.line)) 
+  return true;
+  
+  return (this->col <= other.col);
 }
 
 Span Span__make(Location start, Location end) {
@@ -819,7 +842,7 @@ Span Span__make(Location start, Location end) {
 }
 
 char *Span__str(Span this) {
-  return format_string("%s => %s", Location__str(this.start), Location__str(this.end));
+  return format_string("%s => %s", Location__str((&this.start)), Location__str((&this.end)));
 }
 
 Span Span__join(Span this, Span other) {
@@ -827,6 +850,10 @@ Span Span__join(Span this, Span other) {
   span.start = this.start;
   span.end = other.end;
   return span;
+}
+
+bool Span__contains_loc(Span this, Location loc) {
+  return (Location__is_before((&this.start), loc) && Location__is_before((&loc), this.end));
 }
 
 Token *Token__new(TokenType type, Span span, char *text) {
@@ -1288,7 +1315,7 @@ char *MessageType__str(MessageType this) {
 
 void display_message(MessageType type, Span span, char *msg) {
   printf("---------------------------------------------------------------" "\n");
-  printf("%s: %s: %s" "\n", Location__str(span.start), MessageType__str(type), msg);
+  printf("%s: %s: %s" "\n", Location__str((&span.start)), MessageType__str(type), msg);
   printf("---------------------------------------------------------------" "\n");
 }
 
@@ -1634,7 +1661,7 @@ Vector *Lexer__lex(Lexer *this) {
           this->loc.col += len;
           Lexer__push(this, Token__from_ident(text, Span__make(start_loc, this->loc)));
         }  else {
-          printf("%s: Unrecognized char in lexer: '%c'" "\n", Location__str(this->loc), c);
+          printf("%s: Unrecognized char in lexer: '%c'" "\n", Location__str((&this->loc)), c);
           exit(1);
         } 
         
@@ -1774,6 +1801,49 @@ void Map__free(Map *this) {
     MapNode__free_list(this->buckets[i]);
   } 
   free(this->buckets);
+}
+
+MapIterator Map__iter(Map *this) {
+  return MapIterator__make(this);
+}
+
+char *MapIterator__key(MapIterator *this) {
+  return this->cur->key;
+}
+
+void *MapIterator__value(MapIterator *this) {
+  return this->cur->value;
+}
+
+MapIterator MapIterator__make(Map *map) {
+  MapIterator it;
+  it.map = map;
+  it.idx = (-1);
+  it.cur = NULL;
+  MapIterator__next((&it));
+  return it;
+}
+
+void MapIterator__next(MapIterator *this) {
+  while ((this->idx < this->map->num_buckets)) {
+    while (((bool)this->cur)) {
+      this->cur = this->cur->next;
+      if (((bool)this->cur)) 
+      return;
+      
+    } 
+    this->idx += 1;
+    this->cur = ({ MapNode *__yield_0;
+  if ((this->idx < this->map->num_buckets)) {
+    __yield_0 = this->map->buckets[this->idx];
+  }  else {
+    __yield_0 = NULL;
+  } 
+;__yield_0; });
+    if (((bool)this->cur)) 
+    return;
+    
+  } 
 }
 
 char *BaseType__str(BaseType this) {
@@ -2309,6 +2379,10 @@ Parser *Parser__new(Vector *tokens, char *filename) {
   char *tmp_filename = strdup(filename);
   parser->project_root = strdup(dirname(tmp_filename));
   free(tmp_filename);
+  char *aecor_root = getenv("AECOR_ROOT");
+  if (((bool)aecor_root)) {
+    Parser__add_include_dir(parser, aecor_root);
+  } 
   parser->context_stack = Vector__new();
   return parser;
 }
@@ -2566,8 +2640,9 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
       lhs->u.ident.is_function = false;
       node = AST__new(ASTType__Member, Span__join(lhs->span, rhs->span));
       node->u.member.lhs = lhs;
-      node->u.member.name = rhs->text;
-      node->u.member.name_span = rhs->span;
+      AST *rhs_node = AST__new(ASTType__Identifier, rhs->span);
+      rhs_node->u.ident.name = rhs->text;
+      node->u.member.rhs = rhs_node;
     } break;
     case TokenType__Minus: {
       Token *op = Parser__consume(this, TokenType__Minus);
@@ -2652,17 +2727,20 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
         Parser__consume(this, TokenType__Dot);
         Token *name = Parser__consume(this, TokenType__Identifier);
         AST *member = AST__new(ASTType__Member, Span__join(node->span, name->span));
+        AST *rhs = AST__new(ASTType__Identifier, name->span);
+        rhs->u.ident.name = name->text;
         member->u.member.lhs = node;
-        member->u.member.name = name->text;
-        member->u.member.name_span = name->span;
+        member->u.member.rhs = rhs;
         node = member;
       } break;
       case TokenType__ColonColon: {
         Parser__consume(this, TokenType__ColonColon);
         Token *name = Parser__consume(this, TokenType__Identifier);
         AST *member = AST__new(ASTType__ScopeLookup, Span__join(node->span, name->span));
+        AST *rhs = AST__new(ASTType__Identifier, name->span);
+        rhs->u.ident.name = name->text;
         member->u.member.lhs = node;
-        member->u.member.name = name->text;
+        member->u.member.rhs = rhs;
         node = member;
       } break;
       case TokenType__As: {
@@ -3368,7 +3446,8 @@ void TypeChecker__check_method_call(TypeChecker *this, Type *method_type, AST *n
     error_span(callee->span, "Method call is not to a member, internal compiler error");
   } 
   Map *s_methods = ((Map *)Map__get(this->methods, method_type->name));
-  Function *method = ((Function *)Map__get(s_methods, callee->u.member.name));
+  AST *rhs = callee->u.member.rhs;
+  Function *method = ((Function *)Map__get(s_methods, rhs->u.ident.name));
   node->u.call.func = method;
   if (node->u.call.added_method_arg) 
   return;
@@ -3698,7 +3777,8 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       if ((!((bool)struc))) {
         error_span(node->u.member.lhs->span, "Unknown struct with this name");
       } 
-      char *field_name = node->u.member.name;
+      AST *rhs = node->u.member.rhs;
+      char *field_name = rhs->u.ident.name;
       Variable *var = TypeChecker__get_struct_member(this, struct_name, field_name);
       Map *s_methods = ((Map *)Map__get(this->methods, struct_name));
       Function *method = ((Function *)Map__get(s_methods, field_name));
@@ -3721,8 +3801,9 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       } 
       node->u.member.is_pointer = lhs_type->name == NULL;
       Type *struct_type = (((bool)lhs_type->name) ? lhs_type : lhs_type->ptr);
+      AST *rhs = node->u.member.rhs;
       char *struct_name = struct_type->name;
-      char *field_name = node->u.member.name;
+      char *field_name = rhs->u.ident.name;
       Structure *struc = ((Structure *)Map__get(this->structures, struct_name));
       Variable *field = TypeChecker__get_struct_member(this, struct_name, field_name);
       Map *s_methods = ((Map *)Map__get(this->methods, struct_name));
@@ -3735,7 +3816,7 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
         } 
         etype = method->type;
       }  else {
-        error_span_note_span(node->u.member.name_span, "Type has no member with this name", node->u.member.lhs->span, format_string("LHS type is '%s'", Type__str(struct_type)));
+        error_span_note_span(node->u.member.rhs->span, "Type has no member with this name", node->u.member.lhs->span, format_string("LHS type is '%s'", Type__str(struct_type)));
       } 
       
     } break;
@@ -4522,7 +4603,8 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
     case ASTType__Member: {
       CodeGenerator__gen_expression(this, node->u.member.lhs);
       StringBuilder__puts((&this->out), (node->u.member.is_pointer ? "->" : "."));
-      StringBuilder__puts((&this->out), node->u.member.name);
+      AST *rhs = node->u.member.rhs;
+      StringBuilder__puts((&this->out), rhs->u.ident.name);
     } break;
     case ASTType__EnumValue: {
       EnumValue enum_value = node->u.enum_val;
