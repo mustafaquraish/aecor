@@ -1,0 +1,143 @@
+use "compiler/lexer.ae"
+use "compiler/parser.ae"
+use "compiler/typecheck.ae"
+
+// Namespace thing again
+struct Finder {
+    loc: Location // Location we are looking for
+    res: &Span    // Place to store result
+}
+
+def Finder::make(loc: Location, res: &Span): Finder {
+    let finder: Finder
+    finder.loc = loc
+    finder.res = res
+    return finder
+}
+
+def Finder::find_in_identifier(&this, node: &AST): bool {
+    if node.span.contains_loc(.loc) {
+        *this.res = node.span
+        return true
+    }
+    return false
+}
+
+def Finder::find_in_var(&this, var: &Variable): bool {
+    if var.span.contains_loc(.loc) {
+        *this.res = var.span
+        return true
+    }
+    // TODO: check type
+    return false
+}
+
+def Finder::find_in_expression(&this, node: &AST): bool {
+    match node.type {
+        Identifier => return this.find_in_identifier(node)
+        Assignment => {
+            let lhs = node.u.binary.lhs
+            let rhs = node.u.binary.rhs
+            return .find_in_expression(lhs) or .find_in_expression(rhs)
+        }
+        Member => {
+            if .find_in_expression(node.u.member.lhs) return true
+            if .find_in_identifier(node.u.member.rhs) return true
+        }
+        else => {
+            println("Unhandled node type in Finder::find_in_expression: %s", node.type.str())
+        }
+    }
+    return false
+}
+
+def Finder::find_in_statement(&this, node: &AST): bool {
+    match node.type {
+        While | For => {
+            let loop = &node.u.loop
+            if loop.init? and .find_in_statement(loop.init) return true
+            if loop.cond? and .find_in_expression(loop.cond) return true
+            if loop.incr? and .find_in_expression(loop.incr) return true
+            if loop.body? and .find_in_statement(loop.body) return true
+        }
+        VarDeclaration => {
+            let decl = &node.u.var_decl
+            if decl.var? and .find_in_var(decl.var) return true
+            if decl.init? and .find_in_expression(decl.init) return true
+        }
+        Block => return .find_in_block(node)
+        else => return .find_in_expression(node)
+    }
+    return false
+}
+
+def Finder::find_in_block(&this, node: &AST): bool {
+    let stmts = node.u.block.statements
+    for let i = 0; i < stmts.size; i += 1 {
+        if .find_in_statement(stmts.at(i)) return true
+    }
+    return false
+}
+
+def Finder::find_in_type(&this, type: &Type): bool {
+    // FIXME: might want to only do this for base type...
+    if type.span.contains_loc(.loc) {
+        *this.res = type.span
+        return true
+    }
+    return false
+}
+
+def Finder::find_in_function(&this, func: &Function): bool {
+    if func.span.contains_loc(.loc) {
+        *this.res = func.span
+        return true
+    }
+
+    let params = func.type.params
+    for let i = 0; i < params.size; i += 1 {
+        if .find_in_var(params.at(i)) return true
+    }
+
+    let ret_type = func.type.return_type
+    if ret_type? and .find_in_type(ret_type) return true
+
+    return func.body? and .find_in_block(func.body)
+}
+
+def Finder::find_in_program(&this, program: &Program): bool {
+    for let i = 0; i < program.functions.size; i += 1 {
+        if .find_in_function(program.functions.at(i)) return true
+    }
+
+    return false
+}
+
+
+def main(argc: i32, argv: &string) {
+    let filename = "test.ae"
+
+    let file = File::open(filename, "r")
+    let contents = file.slurp()
+
+    let lexer = Lexer::make(contents, filename)
+    let tokens = lexer.lex()
+
+    let parser = Parser::new(tokens, filename)
+    let program = parser.parse_program()
+
+    let checker = TypeChecker::new()
+    checker.check_program(program)
+
+    println("type checked program successfully")
+
+    let loc = Location::make(filename, 25, 23)
+    let res: Span
+    let finder = Finder::make(loc, &res)
+
+    if finder.find_in_program(program) {
+        println("found it at: %s", res.str())
+    } else {
+        println("didn't find it")
+    }
+}
