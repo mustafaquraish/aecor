@@ -1,6 +1,7 @@
 // This just reuses the lexer from the compiler,
 // since that's already capable of lexing JSON.
 use "compiler/lexer.ae"
+use "lib/stringbuilder.ae"
 use "lib/vector.ae"
 use "lib/map.ae"
 
@@ -45,6 +46,38 @@ def JSON::new(type: JSONType): &JSON {
         Array => json.u.arr = Vector::new()
         else => {}
     }
+    return json
+}
+
+def JSON::new_str(str: string): &JSON {
+    let json = JSON::new(JSONType::String)
+    json.u.str = str
+    return json
+}
+
+def JSON::new_bool(val: bool): &JSON {
+    let json = JSON::new(JSONType::Bool)
+    json.u.bul = val
+    return json
+}
+
+def JSON::new_number(val: i32): &JSON {
+    let json = JSON::new(JSONType::Number)
+    json.u.num = val
+    return json
+}
+
+def JSON::new_array(vec: &Vector): &JSON {
+    let json = JSON::new(JSONType::Array)
+    free(json.u.arr)
+    json.u.arr = vec
+    return json
+}
+
+def JSON::new_object(map: &Map): &JSON {
+    let json = JSON::new(JSONType::Object)
+    free(json.u.obj)
+    json.u.obj = map
     return json
 }
 
@@ -231,37 +264,67 @@ def JSON::parse_from_file(filename: string): &JSON {
     return JSON::parse(source, filename)
 }
 
-def JSON::print(&this) {
+def JSON::to_sb(this, sb: &StringBuilder) {
     match .type {
-        Null => print("null")
-        Bool => print("%s", if .u.bul "true" else "false")
-        Number => print("%d", .u.num)
-        String => print("\"%s\"", .u.str)
+        Null => sb.puts("null")
+        Bool => sb.puts(if .u.bul "true" else "false")
+        Number => sb.putsf(`{.u.num}`)
+        String => {
+            sb.puts("\"")
+            sb.puts(.u.str)
+            sb.puts("\"")
+        }
         Array => {
-            print("[")
+            sb.puts("[")
             for let i = 0; i < .u.arr.size; i += 1 {
                 let value = .u.arr.at(i) as &JSON
                 if i > 0 {
-                    print(", ")
+                    sb.puts(", ")
                 }
-                value.print()
+                value.to_sb(sb)
             }
-            print("]")
+            sb.puts("]")
         }
         Object => {
-            print("{")
-            // This is a hack
-            let keys = Vector::new()
-            .u.obj.push_keys(keys)
-            for let i = 0; i < keys.size; i += 1 {
-                let value = .u.obj.get(keys.at(i) as string) as &JSON
-                if i > 0 {
-                    print(", ")
+            sb.puts("{")
+            let first = true
+            for let iter = .u.obj.iter(); iter.cur?; iter.next() {
+                if not first {
+                    sb.puts(", ")
                 }
-                value.print()
+                first = false
+                sb.puts("\"")
+                sb.puts(iter.key())
+                sb.puts("\": ")
+                let value = iter.value() as &JSON
+                value.to_sb(sb)
             }
-            keys.free()
-            print("}")
+            sb.puts("}")
         }
     }
+}
+
+def JSON::str(&this): string {
+    let sb = StringBuilder::make()
+    .to_sb(&sb)
+    return sb.str()
+}
+
+def JSON::free(&this) {
+    match .type {
+        Null | Bool | Number | String => {}
+        Array => {
+            for let i = 0; i < .u.arr.size; i += 1 {
+                let value = .u.arr.at(i) as &JSON
+                value.free()
+            }
+        }
+        Object => {
+            for let iter = .u.obj.iter(); iter.cur?; iter.next() {
+                let value = iter.value() as &JSON
+                value.free()
+            }
+        }
+    }
+    free(this)
 }
