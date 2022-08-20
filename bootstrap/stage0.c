@@ -10,6 +10,20 @@
 
 /***************** embed './lib/prelude.h' *****************/
 #include "stdarg.h"
+
+typedef int8_t i8;
+typedef int16_t i16;
+typedef int32_t i32;
+typedef int64_t i64;
+
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+
+typedef float f32;
+typedef double f64;
+
 char* format_string(const char* format, ...) {
   va_list args;
   va_start(args, format);
@@ -64,15 +78,15 @@ typedef struct StringBuilder StringBuilder;
 typedef struct CodeGenerator CodeGenerator;
 
 struct Vector {
-  int size;
-  int capacity;
+  i32 size;
+  i32 capacity;
   void **data;
 };
 
 struct Location {
   char *filename;
-  int line;
-  int col;
+  i32 line;
+  i32 col;
 };
 
 struct Span {
@@ -94,9 +108,13 @@ enum TokenType {
   TokenType__Extern,
   TokenType__False,
   TokenType__F32,
+  TokenType__F64,
   TokenType__For,
   TokenType__Fn,
+  TokenType__I8,
+  TokenType__I16,
   TokenType__I32,
+  TokenType__I64,
   TokenType__If,
   TokenType__Let,
   TokenType__Match,
@@ -110,6 +128,9 @@ enum TokenType {
   TokenType__True,
   TokenType__Then,
   TokenType__U8,
+  TokenType__U16,
+  TokenType__U32,
+  TokenType__U64,
   TokenType__UntypedPtr,
   TokenType__Union,
   TokenType__Use,
@@ -176,8 +197,8 @@ enum MessageType {
 
 struct Lexer {
   char *source;
-  int source_len;
-  int i;
+  i32 source_len;
+  i32 i;
   Location loc;
   bool seen_newline;
   Vector *tokens;
@@ -191,24 +212,31 @@ struct MapNode {
 
 struct Map {
   MapNode **buckets;
-  int num_items;
-  int num_buckets;
-  int num_collisions;
+  i32 num_items;
+  i32 num_buckets;
+  i32 num_collisions;
 };
 
 struct MapIterator {
-  int idx;
+  i32 idx;
   MapNode *cur;
   Map *map;
 };
 
 enum BaseType {
   BaseType__Char,
-  BaseType__I32,
-  BaseType__F32,
   BaseType__Bool,
-  BaseType__U8,
   BaseType__Void,
+  BaseType__I8,
+  BaseType__I16,
+  BaseType__I32,
+  BaseType__I64,
+  BaseType__U8,
+  BaseType__U16,
+  BaseType__U32,
+  BaseType__U64,
+  BaseType__F32,
+  BaseType__F64,
   BaseType__Pointer,
   BaseType__Structure,
   BaseType__Function,
@@ -435,12 +463,12 @@ struct AST {
 
 struct ParserContext {
   Vector *tokens;
-  int offset;
+  i32 offset;
 };
 
 struct Parser {
   Vector *tokens;
-  int curr;
+  i32 curr;
   Vector *context_stack;
   char *project_root;
   Vector *include_dirs;
@@ -458,8 +486,8 @@ struct TypeChecker {
 
 struct StringBuilder {
   char *data;
-  int size;
-  int capacity;
+  i32 size;
+  i32 capacity;
 };
 
 struct CodeGenerator {
@@ -467,7 +495,7 @@ struct CodeGenerator {
   Vector *scopes;
   bool debug;
   Vector *yield_vars;
-  int yield_count;
+  i32 yield_count;
 };
 
 /* function declarations */
@@ -477,40 +505,38 @@ char *File__slurp(FILE *this);
 void File__puts(FILE *this, char *str);
 bool string__starts_with(char *this, char *prefix);
 bool string__eq(char *this, char *str2);
-char *string__substring(char *this, int start, int len);
+char *string__substring(char *this, i32 start, i32 len);
 void string__strip_trailing_whitespace(char *this);
-int min(int a, int b);
-int max(int a, int b);
-Vector *Vector__new_sized(int capacity);
+i32 min(i32 a, i32 b);
+i32 max(i32 a, i32 b);
+Vector *Vector__new_sized(i32 capacity);
 Vector *Vector__new(void);
-void Vector__resize(Vector *this, int new_capacity);
+void Vector__resize(Vector *this, i32 new_capacity);
 void Vector__push(Vector *this, void *val);
 void Vector__push_front(Vector *this, void *val);
 void *Vector__pop(Vector *this);
 void *Vector__back(Vector *this);
-void *Vector__at(Vector *this, int i);
+void *Vector__at(Vector *this, i32 i);
 bool Vector__empty(Vector *this);
 void Vector__free(Vector *this);
-Location Location__make(char *filename, int line, int col);
-char *Location__str(Location *this);
-bool Location__is_before(Location *this, Location other);
+Location Location__make(char *filename, i32 line, i32 col);
+char *Location__str(Location this);
 Span Span__make(Location start, Location end);
 char *Span__str(Span this);
 Span Span__join(Span this, Span other);
-bool Span__contains_loc(Span this, Location loc);
 Token *Token__new(TokenType type, Span span, char *text);
 Token *Token__from_type(TokenType type, Span span);
 Token *Token__from_ident(char *text, Span span);
 char *Token__str(Token *this);
 TokenType TokenType__from_text(char *text);
 char *TokenType__str(TokenType this);
-float minf(float a, float b);
-float maxf(float a, float b);
-float clampf(float x, float min, float max);
-float clamp01(float x);
-float degrees(float radians);
-float radians(float degrees);
-int edit_distance(char *str1, char *str2);
+f32 minf(f32 a, f32 b);
+f32 maxf(f32 a, f32 b);
+f32 clampf(f32 x, f32 min, f32 max);
+f32 clamp01(f32 x);
+f32 degrees(f32 radians);
+f32 radians(f32 degrees);
+i32 edit_distance(char *str1, char *str2);
 char *find_word_suggestion(char *s, Vector *options);
 char *MessageType__to_color(MessageType this);
 char *MessageType__str(MessageType this);
@@ -522,15 +548,15 @@ __attribute__((noreturn)) void error_span_note(Span span, char *msg, char *note)
 __attribute__((noreturn)) void error_span_note_span(Span msg_span, char *msg, Span note_span, char *note);
 Lexer Lexer__make(char *source, char *filename);
 void Lexer__push(Lexer *this, Token *token);
-void Lexer__push_type(Lexer *this, TokenType type, int len);
-char Lexer__peek(Lexer *this, int offset);
+void Lexer__push_type(Lexer *this, TokenType type, i32 len);
+char Lexer__peek(Lexer *this, i32 offset);
 void Lexer__lex_char_literal(Lexer *this);
 void Lexer__lex_string_literal(Lexer *this);
 Vector *Lexer__lex(Lexer *this);
 MapNode *MapNode__new(char *key, void *value, MapNode *next);
 void MapNode__free_list(MapNode *node);
 Map *Map__new(void);
-int Map__hash(Map *this, char *s);
+i32 Map__hash(Map *this, char *s);
 MapNode *Map__get_node(Map *this, char *key);
 void *Map__get(Map *this, char *key);
 bool Map__exists(Map *this, char *key);
@@ -549,6 +575,7 @@ Type *Type__new(BaseType base, Span span);
 Type *Type__new_link(BaseType base, Type *next, Span span);
 Type *Type__ptr_to(BaseType base, Span span);
 bool Type__is_struct_or_ptr(Type *this);
+bool Type__is_integer(Type *this);
 bool Type__is_numeric(Type *this);
 bool Type__eq(Type *this, Type *other);
 char *Type__str(Type *this);
@@ -568,7 +595,7 @@ AST *AST__new(ASTType type, Span span);
 AST *AST__new_unop(ASTType type, Span span, AST *expr);
 AST *AST__new_binop(ASTType type, AST *lhs, AST *rhs);
 bool AST__callee_is(AST *this, char *expected);
-ParserContext *ParserContext__new(Vector *tokens, int offset);
+ParserContext *ParserContext__new(Vector *tokens, i32 offset);
 Parser *Parser__new(Vector *tokens, char *filename);
 void Parser__push_context(Parser *this, Vector *tokens);
 void Parser__pop_context(Parser *this);
@@ -639,11 +666,11 @@ char *StringBuilder__str(StringBuilder *this);
 char *StringBuilder__new_str(StringBuilder *this);
 CodeGenerator CodeGenerator__make(bool debug);
 void CodeGenerator__gen_debug_info(CodeGenerator *this, Span span);
-void CodeGenerator__indent(CodeGenerator *this, int num);
+void CodeGenerator__indent(CodeGenerator *this, i32 num);
 void CodeGenerator__push_scope(CodeGenerator *this);
 Vector *CodeGenerator__scope(CodeGenerator *this);
 void CodeGenerator__pop_scope(CodeGenerator *this);
-void CodeGenerator__gen_control_body(CodeGenerator *this, AST *node, AST *body, int indent);
+void CodeGenerator__gen_control_body(CodeGenerator *this, AST *node, AST *body, i32 indent);
 void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, char *value_name);
 void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc);
 void CodeGenerator__gen_struct(CodeGenerator *this, Structure *struc);
@@ -651,12 +678,12 @@ char *CodeGenerator__get_op(ASTType type);
 void CodeGenerator__gen_in_yield_context(CodeGenerator *this, AST *node);
 void CodeGenerator__gen_expression(CodeGenerator *this, AST *node);
 void CodeGenerator__gen_var_decl(CodeGenerator *this, AST *node);
-void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *body, int indent);
-void CodeGenerator__gen_match_string(CodeGenerator *this, AST *node, int indent);
-void CodeGenerator__gen_match(CodeGenerator *this, AST *node, int indent);
-void CodeGenerator__gen_yield_expression(CodeGenerator *this, AST *expr, int indent);
-void CodeGenerator__gen_statement(CodeGenerator *this, AST *node, int indent);
-void CodeGenerator__gen_block(CodeGenerator *this, AST *node, int indent);
+void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *body, i32 indent);
+void CodeGenerator__gen_match_string(CodeGenerator *this, AST *node, i32 indent);
+void CodeGenerator__gen_match(CodeGenerator *this, AST *node, i32 indent);
+void CodeGenerator__gen_yield_expression(CodeGenerator *this, AST *expr, i32 indent);
+void CodeGenerator__gen_statement(CodeGenerator *this, AST *node, i32 indent);
+void CodeGenerator__gen_block(CodeGenerator *this, AST *node, i32 indent);
 void CodeGenerator__gen_struct_decls(CodeGenerator *this, Program *program);
 void string__replace(char **this, char *other);
 char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char *name, bool is_func_def);
@@ -669,8 +696,8 @@ void CodeGenerator__gen_function(CodeGenerator *this, Function *func);
 void CodeGenerator__gen_global_vars(CodeGenerator *this, Program *program);
 void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program);
 char *CodeGenerator__gen_program(CodeGenerator *this, Program *program);
-void usage(int code);
-int main(int argc, char **argv);
+void usage(i32 code);
+i32 main(i32 argc, char **argv);
 
 /* global variables */
 
@@ -693,9 +720,9 @@ bool File__exists(char *path) {
 }
 
 char *File__slurp(FILE *this) {
-  int pos = ftell(this);
+  i32 pos = ftell(this);
   fseek(this, 0, SEEK_END);
-  int size = ftell(this);
+  i32 size = ftell(this);
   fseek(this, pos, SEEK_SET);
   void *buf = calloc((size + 1), sizeof(char));
   fread(buf, 1, size, this);
@@ -708,7 +735,7 @@ void File__puts(FILE *this, char *str) {
 }
 
 bool string__starts_with(char *this, char *prefix) {
-  int prefix_len = strlen(prefix);
+  i32 prefix_len = strlen(prefix);
   if ((strlen(this) < prefix_len)) {
     return false;
   } 
@@ -719,14 +746,14 @@ bool string__eq(char *this, char *str2) {
   return strcmp(this, str2) == 0;
 }
 
-char *string__substring(char *this, int start, int len) {
+char *string__substring(char *this, i32 start, i32 len) {
   char *new_str = ((char *)calloc((len + 1), sizeof(char)));
   strncpy(new_str, (this + start), len);
   return new_str;
 }
 
 void string__strip_trailing_whitespace(char *this) {
-  for (int i = (strlen(this) - 1); (i >= 0); i -= 1) {
+  for (i32 i = (strlen(this) - 1); (i >= 0); i -= 1) {
     if ((this[i] != ' ')) 
     break;
     
@@ -734,15 +761,15 @@ void string__strip_trailing_whitespace(char *this) {
   } 
 }
 
-int min(int a, int b) {
+i32 min(i32 a, i32 b) {
   return ((a < b) ? a : b);
 }
 
-int max(int a, int b) {
+i32 max(i32 a, i32 b) {
   return ((a > b) ? a : b);
 }
 
-Vector *Vector__new_sized(int capacity) {
+Vector *Vector__new_sized(i32 capacity) {
   Vector *vec = ((Vector *)calloc(1, sizeof(Vector)));
   vec->size = 0;
   vec->capacity = capacity;
@@ -754,7 +781,7 @@ Vector *Vector__new(void) {
   return Vector__new_sized(16);
 }
 
-void Vector__resize(Vector *this, int new_capacity) {
+void Vector__resize(Vector *this, i32 new_capacity) {
   this->capacity = new_capacity;
   this->data = ((void **)realloc(this->data, (this->capacity * sizeof(void *))));
 }
@@ -771,7 +798,7 @@ void Vector__push_front(Vector *this, void *val) {
   if (this->size == this->capacity) {
     Vector__resize(this, (this->capacity * 2));
   } 
-  for (int i = this->size; (i > 0); i -= 1) {
+  for (i32 i = this->size; (i > 0); i -= 1) {
     this->data[i] = this->data[(i - 1)];
   } 
   this->data[0] = val;
@@ -795,7 +822,7 @@ void *Vector__back(Vector *this) {
   return this->data[(this->size - 1)];
 }
 
-void *Vector__at(Vector *this, int i) {
+void *Vector__at(Vector *this, i32 i) {
   if (((i < 0) || (i >= this->size))) {
     printf("at out of bounds in vector" "\n");
     exit(1);
@@ -812,7 +839,7 @@ void Vector__free(Vector *this) {
   free(this);
 }
 
-Location Location__make(char *filename, int line, int col) {
+Location Location__make(char *filename, i32 line, i32 col) {
   Location loc;
   loc.filename = filename;
   loc.line = line;
@@ -820,18 +847,8 @@ Location Location__make(char *filename, int line, int col) {
   return loc;
 }
 
-char *Location__str(Location *this) {
-  return format_string("%s:%d:%d", this->filename, this->line, this->col);
-}
-
-bool Location__is_before(Location *this, Location other) {
-  if ((this->line > other.line)) 
-  return false;
-  
-  if ((this->line < other.line)) 
-  return true;
-  
-  return (this->col <= other.col);
+char *Location__str(Location this) {
+  return format_string("%s:%d:%d", this.filename, this.line, this.col);
 }
 
 Span Span__make(Location start, Location end) {
@@ -842,7 +859,7 @@ Span Span__make(Location start, Location end) {
 }
 
 char *Span__str(Span this) {
-  return format_string("%s => %s", Location__str((&this.start)), Location__str((&this.end)));
+  return format_string("%s => %s", Location__str(this.start), Location__str(this.end));
 }
 
 Span Span__join(Span this, Span other) {
@@ -850,10 +867,6 @@ Span Span__join(Span this, Span other) {
   span.start = this.start;
   span.end = other.end;
   return span;
-}
-
-bool Span__contains_loc(Span this, Location loc) {
-  return (Location__is_before((&this.start), loc) && Location__is_before((&loc), this.end));
 }
 
 Token *Token__new(TokenType type, Span span, char *text) {
@@ -908,12 +921,20 @@ TokenType TokenType__from_text(char *text) {
       __yield_0 = TokenType__False;
 } else if (!strcmp(__match_str, "f32")) {
       __yield_0 = TokenType__F32;
+} else if (!strcmp(__match_str, "f64")) {
+      __yield_0 = TokenType__F64;
 } else if (!strcmp(__match_str, "for")) {
       __yield_0 = TokenType__For;
 } else if (!strcmp(__match_str, "fn")) {
       __yield_0 = TokenType__Fn;
+} else if (!strcmp(__match_str, "i8")) {
+      __yield_0 = TokenType__I8;
+} else if (!strcmp(__match_str, "i16")) {
+      __yield_0 = TokenType__I16;
 } else if (!strcmp(__match_str, "i32")) {
       __yield_0 = TokenType__I32;
+} else if (!strcmp(__match_str, "i64")) {
+      __yield_0 = TokenType__I64;
 } else if (!strcmp(__match_str, "if")) {
       __yield_0 = TokenType__If;
 } else if (!strcmp(__match_str, "let")) {
@@ -940,6 +961,12 @@ TokenType TokenType__from_text(char *text) {
       __yield_0 = TokenType__Then;
 } else if (!strcmp(__match_str, "u8")) {
       __yield_0 = TokenType__U8;
+} else if (!strcmp(__match_str, "u16")) {
+      __yield_0 = TokenType__U16;
+} else if (!strcmp(__match_str, "u32")) {
+      __yield_0 = TokenType__U32;
+} else if (!strcmp(__match_str, "u64")) {
+      __yield_0 = TokenType__U64;
 } else if (!strcmp(__match_str, "untyped_ptr")) {
       __yield_0 = TokenType__UntypedPtr;
 } else if (!strcmp(__match_str, "union")) {
@@ -1001,14 +1028,26 @@ char *TokenType__str(TokenType this) {
     case TokenType__F32: {
       __yield_0 = "f32";
 } break;
+    case TokenType__F64: {
+      __yield_0 = "f64";
+} break;
     case TokenType__For: {
       __yield_0 = "for";
 } break;
     case TokenType__Fn: {
       __yield_0 = "fn";
 } break;
+    case TokenType__I8: {
+      __yield_0 = "i8";
+} break;
+    case TokenType__I16: {
+      __yield_0 = "i16";
+} break;
     case TokenType__I32: {
       __yield_0 = "i32";
+} break;
+    case TokenType__I64: {
+      __yield_0 = "i64";
 } break;
     case TokenType__If: {
       __yield_0 = "if";
@@ -1048,6 +1087,15 @@ char *TokenType__str(TokenType this) {
 } break;
     case TokenType__U8: {
       __yield_0 = "u8";
+} break;
+    case TokenType__U16: {
+      __yield_0 = "u16";
+} break;
+    case TokenType__U32: {
+      __yield_0 = "u32";
+} break;
+    case TokenType__U64: {
+      __yield_0 = "u64";
 } break;
     case TokenType__UntypedPtr: {
       __yield_0 = "untyped_ptr";
@@ -1200,7 +1248,7 @@ char *TokenType__str(TokenType this) {
 ;__yield_0; });
 }
 
-float minf(float a, float b) {
+f32 minf(f32 a, f32 b) {
   if ((a < b)) 
   return a;
    else 
@@ -1208,7 +1256,7 @@ float minf(float a, float b) {
   
 }
 
-float maxf(float a, float b) {
+f32 maxf(f32 a, f32 b) {
   if ((a > b)) 
   return a;
    else 
@@ -1216,38 +1264,38 @@ float maxf(float a, float b) {
   
 }
 
-float clampf(float x, float min, float max) {
+f32 clampf(f32 x, f32 min, f32 max) {
   return maxf(minf(x, max), min);
 }
 
-float clamp01(float x) {
+f32 clamp01(f32 x) {
   return clampf(x, 0.0, 1.0);
 }
 
-float degrees(float radians) {
+f32 degrees(f32 radians) {
   return ((radians * 180.0) / M_PI);
 }
 
-float radians(float degrees) {
+f32 radians(f32 degrees) {
   return ((degrees * M_PI) / 180.0);
 }
 
-int edit_distance(char *str1, char *str2) {
-  int n = strlen(str1);
-  int m = strlen(str2);
-  int stride = (m + 1);
-  int d[(n + 1)][(m + 1)];
-  for (int i = 0; (i <= n); i += 1) {
+i32 edit_distance(char *str1, char *str2) {
+  i32 n = strlen(str1);
+  i32 m = strlen(str2);
+  i32 stride = (m + 1);
+  i32 d[(n + 1)][(m + 1)];
+  for (i32 i = 0; (i <= n); i += 1) {
     d[i][0] = i;
   } 
-  for (int j = 0; (j <= m); j += 1) {
+  for (i32 j = 0; (j <= m); j += 1) {
     d[0][j] = j;
   } 
-  for (int i = 1; (i <= n); i += 1) {
-    for (int j = 1; (j <= m); j += 1) {
-      int x = (d[(i - 1)][j] + 1);
-      int y = (d[i][(j - 1)] + 1);
-      int z;
+  for (i32 i = 1; (i <= n); i += 1) {
+    for (i32 j = 1; (j <= m); j += 1) {
+      i32 x = (d[(i - 1)][j] + 1);
+      i32 y = (d[i][(j - 1)] + 1);
+      i32 z;
       if (str1[(i - 1)] == str2[(j - 1)]) {
         z = d[(i - 1)][(j - 1)];
       }  else {
@@ -1256,20 +1304,20 @@ int edit_distance(char *str1, char *str2) {
       d[i][j] = min(x, min(y, z));
     } 
   } 
-  int result = d[n][m];
+  i32 result = d[n][m];
   return result;
 }
 
 char *find_word_suggestion(char *s, Vector *options) {
-  int threshold = 5;
+  i32 threshold = 5;
   if (options->size == 0) 
   return NULL;
   
   char *closest = ((char *)Vector__at(options, 0));
-  int closest_distance = edit_distance(s, closest);
-  for (int i = 1; (i < options->size); i += 1) {
+  i32 closest_distance = edit_distance(s, closest);
+  for (i32 i = 1; (i < options->size); i += 1) {
     char *option = ((char *)Vector__at(options, i));
-    int distance = edit_distance(s, option);
+    i32 distance = edit_distance(s, option);
     if ((distance < closest_distance)) {
       closest = option;
       closest_distance = distance;
@@ -1315,7 +1363,7 @@ char *MessageType__str(MessageType this) {
 
 void display_message(MessageType type, Span span, char *msg) {
   printf("---------------------------------------------------------------" "\n");
-  printf("%s: %s: %s" "\n", Location__str((&span.start)), MessageType__str(type), msg);
+  printf("%s: %s: %s" "\n", Location__str(span.start), MessageType__str(type), msg);
   printf("---------------------------------------------------------------" "\n");
 }
 
@@ -1327,27 +1375,27 @@ void display_message_with_span(MessageType type, Span span, char *msg) {
   ;
   char *contents = File__slurp(file);
   ;
-  int around_offset = 1;
-  int min_line = max((span.start.line - around_offset), 1);
-  int max_line = (span.end.line + around_offset);
+  i32 around_offset = 1;
+  i32 min_line = max((span.start.line - around_offset), 1);
+  i32 max_line = (span.end.line + around_offset);
   display_message(type, span, msg);
   char *lines = contents;
   char *cur = strsep((&lines), "\n");
-  int line_no = 1;
+  i32 line_no = 1;
   while ((((bool)cur) && (line_no <= max_line))) {
     if (((line_no >= min_line) && (line_no <= max_line))) {
       printf("%4d | ", line_no);
       if (line_no == span.start.line) {
-        int start_col = (span.start.col - 1);
-        int end_col = (span.end.col - 1);
+        i32 start_col = (span.start.col - 1);
+        i32 end_col = (span.end.col - 1);
         if ((span.end.line != span.start.line)) {
           end_col = strlen(cur);
         } 
-        for (int i = 0; (i < start_col); i += 1) {
+        for (i32 i = 0; (i < start_col); i += 1) {
           printf("%c", cur[i]);
         } 
         printf("%s", color);
-        for (int i = start_col; (i < end_col); i += 1) {
+        for (i32 i = start_col; (i < end_col); i += 1) {
           printf("%c", cur[i]);
         } 
         printf("%s%s" "\n", reset, (cur + end_col));
@@ -1405,14 +1453,14 @@ void Lexer__push(Lexer *this, Token *token) {
   this->seen_newline = false;
 }
 
-void Lexer__push_type(Lexer *this, TokenType type, int len) {
+void Lexer__push_type(Lexer *this, TokenType type, i32 len) {
   Location start_loc = this->loc;
   this->loc.col += len;
   this->i += len;
   Lexer__push(this, Token__from_type(type, Span__make(start_loc, this->loc)));
 }
 
-char Lexer__peek(Lexer *this, int offset) {
+char Lexer__peek(Lexer *this, i32 offset) {
   if (this->source[this->i] == '\0') {
     return this->source[this->i];
   } 
@@ -1421,7 +1469,7 @@ char Lexer__peek(Lexer *this, int offset) {
 
 void Lexer__lex_char_literal(Lexer *this) {
   Location start_loc = this->loc;
-  int start = (this->i + 1);
+  i32 start = (this->i + 1);
   this->i += 1;
   if (this->source[this->i] == '\\') {
     this->i += 2;
@@ -1432,7 +1480,7 @@ void Lexer__lex_char_literal(Lexer *this) {
     this->loc.col += ((this->i - start) + 1);
     error_loc(this->loc, "Expected ' after character literal");
   } 
-  int len = (this->i - start);
+  i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
   this->loc.col += (len + 2);
   this->i += 1;
@@ -1442,7 +1490,7 @@ void Lexer__lex_char_literal(Lexer *this) {
 void Lexer__lex_string_literal(Lexer *this) {
   Location start_loc = this->loc;
   char end_char = this->source[this->i];
-  int start = (this->i + 1);
+  i32 start = (this->i + 1);
   this->i += 1;
   while ((this->source[this->i] != end_char)) {
     if (this->source[this->i] == '\\') {
@@ -1450,7 +1498,7 @@ void Lexer__lex_string_literal(Lexer *this) {
     } 
     this->i += 1;
   } 
-  int len = (this->i - start);
+  i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
   this->loc.col += (len + 2);
   this->i += 1;
@@ -1633,7 +1681,7 @@ Vector *Lexer__lex(Lexer *this) {
       default: {
         Location start_loc = this->loc;
         if (isdigit(c)) {
-          int start = this->i;
+          i32 start = this->i;
           TokenType token_type;
           while (isdigit(this->source[this->i])) {
             this->i += 1;
@@ -1647,21 +1695,21 @@ Vector *Lexer__lex(Lexer *this) {
           }  else {
             token_type = TokenType__IntLiteral;
           } 
-          int len = (this->i - start);
+          i32 len = (this->i - start);
           char *text = string__substring(this->source, start, len);
           this->loc.col += len;
           Lexer__push(this, Token__new(token_type, Span__make(start_loc, this->loc), text));
         }  else         if ((isalpha(c) || c == '_')) {
-          int start = this->i;
+          i32 start = this->i;
           while ((isalnum(this->source[this->i]) || this->source[this->i] == '_')) {
             this->i += 1;
           } 
-          int len = (this->i - start);
+          i32 len = (this->i - start);
           char *text = string__substring(this->source, start, len);
           this->loc.col += len;
           Lexer__push(this, Token__from_ident(text, Span__make(start_loc, this->loc)));
         }  else {
-          printf("%s: Unrecognized char in lexer: '%c'" "\n", Location__str((&this->loc)), c);
+          printf("%s: Unrecognized char in lexer: '%c'" "\n", Location__str(this->loc), c);
           exit(1);
         } 
         
@@ -1696,11 +1744,11 @@ Map *Map__new(void) {
   return map;
 }
 
-int Map__hash(Map *this, char *s) {
-  int hash = 5381;
-  int len = strlen(s);
-  for (int i = 0; (i < len); i += 1) {
-    hash = ((hash * 33) ^ ((int)s[i]));
+i32 Map__hash(Map *this, char *s) {
+  i32 hash = 5381;
+  i32 len = strlen(s);
+  for (i32 i = 0; (i < len); i += 1) {
+    hash = ((hash * 33) ^ ((i32)s[i]));
   } 
   hash = (hash % this->num_buckets);
   if ((hash < 0)) {
@@ -1710,7 +1758,7 @@ int Map__hash(Map *this, char *s) {
 }
 
 MapNode *Map__get_node(Map *this, char *key) {
-  int hash = Map__hash(this, key);
+  i32 hash = Map__hash(this, key);
   MapNode *node = this->buckets[hash];
   while (((bool)node)) {
     if (string__eq(node->key, key)) {
@@ -1738,7 +1786,7 @@ void Map__insert(Map *this, char *key, void *value) {
   if (((bool)node)) {
     node->value = value;
   }  else {
-    int hash = Map__hash(this, key);
+    i32 hash = Map__hash(this, key);
     MapNode *new_node = MapNode__new(key, value, this->buckets[hash]);
     if (((bool)this->buckets[hash])) {
       this->num_collisions += 1;
@@ -1753,15 +1801,15 @@ void Map__insert(Map *this, char *key, void *value) {
 
 void Map__resize(Map *this) {
   MapNode **old_buckets = this->buckets;
-  int old_num_buckets = this->num_buckets;
-  int old_num_items = this->num_items;
+  i32 old_num_buckets = this->num_buckets;
+  i32 old_num_items = this->num_items;
   this->num_collisions = 0;
   this->num_buckets *= 2;
   this->buckets = ((MapNode **)calloc(this->num_buckets, sizeof(MapNode *)));
-  for (int i = 0; (i < old_num_buckets); i += 1) {
+  for (i32 i = 0; (i < old_num_buckets); i += 1) {
     MapNode *node = old_buckets[i];
     while (((bool)node)) {
-      int new_hash = Map__hash(this, node->key);
+      i32 new_hash = Map__hash(this, node->key);
       MapNode *new_node = MapNode__new(node->key, node->value, this->buckets[new_hash]);
       if (((bool)this->buckets[new_hash])) {
         this->num_collisions += 1;
@@ -1770,14 +1818,14 @@ void Map__resize(Map *this) {
       node = node->next;
     } 
   } 
-  for (int i = 0; (i < old_num_buckets); i += 1) {
+  for (i32 i = 0; (i < old_num_buckets); i += 1) {
     MapNode__free_list(old_buckets[i]);
   } 
   free(old_buckets);
 }
 
 void Map__print_keys(Map *this) {
-  for (int i = 0; (i < this->num_buckets); i += 1) {
+  for (i32 i = 0; (i < this->num_buckets); i += 1) {
     MapNode *node = this->buckets[i];
     while (((bool)node)) {
       printf("- '%s'\n" "\n", node->key);
@@ -1787,7 +1835,7 @@ void Map__print_keys(Map *this) {
 }
 
 void Map__push_keys(Map *this, Vector *vec) {
-  for (int i = 0; (i < this->num_buckets); i += 1) {
+  for (i32 i = 0; (i < this->num_buckets); i += 1) {
     MapNode *node = this->buckets[i];
     while (((bool)node)) {
       Vector__push(vec, node->key);
@@ -1797,7 +1845,7 @@ void Map__push_keys(Map *this, Vector *vec) {
 }
 
 void Map__free(Map *this) {
-  for (int i = 0; (i < this->num_buckets); i += 1) {
+  for (i32 i = 0; (i < this->num_buckets); i += 1) {
     MapNode__free_list(this->buckets[i]);
   } 
   free(this->buckets);
@@ -1852,20 +1900,41 @@ char *BaseType__str(BaseType this) {
     case BaseType__Char: {
       __yield_0 = "char";
 } break;
+    case BaseType__Bool: {
+      __yield_0 = "bool";
+} break;
+    case BaseType__Void: {
+      __yield_0 = "void";
+} break;
+    case BaseType__I8: {
+      __yield_0 = "i8";
+} break;
+    case BaseType__I16: {
+      __yield_0 = "i16";
+} break;
     case BaseType__I32: {
       __yield_0 = "i32";
 } break;
-    case BaseType__F32: {
-      __yield_0 = "f32";
-} break;
-    case BaseType__Bool: {
-      __yield_0 = "bool";
+    case BaseType__I64: {
+      __yield_0 = "i64";
 } break;
     case BaseType__U8: {
       __yield_0 = "u8";
 } break;
-    case BaseType__Void: {
-      __yield_0 = "void";
+    case BaseType__U16: {
+      __yield_0 = "u16";
+} break;
+    case BaseType__U32: {
+      __yield_0 = "u32";
+} break;
+    case BaseType__U64: {
+      __yield_0 = "u64";
+} break;
+    case BaseType__F32: {
+      __yield_0 = "f32";
+} break;
+    case BaseType__F64: {
+      __yield_0 = "f64";
 } break;
     case BaseType__Pointer: {
       __yield_0 = "&";
@@ -1917,8 +1986,46 @@ bool Type__is_struct_or_ptr(Type *this) {
   return this->ptr->base == BaseType__Structure;
 }
 
+bool Type__is_integer(Type *this) {
+  return ({ bool __yield_0;
+  switch (this->base) {
+    case BaseType__I8:
+    case BaseType__I16:
+    case BaseType__I32:
+    case BaseType__I64:
+    case BaseType__U8:
+    case BaseType__U16:
+    case BaseType__U32:
+    case BaseType__U64: {
+      __yield_0 = true;
+} break;
+    default: {
+      __yield_0 = false;
+} break;
+  }
+;__yield_0; });
+}
+
 bool Type__is_numeric(Type *this) {
-  return (this->base == BaseType__I32 || this->base == BaseType__F32);
+  return ({ bool __yield_0;
+  switch (this->base) {
+    case BaseType__I8:
+    case BaseType__I16:
+    case BaseType__I32:
+    case BaseType__I64:
+    case BaseType__U8:
+    case BaseType__U16:
+    case BaseType__U32:
+    case BaseType__U64:
+    case BaseType__F32:
+    case BaseType__F64: {
+      __yield_0 = true;
+} break;
+    default: {
+      __yield_0 = false;
+} break;
+  }
+;__yield_0; });
 }
 
 bool Type__eq(Type *this, Type *other) {
@@ -1945,7 +2052,7 @@ bool Type__eq(Type *this, Type *other) {
       if ((this->params->size != other->params->size)) 
       return false;
       
-      for (int i = 0; (i < this->params->size); i += 1) {
+      for (i32 i = 0; (i < this->params->size); i += 1) {
         Variable *a = ((Variable *)Vector__at(this->params, i));
         Variable *b = ((Variable *)Vector__at(other->params, i));
         if ((!Type__eq(a->type, b->type))) 
@@ -1963,12 +2070,7 @@ bool Type__eq(Type *this, Type *other) {
       } 
       return Type__eq(this->ptr, other->ptr);
     } break;
-    case BaseType__U8:
-    case BaseType__I32:
-    case BaseType__F32:
-    case BaseType__Bool:
-    case BaseType__Char:
-    case BaseType__Void: {
+    default: {
       return true;
     } break;
   }
@@ -1977,24 +2079,6 @@ bool Type__eq(Type *this, Type *other) {
 char *Type__str(Type *this) {
   return ({ char *__yield_0;
   switch (this->base) {
-    case BaseType__Void: {
-      __yield_0 = "void";
-} break;
-    case BaseType__Char: {
-      __yield_0 = "char";
-} break;
-    case BaseType__I32: {
-      __yield_0 = "i32";
-} break;
-    case BaseType__F32: {
-      __yield_0 = "f32";
-} break;
-    case BaseType__Bool: {
-      __yield_0 = "bool";
-} break;
-    case BaseType__U8: {
-      __yield_0 = "u8";
-} break;
     case BaseType__Pointer: {
       __yield_0 = format_string("&%s", Type__str(this->ptr));
 } break;
@@ -2009,6 +2093,9 @@ char *Type__str(Type *this) {
 } break;
     case BaseType__Method: {
       __yield_0 = "<method>";
+} break;
+    default: {
+      __yield_0 = BaseType__str(this->base);
 } break;
   }
 ;__yield_0; });
@@ -2285,7 +2372,7 @@ Structure *Structure__new(Span span) {
 }
 
 Variable *Structure__find_field(Structure *this, char *name) {
-  for (int i = 0; (i < this->fields->size); i += 1) {
+  for (i32 i = 0; (i < this->fields->size); i += 1) {
     Variable *field = ((Variable *)Vector__at(this->fields, i));
     if (string__eq(field->name, name)) {
       return field;
@@ -2307,7 +2394,7 @@ Program *Program__new(void) {
 }
 
 bool Program__is_file_included(Program *this, char *filename) {
-  int len = strlen(filename);
+  i32 len = strlen(filename);
   if ((((len > 2) && filename[0] == '.') && filename[1] == '/')) {
     filename = (&filename[2]);
   } 
@@ -2315,7 +2402,7 @@ bool Program__is_file_included(Program *this, char *filename) {
 }
 
 void Program__add_included_file(Program *this, char *filename) {
-  int len = strlen(filename);
+  i32 len = strlen(filename);
   if ((((len > 2) && filename[0] == '.') && filename[1] == '/')) {
     filename = (&filename[2]);
   } 
@@ -2363,7 +2450,7 @@ bool AST__callee_is(AST *this, char *expected) {
   return string__eq(name, expected);
 }
 
-ParserContext *ParserContext__new(Vector *tokens, int offset) {
+ParserContext *ParserContext__new(Vector *tokens, i32 offset) {
   ParserContext *context = ((ParserContext *)calloc(1, sizeof(ParserContext)));
   context->tokens = tokens;
   context->offset = offset;
@@ -2456,38 +2543,51 @@ Type *Parser__parse_type_with_parent(Parser *this, Type *parent) {
   Span span = Parser__token(this)->span;
   switch (Parser__token(this)->type) {
     case TokenType__Ampersand: {
-      type = Type__new(BaseType__Pointer, span);
-      this->curr += 1;
+      type = Type__new(BaseType__Pointer, Parser__consume(this, TokenType__Ampersand)->span);
       Parser__parse_type_with_parent(this, type);
     } break;
-    case TokenType__I32: {
-      type = Type__new(BaseType__I32, span);
-      this->curr += 1;
-    } break;
     case TokenType__Bool: {
-      type = Type__new(BaseType__Bool, span);
-      this->curr += 1;
+      type = Type__new(BaseType__Bool, Parser__consume(this, TokenType__Bool)->span);
     } break;
     case TokenType__Char: {
-      type = Type__new(BaseType__Char, span);
-      this->curr += 1;
+      type = Type__new(BaseType__Char, Parser__consume(this, TokenType__Char)->span);
+    } break;
+    case TokenType__I8: {
+      type = Type__new(BaseType__I8, Parser__consume(this, TokenType__I8)->span);
+    } break;
+    case TokenType__I16: {
+      type = Type__new(BaseType__I16, Parser__consume(this, TokenType__I16)->span);
+    } break;
+    case TokenType__I32: {
+      type = Type__new(BaseType__I32, Parser__consume(this, TokenType__I32)->span);
+    } break;
+    case TokenType__I64: {
+      type = Type__new(BaseType__I64, Parser__consume(this, TokenType__I64)->span);
     } break;
     case TokenType__U8: {
-      type = Type__new(BaseType__U8, span);
-      this->curr += 1;
+      type = Type__new(BaseType__U8, Parser__consume(this, TokenType__U8)->span);
+    } break;
+    case TokenType__U16: {
+      type = Type__new(BaseType__U16, Parser__consume(this, TokenType__U16)->span);
+    } break;
+    case TokenType__U32: {
+      type = Type__new(BaseType__U32, Parser__consume(this, TokenType__U32)->span);
+    } break;
+    case TokenType__U64: {
+      type = Type__new(BaseType__U64, Parser__consume(this, TokenType__U64)->span);
     } break;
     case TokenType__F32: {
-      type = Type__new(BaseType__F32, span);
-      this->curr += 1;
+      type = Type__new(BaseType__F32, Parser__consume(this, TokenType__F32)->span);
     } break;
-    case TokenType__String: {
-      type = Type__ptr_to(BaseType__Char, span);
-      type->ptr->name = "string";
-      this->curr += 1;
+    case TokenType__F64: {
+      type = Type__new(BaseType__F64, Parser__consume(this, TokenType__F64)->span);
     } break;
     case TokenType__UntypedPtr: {
-      type = Type__ptr_to(BaseType__Void, span);
-      this->curr += 1;
+      type = Type__ptr_to(BaseType__Void, Parser__consume(this, TokenType__UntypedPtr)->span);
+    } break;
+    case TokenType__String: {
+      type = Type__ptr_to(BaseType__Char, Parser__consume(this, TokenType__String)->span);
+      type->ptr->name = "string";
     } break;
     case TokenType__Identifier: {
       type = Type__new(BaseType__Structure, span);
@@ -2541,13 +2641,13 @@ Type *Parser__parse_type(Parser *this) {
 
 AST *Parser__parse_format_string(Parser *this) {
   Token *fstr = Parser__consume(this, TokenType__FormatStringLiteral);
-  int fstr_len = strlen(fstr->text);
+  i32 fstr_len = strlen(fstr->text);
   Vector *expr_parts = Vector__new();
   Vector *expr_start = Vector__new();
   Vector *format_parts = Vector__new();
-  int count = 0;
-  int cur_start = 0;
-  for (int i = 0; (i < fstr_len); i += 1) {
+  i32 count = 0;
+  i32 cur_start = 0;
+  for (i32 i = 0; (i < fstr_len); i += 1) {
     if (fstr->text[i] == '{') {
       if (count == 0) {
         char *part = string__substring(fstr->text, cur_start, (i - cur_start));
@@ -2578,9 +2678,9 @@ AST *Parser__parse_format_string(Parser *this) {
   node->u.fmt_str.parts = format_parts;
   Location fstr_start = fstr->span.start;
   Vector *expr_nodes = Vector__new();
-  for (int i = 0; (i < expr_parts->size); i += 1) {
+  for (i32 i = 0; (i < expr_parts->size); i += 1) {
     char *part = ((char *)Vector__at(expr_parts, i));
-    int start = (((char *)Vector__at(expr_start, i)) - fstr->text);
+    i32 start = (((char *)Vector__at(expr_start, i)) - fstr->text);
     Lexer lexer = Lexer__make(part, fstr_start.filename);
     lexer.loc = fstr_start;
     lexer.loc.col += (start + 1);
@@ -3246,7 +3346,7 @@ char *Parser__find_file_path(Parser *this, char *filename) {
     
     free(file_path);
   }  else {
-    for (int i = 0; (i < this->include_dirs->size); i += 1) {
+    for (i32 i = 0; (i < this->include_dirs->size); i += 1) {
       char *dir = ((char *)Vector__at(this->include_dirs, i));
       char *file_path = format_string("%s/%s", dir, filename);
       if (File__exists(file_path)) 
@@ -3387,7 +3487,7 @@ void TypeChecker__push_var(TypeChecker *this, Variable *var) {
 }
 
 Variable *TypeChecker__find_var(TypeChecker *this, char *name) {
-  for (int i = (this->scopes->size - 1); (i >= 0); i -= 1) {
+  for (i32 i = (this->scopes->size - 1); (i >= 0); i -= 1) {
     Map *scope = ((Map *)Vector__at(this->scopes, i));
     Variable *var = ((Variable *)Map__get(scope, name));
     if (((bool)var)) 
@@ -3409,7 +3509,7 @@ bool TypeChecker__type_is_valid(TypeChecker *this, Type *type) {
     } break;
     case BaseType__Function:
     case BaseType__Method: {
-      for (int i = 0; (i < type->params->size); i += 1) {
+      for (i32 i = 0; (i < type->params->size); i += 1) {
         Variable *var = ((Variable *)Vector__at(type->params, i));
         if ((!TypeChecker__type_is_valid(this, var->type))) {
           return false;
@@ -3429,12 +3529,7 @@ bool TypeChecker__type_is_valid(TypeChecker *this, Type *type) {
       Type *expr_type = TypeChecker__check_expression(this, type->size_expr);
       return (TypeChecker__type_is_valid(this, type->ptr) && TypeChecker__type_is_valid(this, expr_type));
     } break;
-    case BaseType__Char:
-    case BaseType__I32:
-    case BaseType__F32:
-    case BaseType__Bool:
-    case BaseType__U8:
-    case BaseType__Void: {
+    default: {
       return true;
     } break;
   }
@@ -3477,7 +3572,7 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
     callee->u.ident.is_function = false;
     char *name = callee->u.ident.name;
     if ((string__eq(name, "print") || string__eq(name, "println"))) {
-      for (int i = 0; (i < node->u.call.args->size); i += 1) {
+      for (i32 i = 0; (i < node->u.call.args->size); i += 1) {
         AST *arg = ((AST *)Vector__at(node->u.call.args, i));
         TypeChecker__check_expression(this, arg);
       } 
@@ -3500,7 +3595,7 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
   if ((params->size != node->u.call.args->size)) {
     error_span_note_span(node->span, "Number of arguments does not match function signature", func_type->span, format_string("This function expects %d arguments, got %d", params->size, node->u.call.args->size));
   } 
-  for (int i = 0; (i < params->size); i += 1) {
+  for (i32 i = 0; (i < params->size); i += 1) {
     Variable *param = ((Variable *)Vector__at(params, i));
     AST *arg = ((AST *)Vector__at(node->u.call.args, i));
     Type *arg_type = TypeChecker__check_expression(this, arg);
@@ -3517,25 +3612,38 @@ Type *TypeChecker__check_format_string(TypeChecker *this, AST *node) {
   if ((parts->size != (exprs->size + 1))) {
     error_span(node->span, "Number of format string parts does not match number of expressions");
   } 
-  int size = 0;
-  for (int i = 0; (i < parts->size); i += 1) {
+  i32 size = 0;
+  for (i32 i = 0; (i < parts->size); i += 1) {
     size += (strlen(((char *)Vector__at(parts, i))) + 3);
   } 
   char *buf = ((char *)calloc((size + 1), 1));
-  for (int i = 0; (i < exprs->size); i += 1) {
+  for (i32 i = 0; (i < exprs->size); i += 1) {
     char *part = ((char *)Vector__at(parts, i));
     AST *expr = ((AST *)Vector__at(exprs, i));
     strcat(buf, part);
     Type *expr_type = TypeChecker__check_expression(this, expr);
     switch (expr_type->base) {
-      case BaseType__I32:
-      case BaseType__U8: {
+      case BaseType__I8:
+      case BaseType__I16:
+      case BaseType__I32: {
         strcat(buf, "%d");
+      } break;
+      case BaseType__U8:
+      case BaseType__U16:
+      case BaseType__U32: {
+        strcat(buf, "%u");
+      } break;
+      case BaseType__I64: {
+        strcat(buf, "%lld");
+      } break;
+      case BaseType__U64: {
+        strcat(buf, "%llu");
       } break;
       case BaseType__Bool: {
         strcat(buf, "%s");
       } break;
-      case BaseType__F32: {
+      case BaseType__F32:
+      case BaseType__F64: {
         strcat(buf, "%f");
       } break;
       case BaseType__Char: {
@@ -3560,10 +3668,10 @@ Type *TypeChecker__check_format_string(TypeChecker *this, AST *node) {
 
 Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, Type *rhs) {
   if ((node->type == ASTType__Plus || node->type == ASTType__Minus)) {
-    if ((lhs->base == BaseType__Pointer && rhs->base == BaseType__I32)) {
+    if ((lhs->base == BaseType__Pointer && Type__is_integer(rhs))) {
       return lhs;
     } 
-    if ((lhs->base == BaseType__I32 && rhs->base == BaseType__Pointer)) {
+    if ((Type__is_integer(lhs) && rhs->base == BaseType__Pointer)) {
       return rhs;
     } 
     if ((Type__eq(lhs, rhs) && lhs->base == BaseType__Pointer)) {
@@ -3578,7 +3686,7 @@ Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, 
 
 __attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker *this, Span span, char *name) {
   Vector *options = Vector__new();
-  for (int i = 0; (i < this->scopes->size); i += 1) {
+  for (i32 i = 0; (i < this->scopes->size); i += 1) {
     Map *scope = ((Map *)Vector__at(this->scopes, i));
     Map__push_keys(scope, options);
   } 
@@ -3713,8 +3821,11 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__BitwiseXor: {
       Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-      if (((lhs->base != BaseType__I32) || (rhs->base != BaseType__I32))) {
+      if (((!Type__is_integer(lhs)) || (!Type__is_integer(rhs)))) {
         error_span_note(node->span, "Operator requires integer types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      } 
+      if ((!Type__eq(lhs, rhs))) {
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       etype = lhs;
     } break;
@@ -3741,7 +3852,7 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
         error_span_note(node->u.binary.lhs->span, "Expression must be a pointer-type", format_string("Got type '%s'", Type__str(expr_type)));
       } 
       Type *index_type = TypeChecker__check_expression(this, node->u.binary.rhs);
-      if ((index_type->base != BaseType__I32)) {
+      if ((!Type__is_integer(index_type))) {
         error_span_note(node->u.binary.rhs->span, "Index must be an integer", format_string("Got type '%s'", Type__str(index_type)));
       } 
       etype = expr_type->ptr;
@@ -3890,7 +4001,7 @@ void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST 
   ;
   Vector *cases = node->u.match_stmt.cases;
   node->returns = (cases->size > 0);
-  for (int i = 0; (i < cases->size); i += 1) {
+  for (i32 i = 0; (i < cases->size); i += 1) {
     MatchCase *_case = ((MatchCase *)Vector__at(cases, i));
     AST *cond = _case->cond;
     char *name;
@@ -3954,7 +4065,7 @@ void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr) {
   } 
   Vector *cases = node->u.match_stmt.cases;
   node->returns = (cases->size > 0);
-  for (int i = 0; (i < cases->size); i += 1) {
+  for (i32 i = 0; (i < cases->size); i += 1) {
     MatchCase *_case = ((MatchCase *)Vector__at(cases, i));
     Type *cond_type = TypeChecker__check_expression(this, _case->cond);
     if ((!Type__eq(cond_type, expr_type))) {
@@ -4112,7 +4223,7 @@ void TypeChecker__check_block(TypeChecker *this, AST *node, bool can_yield) {
   Span yield_span;
   TypeChecker__push_scope(this);
   Vector *statements = node->u.block.statements;
-  for (int i = 0; (i < statements->size); i += 1) {
+  for (i32 i = 0; (i < statements->size); i += 1) {
     AST *statement = ((AST *)Vector__at(statements, i));
     TypeChecker__check_statement(this, statement);
     if (statement->returns) {
@@ -4134,7 +4245,7 @@ void TypeChecker__check_function(TypeChecker *this, Function *func) {
   Function *prev_func = this->cur_func;
   this->cur_func = func;
   TypeChecker__push_scope(this);
-  for (int i = 0; (i < func->params->size); i += 1) {
+  for (i32 i = 0; (i < func->params->size); i += 1) {
     Variable *var = ((Variable *)Vector__at(func->params, i));
     TypeChecker__push_var(this, var);
   } 
@@ -4151,7 +4262,7 @@ void TypeChecker__check_function(TypeChecker *this, Function *func) {
 }
 
 void TypeChecker__check_all_functions(TypeChecker *this, Program *program) {
-  for (int i = 0; (i < program->functions->size); i += 1) {
+  for (i32 i = 0; (i < program->functions->size); i += 1) {
     Function *func = ((Function *)Vector__at(program->functions, i));
     char *name = func->name;
     char *struct_name = func->method_struct_name;
@@ -4179,7 +4290,7 @@ void TypeChecker__check_all_functions(TypeChecker *this, Program *program) {
       } 
     } 
     func_type->func_def = func;
-    for (int j = 0; (j < func->params->size); j += 1) {
+    for (i32 j = 0; (j < func->params->size); j += 1) {
       Variable *param = ((Variable *)Vector__at(func->params, j));
       if ((!TypeChecker__type_is_valid(this, param->type))) {
         error_span(param->type->span, "Invalid parameter type");
@@ -4198,14 +4309,14 @@ void TypeChecker__check_all_functions(TypeChecker *this, Program *program) {
       Map__insert(this->functions, name, func);
     } 
   } 
-  for (int i = 0; (i < program->functions->size); i += 1) {
+  for (i32 i = 0; (i < program->functions->size); i += 1) {
     TypeChecker__check_function(this, ((Function *)Vector__at(program->functions, i)));
   } 
 }
 
 void TypeChecker__dfs_structs(TypeChecker *this, Structure *struc, Vector *results, Map *done) {
   Map__insert(done, struc->name, struc);
-  for (int i = 0; (i < struc->fields->size); i += 1) {
+  for (i32 i = 0; (i < struc->fields->size); i += 1) {
     Variable *field = ((Variable *)Vector__at(struc->fields, i));
     if ((!TypeChecker__type_is_valid(this, field->type))) {
       error_span(field->type->span, "Type of field is undefined");
@@ -4222,7 +4333,7 @@ void TypeChecker__dfs_structs(TypeChecker *this, Structure *struc, Vector *resul
 }
 
 void TypeChecker__check_all_structs(TypeChecker *this, Program *program) {
-  for (int i = 0; (i < program->structures->size); i += 1) {
+  for (i32 i = 0; (i < program->structures->size); i += 1) {
     Structure *struc = ((Structure *)Vector__at(program->structures, i));
     char *name = struc->name;
     if (Map__exists(this->structures, name)) {
@@ -4234,7 +4345,7 @@ void TypeChecker__check_all_structs(TypeChecker *this, Program *program) {
   } 
   Map *done = Map__new();
   Vector *results = Vector__new();
-  for (int i = 0; (i < program->structures->size); i += 1) {
+  for (i32 i = 0; (i < program->structures->size); i += 1) {
     Structure *struc = ((Structure *)Vector__at(program->structures, i));
     if ((!Map__exists(done, struc->name))) {
       TypeChecker__dfs_structs(this, struc, results, done);
@@ -4248,7 +4359,7 @@ void TypeChecker__check_all_structs(TypeChecker *this, Program *program) {
 void TypeChecker__check_program(TypeChecker *this, Program *program) {
   TypeChecker__check_all_structs(this, program);
   TypeChecker__push_scope(this);
-  for (int i = 0; (i < program->global_vars->size); i += 1) {
+  for (i32 i = 0; (i < program->global_vars->size); i += 1) {
     AST *var = ((AST *)Vector__at(program->global_vars, i));
     TypeChecker__check_statement(this, var);
   } 
@@ -4265,10 +4376,10 @@ StringBuilder StringBuilder__make(void) {
 }
 
 void StringBuilder__puts(StringBuilder *this, char *s) {
-  int len = strlen(s);
-  int needed = ((this->size + len) + 1);
+  i32 len = strlen(s);
+  i32 needed = ((this->size + len) + 1);
   if ((needed >= this->capacity)) {
-    int new_capacity = max((this->capacity * 2), needed);
+    i32 new_capacity = max((this->capacity * 2), needed);
     this->data = ((char *)realloc(this->data, new_capacity));
   } 
   memcpy((this->data + this->size), s, (len + 1));
@@ -4308,8 +4419,8 @@ void CodeGenerator__gen_debug_info(CodeGenerator *this, Span span) {
   free(text);
 }
 
-void CodeGenerator__indent(CodeGenerator *this, int num) {
-  for (int i = 0; (i < num); i += 1) {
+void CodeGenerator__indent(CodeGenerator *this, i32 num) {
+  for (i32 i = 0; (i < num); i += 1) {
     StringBuilder__puts((&this->out), "  ");
   } 
 }
@@ -4327,7 +4438,7 @@ void CodeGenerator__pop_scope(CodeGenerator *this) {
   Vector__free(scope);
 }
 
-void CodeGenerator__gen_control_body(CodeGenerator *this, AST *node, AST *body, int indent) {
+void CodeGenerator__gen_control_body(CodeGenerator *this, AST *node, AST *body, i32 indent) {
   if (body->type == ASTType__Block) {
     CodeGenerator__gen_block(this, body, indent);
     StringBuilder__puts((&this->out), " ");
@@ -4352,7 +4463,7 @@ void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc) {
   if ((!struc->is_extern)) {
     StringBuilder__puts((&this->out), format_string("enum %s", struc->name));
     StringBuilder__puts((&this->out), " {\n");
-    for (int i = 0; (i < struc->fields->size); i += 1) {
+    for (i32 i = 0; (i < struc->fields->size); i += 1) {
       Variable *field = ((Variable *)Vector__at(struc->fields, i));
       CodeGenerator__indent(this, 1);
       CodeGenerator__gen_enum_value(this, struc->name, field->name);
@@ -4372,7 +4483,7 @@ void CodeGenerator__gen_struct(CodeGenerator *this, Structure *struc) {
     } 
     StringBuilder__puts((&this->out), name);
     StringBuilder__puts((&this->out), " {\n");
-    for (int i = 0; (i < struc->fields->size); i += 1) {
+    for (i32 i = 0; (i < struc->fields->size); i += 1) {
       Variable *field = ((Variable *)Vector__at(struc->fields, i));
       CodeGenerator__indent(this, 1);
       CodeGenerator__gen_type_and_name(this, field->type, field->name);
@@ -4553,7 +4664,7 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
       
       StringBuilder__puts((&this->out), "(");
       Vector *args = node->u.call.args;
-      for (int i = 0; (i < args->size); i += 1) {
+      for (i32 i = 0; (i < args->size); i += 1) {
         if ((i > 0)) {
           StringBuilder__puts((&this->out), ", ");
         } 
@@ -4627,7 +4738,7 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
       StringBuilder__puts((&this->out), node->u.fmt_str.str);
       StringBuilder__puts((&this->out), "\"");
       Vector *exprs = node->u.fmt_str.exprs;
-      for (int i = 0; (i < exprs->size); i += 1) {
+      for (i32 i = 0; (i < exprs->size); i += 1) {
         AST *expr = ((AST *)Vector__at(exprs, i));
         StringBuilder__puts((&this->out), ", ");
         CodeGenerator__gen_expression(this, expr);
@@ -4671,7 +4782,7 @@ void CodeGenerator__gen_var_decl(CodeGenerator *this, AST *node) {
   } 
 }
 
-void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *body, int indent) {
+void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *body, i32 indent) {
   if (body->type == ASTType__Block) {
     StringBuilder__puts((&this->out), " ");
     CodeGenerator__gen_block(this, body, (indent + 1));
@@ -4688,7 +4799,7 @@ void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *bod
   
 }
 
-void CodeGenerator__gen_match_string(CodeGenerator *this, AST *node, int indent) {
+void CodeGenerator__gen_match_string(CodeGenerator *this, AST *node, i32 indent) {
   Match stmt = node->u.match_stmt;
   CodeGenerator__indent(this, indent);
   StringBuilder__puts((&this->out), "{\n");
@@ -4699,7 +4810,7 @@ void CodeGenerator__gen_match_string(CodeGenerator *this, AST *node, int indent)
   Vector *cases = stmt.cases;
   CodeGenerator__indent(this, (indent + 1));
   StringBuilder__puts((&this->out), "if (");
-  for (int i = 0; (i < cases->size); i += 1) {
+  for (i32 i = 0; (i < cases->size); i += 1) {
     MatchCase *_case = ((MatchCase *)Vector__at(cases, i));
     StringBuilder__puts((&this->out), "!strcmp(__match_str, ");
     CodeGenerator__gen_expression(this, _case->cond);
@@ -4723,7 +4834,7 @@ void CodeGenerator__gen_match_string(CodeGenerator *this, AST *node, int indent)
   StringBuilder__puts((&this->out), "}\n");
 }
 
-void CodeGenerator__gen_match(CodeGenerator *this, AST *node, int indent) {
+void CodeGenerator__gen_match(CodeGenerator *this, AST *node, i32 indent) {
   Match stmt = node->u.match_stmt;
   if (Type__is_string(stmt.expr->etype)) {
     CodeGenerator__gen_match_string(this, node, indent);
@@ -4734,7 +4845,7 @@ void CodeGenerator__gen_match(CodeGenerator *this, AST *node, int indent) {
   CodeGenerator__gen_expression(this, stmt.expr);
   StringBuilder__puts((&this->out), ") {\n");
   Vector *cases = stmt.cases;
-  for (int i = 0; (i < cases->size); i += 1) {
+  for (i32 i = 0; (i < cases->size); i += 1) {
     MatchCase *_case = ((MatchCase *)Vector__at(cases, i));
     CodeGenerator__indent(this, (indent + 1));
     StringBuilder__puts((&this->out), "case ");
@@ -4757,7 +4868,7 @@ void CodeGenerator__gen_match(CodeGenerator *this, AST *node, int indent) {
   StringBuilder__puts((&this->out), "}\n");
 }
 
-void CodeGenerator__gen_yield_expression(CodeGenerator *this, AST *expr, int indent) {
+void CodeGenerator__gen_yield_expression(CodeGenerator *this, AST *expr, i32 indent) {
   void *yield_var = Vector__back(this->yield_vars);
   CodeGenerator__indent(this, indent);
   StringBuilder__puts((&this->out), yield_var);
@@ -4766,7 +4877,7 @@ void CodeGenerator__gen_yield_expression(CodeGenerator *this, AST *expr, int ind
   StringBuilder__puts((&this->out), ";\n");
 }
 
-void CodeGenerator__gen_statement(CodeGenerator *this, AST *node, int indent) {
+void CodeGenerator__gen_statement(CodeGenerator *this, AST *node, i32 indent) {
   CodeGenerator__gen_debug_info(this, node->span);
   switch (node->type) {
     case ASTType__Match: {
@@ -4852,11 +4963,11 @@ void CodeGenerator__gen_statement(CodeGenerator *this, AST *node, int indent) {
   }
 }
 
-void CodeGenerator__gen_block(CodeGenerator *this, AST *node, int indent) {
+void CodeGenerator__gen_block(CodeGenerator *this, AST *node, i32 indent) {
   CodeGenerator__push_scope(this);
   StringBuilder__puts((&this->out), "{\n");
   Vector *statements = node->u.block.statements;
-  for (int i = 0; (i < statements->size); i += 1) {
+  for (i32 i = 0; (i < statements->size); i += 1) {
     AST *statement = ((AST *)Vector__at(statements, i));
     CodeGenerator__gen_statement(this, statement, (indent + 1));
   } 
@@ -4865,7 +4976,7 @@ void CodeGenerator__gen_block(CodeGenerator *this, AST *node, int indent) {
     StringBuilder__puts((&this->out), "\n");
     CodeGenerator__indent(this, (indent + 1));
     StringBuilder__puts((&this->out), "/* defers */\n");
-    for (int i = (defers->size - 1); (i >= 0); i -= 1) {
+    for (i32 i = (defers->size - 1); (i >= 0); i -= 1) {
       AST *node = ((AST *)Vector__at(defers, i));
       CodeGenerator__gen_statement(this, node, (indent + 1));
     } 
@@ -4877,7 +4988,7 @@ void CodeGenerator__gen_block(CodeGenerator *this, AST *node, int indent) {
 
 void CodeGenerator__gen_struct_decls(CodeGenerator *this, Program *program) {
   StringBuilder__puts((&this->out), "/* struct declarations */\n");
-  for (int i = 0; (i < program->structures->size); i += 1) {
+  for (i32 i = 0; (i < program->structures->size); i += 1) {
     Structure *struc = ((Structure *)Vector__at(program->structures, i));
     if (struc->is_extern) 
     continue;
@@ -4906,23 +5017,20 @@ char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char 
   char *final = strdup(name);
   for (Type *cur = type; ((bool)cur); cur = cur->ptr) {
     switch (cur->base) {
-      case BaseType__Void: {
-        string__replace((&final), format_string("void %s", final));
-      } break;
-      case BaseType__Bool: {
-        string__replace((&final), format_string("bool %s", final));
-      } break;
-      case BaseType__I32: {
-        string__replace((&final), format_string("int %s", final));
-      } break;
-      case BaseType__F32: {
-        string__replace((&final), format_string("float %s", final));
-      } break;
-      case BaseType__U8: {
-        string__replace((&final), format_string("uint8_t %s", final));
-      } break;
-      case BaseType__Char: {
-        string__replace((&final), format_string("char %s", final));
+      case BaseType__Void:
+      case BaseType__Bool:
+      case BaseType__Char:
+      case BaseType__I8:
+      case BaseType__I16:
+      case BaseType__I32:
+      case BaseType__I64:
+      case BaseType__U8:
+      case BaseType__U16:
+      case BaseType__U32:
+      case BaseType__U64:
+      case BaseType__F32:
+      case BaseType__F64: {
+        string__replace((&final), format_string("%s %s", BaseType__str(cur->base), final));
       } break;
       case BaseType__Structure: {
         char *struct_name = ({ char *__yield_0;
@@ -4957,7 +5065,7 @@ char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char 
         if (params->size == 0) 
         StringBuilder__puts((&acc), "void");
         
-        for (int i = 0; (i < params->size); i += 1) {
+        for (i32 i = 0; (i < params->size); i += 1) {
           if ((i != 0)) 
           StringBuilder__puts((&acc), ", ");
           
@@ -5013,7 +5121,7 @@ void CodeGenerator__gen_function_decl(CodeGenerator *this, Function *func) {
 
 void CodeGenerator__gen_function_decls(CodeGenerator *this, Program *program) {
   StringBuilder__puts((&this->out), "/* function declarations */\n");
-  for (int i = 0; (i < program->functions->size); i += 1) {
+  for (i32 i = 0; (i < program->functions->size); i += 1) {
     Function *func = ((Function *)Vector__at(program->functions, i));
     if ((!func->is_extern)) {
       CodeGenerator__gen_function_decl(this, func);
@@ -5036,7 +5144,7 @@ void CodeGenerator__gen_function(CodeGenerator *this, Function *func) {
 
 void CodeGenerator__gen_global_vars(CodeGenerator *this, Program *program) {
   StringBuilder__puts((&this->out), "/* global variables */\n");
-  for (int i = 0; (i < program->global_vars->size); i += 1) {
+  for (i32 i = 0; (i < program->global_vars->size); i += 1) {
     AST *node = ((AST *)Vector__at(program->global_vars, i));
     if ((!node->u.var_decl.var->is_extern)) {
       CodeGenerator__gen_statement(this, node, 0);
@@ -5047,7 +5155,7 @@ void CodeGenerator__gen_global_vars(CodeGenerator *this, Program *program) {
 
 void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program) {
   if ((!Vector__empty(program->c_embed_headers))) {
-    for (int i = 0; (i < program->c_embed_headers->size); i += 1) {
+    for (i32 i = 0; (i < program->c_embed_headers->size); i += 1) {
       char *filename = ((char *)Vector__at(program->c_embed_headers, i));
       StringBuilder__puts((&this->out), format_string("/***************** embed '%s' *****************/\n", filename));
       FILE *file = File__open(filename, "r");
@@ -5065,14 +5173,14 @@ void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program) {
 }
 
 char *CodeGenerator__gen_program(CodeGenerator *this, Program *program) {
-  for (int i = 0; (i < program->c_includes->size); i += 1) {
+  for (i32 i = 0; (i < program->c_includes->size); i += 1) {
     char *include = ((char *)Vector__at(program->c_includes, i));
     StringBuilder__puts((&this->out), format_string("#include \"%s\"\n", include));
   } 
   StringBuilder__puts((&this->out), "\n");
   CodeGenerator__gen_embed_headers(this, program);
   CodeGenerator__gen_struct_decls(this, program);
-  for (int i = 0; (i < program->structures->size); i += 1) {
+  for (i32 i = 0; (i < program->structures->size); i += 1) {
     Structure *struc = ((Structure *)Vector__at(program->structures, i));
     if (struc->is_enum) {
       CodeGenerator__gen_enum(this, struc);
@@ -5082,14 +5190,14 @@ char *CodeGenerator__gen_program(CodeGenerator *this, Program *program) {
   } 
   CodeGenerator__gen_function_decls(this, program);
   CodeGenerator__gen_global_vars(this, program);
-  for (int i = 0; (i < program->functions->size); i += 1) {
+  for (i32 i = 0; (i < program->functions->size); i += 1) {
     Function *func = ((Function *)Vector__at(program->functions, i));
     CodeGenerator__gen_function(this, func);
   } 
   return StringBuilder__str((&this->out));
 }
 
-void usage(int code) {
+void usage(i32 code) {
   printf("--------------------------------------------------------" "\n");
   printf("Usage: ./aecor [options] <file>" "\n");
   printf("Options:" "\n");
@@ -5104,7 +5212,7 @@ void usage(int code) {
   exit(code);
 }
 
-int main(int argc, char **argv) {
+i32 main(i32 argc, char **argv) {
   char *exec_path = "./out";
   char *c_path = ((char *)NULL);
   char *filename = ((char *)NULL);
@@ -5112,7 +5220,7 @@ int main(int argc, char **argv) {
   bool silent = false;
   char *lib_path = ((char *)NULL);
   bool debug = false;
-  for (int i = 1; (i < argc); i += 1) {
+  for (i32 i = 1; (i < argc); i += 1) {
     {
       char *__match_str = argv[i];
       if (!strcmp(__match_str, "-h")) {
@@ -5174,7 +5282,7 @@ int main(int argc, char **argv) {
   } 
   char *cmdbuf = ((char *)calloc(1, 1024));
   strcat(cmdbuf, format_string("gcc -o %s %s", exec_path, c_path));
-  for (int i = 0; (i < program->c_flags->size); i += 1) {
+  for (i32 i = 0; (i < program->c_flags->size); i += 1) {
     char *flag = ((char *)Vector__at(program->c_flags, i));
     strcat(cmdbuf, " ");
     strcat(cmdbuf, flag);
@@ -5185,7 +5293,7 @@ int main(int argc, char **argv) {
   if ((!silent)) {
     printf("[+] %s" "\n", cmdbuf);
   } 
-  int code = system(cmdbuf);
+  i32 code = system(cmdbuf);
   if ((code != 0)) {
     printf("[-] Compilation failed" "\n");
     exit(code);

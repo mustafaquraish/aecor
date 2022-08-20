@@ -1,11 +1,18 @@
 
 enum BaseType {
     Char
-    I32
-    F32
     Bool
-    U8
     Void
+    I8
+    I16
+    I32
+    I64
+    U8
+    U16
+    U32
+    U64
+    F32
+    F64
 
     Pointer
     Structure
@@ -17,11 +24,18 @@ enum BaseType {
 def BaseType::str(this): string {
     return match this {
         Char => "char"
-        I32 => "i32"
-        F32 => "f32"
         Bool => "bool"
-        U8 => "u8"
         Void => "void"
+        I8 => "i8"
+        I16 => "i16"
+        I32 => "i32"
+        I64 => "i64"
+        U8 => "u8"
+        U16 => "u16"
+        U32 => "u32"
+        U64 => "u64"
+        F32 => "f32"
+        F64 => "f64"
         Pointer => "&"
         Structure => "structure"
         Function => "function"
@@ -73,8 +87,21 @@ def Type::is_struct_or_ptr(&this): bool {
     return .ptr.base == BaseType::Structure
 }
 
+def Type::is_integer(&this): bool {
+    return match this.base {
+        I8 | I16 | I32 | I64 |
+        U8 | U16 | U32 | U64 => true
+        else => false
+    }
+}
+
 def Type::is_numeric(&this): bool {
-    return .base == BaseType::I32 or .base == BaseType::F32
+    return match this.base {
+        I8 | I16 | I32 | I64 |
+        U8 | U16 | U32 | U64 |
+        F32 | F64 => true
+        else => false
+    }
 }
 
 def Type::eq(&this, other: &Type): bool {
@@ -105,23 +132,18 @@ def Type::eq(&this, other: &Type): bool {
             }
             return .ptr.eq(other.ptr)
         }
-        U8 | I32 | F32 | Bool | Char | Void => return true
+        else => return true
     }
 }
 
 def Type::str(&this): string {
     return match .base {
-        Void => "void"
-        Char => "char"
-        I32 => "i32"
-        F32 => "f32"
-        Bool => "bool"
-        U8 => "u8"
         Pointer => `&{.ptr.str()}`
         Array => `[{.ptr.str()}]`
         Structure => .name
         Function => "<function>"
         Method => "<method>"
+        else => .base.str()
     }
 }
 

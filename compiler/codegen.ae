@@ -575,12 +575,11 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
     for let cur = type; cur?; cur = cur.ptr {
         match cur.base {
             // These should all be terminal types
-            Void => final.replace(`void {final}`)
-            Bool => final.replace(`bool {final}`)
-            I32 => final.replace(`int {final}`)
-            F32 => final.replace(`float {final}`)
-            U8 => final.replace(`uint8_t {final}`)
-            Char => final.replace(`char {final}`)
+            Void | Bool | Char |
+            I8 | I16 | I32 | I64 |
+            U8 | U16 | U32 | U64 |
+            F32 | F64 => final.replace(`{cur.base.str()} {final}`)
+
             Structure => {
                 let struct_name = if cur.struct_def.is_extern {
                     yield cur.struct_def.extern_name

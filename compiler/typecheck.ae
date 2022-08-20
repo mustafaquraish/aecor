@@ -88,7 +88,7 @@ def TypeChecker::type_is_valid(&this, type: &Type): bool {
             let expr_type = .check_expression(type.size_expr)
             return .type_is_valid(type.ptr) and .type_is_valid(expr_type)
         }
-        Char | I32 | F32 | Bool | U8 | Void => return true
+        else => return true
     }
 }
 
@@ -206,11 +206,14 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
         buf.concat(part)
         let expr_type = .check_expression(expr)
         match expr_type.base {
-            BaseType::I32 | BaseType::U8 => buf.concat("%d")
-            BaseType::Bool => buf.concat("%s")
-            BaseType::F32 => buf.concat("%f")
-            BaseType::Char => buf.concat("%c")
-            BaseType::Pointer => {
+            I8 | I16 | I32 => buf.concat("%d")
+            U8 | U16 | U32 => buf.concat("%u")
+            I64 => buf.concat("%lld")
+            U64 => buf.concat("%llu")
+            Bool => buf.concat("%s")
+            F32 | F64 => buf.concat("%f")
+            Char => buf.concat("%c")
+            Pointer => {
                 if expr_type.ptr.base == BaseType::Char
                     buf.concat("%s")
                 else
@@ -226,10 +229,10 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
 
 def TypeChecker::check_pointer_arith(&this, node: &AST, lhs: &Type, rhs: &Type): &Type {
     if node.type == ASTType::Plus or node.type == ASTType::Minus {
-        if lhs.base == BaseType::Pointer and rhs.base == BaseType::I32 {
+        if lhs.base == BaseType::Pointer and rhs.is_integer() {
             return lhs
         }
-        if lhs.base == BaseType::I32 and rhs.base == BaseType::Pointer {
+        if lhs.is_integer() and rhs.base == BaseType::Pointer {
             return rhs
         }
         if lhs.eq(rhs) and lhs.base == BaseType::Pointer {
@@ -374,9 +377,15 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         Modulus | BitwiseOr | BitwiseAnd | BitwiseXor => {
             let lhs = .check_expression(node.u.binary.lhs)
             let rhs = .check_expression(node.u.binary.rhs)
-            if lhs.base != BaseType::I32 or rhs.base != BaseType::I32 {
+            if not lhs.is_integer() or not rhs.is_integer() {
                 error_span_note(
                     node.span, "Operator requires integer types",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            }
+            if not lhs.eq(rhs) {
+                error_span_note(
+                    node.span, "Operands must be of the same type",
                     `Got types '{lhs.str()}' and '{rhs.str()}'`
                 )
             }
@@ -414,7 +423,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 )
             }
             let index_type = .check_expression(node.u.binary.rhs)
-            if index_type.base != BaseType::I32 {
+            if not index_type.is_integer() {
                 error_span_note(
                     node.u.binary.rhs.span, "Index must be an integer",
                     `Got type '{index_type.str()}'`
@@ -667,6 +676,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
             return
         }
     }
+    // FIXME: Allow all integer types once we have literals for them
     if expr_type.base != BaseType::I32 and
         expr_type.base != BaseType::Char and
         not expr_type.is_string() {

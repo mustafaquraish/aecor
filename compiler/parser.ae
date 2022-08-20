@@ -124,38 +124,29 @@ def Parser::parse_type_with_parent(&this, parent: &Type): &Type {
 
     match .token().type {
         TokenType::Ampersand => {
-            type = Type::new(BaseType::Pointer, span)
-            .curr += 1
+            type = Type::new(BaseType::Pointer, .consume(TokenType::Ampersand).span)
             .parse_type_with_parent(type)
         }
-        TokenType::I32 => {
-            type = Type::new(BaseType::I32, span)
-            .curr += 1
-        }
-        TokenType::Bool => {
-            type = Type::new(BaseType::Bool, span)
-            .curr += 1
-        }
-        TokenType::Char => {
-            type = Type::new(BaseType::Char, span)
-            .curr += 1
-        }
-        TokenType::U8 => {
-            type = Type::new(BaseType::U8, span)
-            .curr += 1
-        }
-        TokenType::F32 => {
-            type = Type::new(BaseType::F32, span)
-            .curr += 1
-        }
+        TokenType::Bool => type = Type::new(BaseType::Bool, .consume(TokenType::Bool).span)
+        TokenType::Char => type = Type::new(BaseType::Char, .consume(TokenType::Char).span)
+
+        TokenType::I8 => type = Type::new(BaseType::I8, .consume(TokenType::I8).span)
+        TokenType::I16 => type = Type::new(BaseType::I16, .consume(TokenType::I16).span)
+        TokenType::I32 => type = Type::new(BaseType::I32, .consume(TokenType::I32).span)
+        TokenType::I64 => type = Type::new(BaseType::I64, .consume(TokenType::I64).span)
+
+        TokenType::U8 => type = Type::new(BaseType::U8, .consume(TokenType::U8).span)
+        TokenType::U16 => type = Type::new(BaseType::U16, .consume(TokenType::U16).span)
+        TokenType::U32 => type = Type::new(BaseType::U32, .consume(TokenType::U32).span)
+        TokenType::U64 => type = Type::new(BaseType::U64, .consume(TokenType::U64).span)
+
+        TokenType::F32 => type = Type::new(BaseType::F32, .consume(TokenType::F32).span)
+        TokenType::F64 => type = Type::new(BaseType::F64, .consume(TokenType::F64).span)
+
+        TokenType::UntypedPtr => type = Type::ptr_to(BaseType::Void, .consume(TokenType::UntypedPtr).span)
         TokenType::String => {
-            type = Type::ptr_to(BaseType::Char, span)
+            type = Type::ptr_to(BaseType::Char, .consume(TokenType::String).span)
             type.ptr.name = "string"
-            .curr += 1
-        }
-        TokenType::UntypedPtr => {
-            type = Type::ptr_to(BaseType::Void, span)
-            .curr += 1
         }
         TokenType::Identifier => {
             type = Type::new(BaseType::Structure, span)

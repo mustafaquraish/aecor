@@ -85,9 +85,13 @@ enum TokenType {
   Extern
   False
   F32
+  F64
   For
   Fn
+  I8
+  I16
   I32
+  I64
   If
   Let
   Match
@@ -101,6 +105,9 @@ enum TokenType {
   True
   Then
   U8
+  U16
+  U32
+  U64
   UntypedPtr
   Union
   Use
@@ -169,9 +176,13 @@ def TokenType::from_text(text: string): TokenType {
         "extern" => TokenType::Extern
         "false" => TokenType::False
         "f32" => TokenType::F32
+        "f64" => TokenType::F64
         "for" => TokenType::For
         "fn" => TokenType::Fn
+        "i8" => TokenType::I8
+        "i16" => TokenType::I16
         "i32" => TokenType::I32
+        "i64" => TokenType::I64
         "if" => TokenType::If
         "let" => TokenType::Let
         "match" => TokenType::Match
@@ -185,6 +196,9 @@ def TokenType::from_text(text: string): TokenType {
         "true" => TokenType::True
         "then" => TokenType::Then
         "u8" => TokenType::U8
+        "u16" => TokenType::U16
+        "u32" => TokenType::U32
+        "u64" => TokenType::U64
         "untyped_ptr" => TokenType::UntypedPtr
         "union" => TokenType::Union
         "use" => TokenType::Use
@@ -211,9 +225,13 @@ def TokenType::str(this): string {
         Extern => "extern"
         False => "false"
         F32 => "f32"
+        F64 => "f64"
         For => "for"
         Fn => "fn"
+        I8 => "i8"
+        I16 => "i16"
         I32 => "i32"
+        I64 => "i64"
         If => "if"
         Let => "let"
         Match => "match"
@@ -227,6 +245,9 @@ def TokenType::str(this): string {
         True => "true"
         Then => "then"
         U8 => "u8"
+        U16 => "u16"
+        U32 => "u32"
+        U64 => "u64"
         UntypedPtr => "untyped_ptr"
         Union => "union"
         Use => "use"
