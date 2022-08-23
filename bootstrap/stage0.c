@@ -60,6 +60,7 @@ typedef struct Block Block;
 typedef struct Binary Binary;
 typedef struct Identifier Identifier;
 typedef struct FormatString FormatString;
+typedef struct Argument Argument;
 typedef struct FuncCall FuncCall;
 typedef struct Member Member;
 typedef struct EnumValue EnumValue;
@@ -378,6 +379,11 @@ struct FormatString {
   Vector *exprs;
 };
 
+struct Argument {
+  AST *expr;
+  AST *label;
+};
+
 struct FuncCall {
   AST *callee;
   Vector *args;
@@ -590,6 +596,7 @@ Variable *Structure__find_field(Structure *this, char *name);
 Program *Program__new(void);
 bool Program__is_file_included(Program *this, char *filename);
 void Program__add_included_file(Program *this, char *filename);
+Argument *Argument__new(AST *label, AST *expr);
 MatchCase *MatchCase__new(AST *cond, AST *body);
 AST *AST__new(ASTType type, Span span);
 AST *AST__new_unop(ASTType type, Span span, AST *expr);
@@ -2409,6 +2416,13 @@ void Program__add_included_file(Program *this, char *filename) {
   Map__insert(this->included_files, filename, filename);
 }
 
+Argument *Argument__new(AST *label, AST *expr) {
+  Argument *arg = ((Argument *)calloc(1, sizeof(Argument)));
+  arg->expr = expr;
+  arg->label = label;
+  return arg;
+}
+
 MatchCase *MatchCase__new(AST *cond, AST *body) {
   MatchCase *_case = ((MatchCase *)calloc(1, sizeof(MatchCase)));
   _case->cond = cond;
@@ -2803,8 +2817,14 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
         Span paren_span = Parser__consume(this, TokenType__OpenParen)->span;
         Vector *args = Vector__new();
         while ((!Parser__token_is(this, TokenType__CloseParen))) {
+          AST *label = ((AST *)NULL);
           AST *expr = Parser__parse_expression(this, TokenType__Comma);
-          Vector__push(args, expr);
+          if ((expr->type == ASTType__Identifier && Parser__token_is(this, TokenType__Colon))) {
+            Parser__consume(this, TokenType__Colon);
+            label = expr;
+            expr = Parser__parse_expression(this, TokenType__Comma);
+          } 
+          Vector__push(args, Argument__new(label, expr));
           if ((!Parser__token_is(this, TokenType__CloseParen))) {
             Parser__consume(this, TokenType__Comma);
           } 
@@ -3563,7 +3583,7 @@ void TypeChecker__check_method_call(TypeChecker *this, Type *method_type, AST *n
     first_arg = AST__new_unop(ASTType__Address, first_arg->span, first_arg);
   } 
   
-  Vector__push_front(node->u.call.args, first_arg);
+  Vector__push_front(node->u.call.args, Argument__new(NULL, first_arg));
 }
 
 Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
@@ -3573,8 +3593,8 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
     char *name = callee->u.ident.name;
     if ((string__eq(name, "print") || string__eq(name, "println"))) {
       for (i32 i = 0; (i < node->u.call.args->size); i += 1) {
-        AST *arg = ((AST *)Vector__at(node->u.call.args, i));
-        TypeChecker__check_expression(this, arg);
+        Argument *arg = ((Argument *)Vector__at(node->u.call.args, i));
+        TypeChecker__check_expression(this, arg->expr);
       } 
       return Type__new(BaseType__Void, node->span);
     } 
@@ -3597,10 +3617,19 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
   } 
   for (i32 i = 0; (i < params->size); i += 1) {
     Variable *param = ((Variable *)Vector__at(params, i));
-    AST *arg = ((AST *)Vector__at(node->u.call.args, i));
-    Type *arg_type = TypeChecker__check_expression(this, arg);
+    Argument *arg = ((Argument *)Vector__at(node->u.call.args, i));
+    Type *arg_type = TypeChecker__check_expression(this, arg->expr);
     if ((!Type__eq(param->type, arg_type))) {
-      error_span_note_span(arg->span, "Argument type does not match function parameter type", param->span, format_string("Expected '%s', got '%s'", Type__str(param->type), Type__str(arg_type)));
+      error_span_note_span(arg->expr->span, "Argument type does not match function parameter type", param->span, format_string("Expected '%s', got '%s'", Type__str(param->type), Type__str(arg_type)));
+    } 
+    if (((bool)arg->label)) {
+      if (string__eq(param->name, "")) {
+        error_span_note_span(arg->label->span, "Label on non-labeled parameter", param->span, "This parameter does not have a name");
+      } 
+      char *label = arg->label->u.ident.name;
+      if ((!string__eq(label, param->name))) {
+        error_span_note_span(arg->label->span, "Label on parameter does not match parameter name", param->span, format_string("Expected '%s', got '%s'", param->name, label));
+      } 
     } 
   } 
   return func_type->return_type;
@@ -4668,7 +4697,8 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
         if ((i > 0)) {
           StringBuilder__puts((&this->out), ", ");
         } 
-        CodeGenerator__gen_expression(this, ((AST *)Vector__at(args, i)));
+        Argument *arg = ((Argument *)Vector__at(args, i));
+        CodeGenerator__gen_expression(this, arg->expr);
         if ((i == 0 && newline_after_first)) {
           StringBuilder__puts((&this->out), " \"\\n\"");
         } 

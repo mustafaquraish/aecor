@@ -225,7 +225,8 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             let args = node.u.call.args
             for let i = 0; i < args.size; i += 1 {
                 if i > 0 { .out.puts(", "); }
-                .gen_expression(args.at(i) as &AST)
+                let arg = args.at(i) as &Argument
+                .gen_expression(arg.expr)
                 if i == 0 and newline_after_first { .out.puts(" \"\\n\""); }
             }
             .out.puts(")")

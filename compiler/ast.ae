@@ -282,9 +282,21 @@ struct FormatString {
     exprs: &Vector    // Vector<&AST>
 }
 
+struct Argument {
+    expr: &AST
+    label: &AST // Identifier
+}
+
+def Argument::new(label: &AST, expr: &AST): &Argument {
+    let arg = calloc(1, sizeof(Argument)) as &Argument
+    arg.expr = expr
+    arg.label = label
+    return arg
+}
+
 struct FuncCall {
     callee: &AST
-    args: &Vector    // Vector<&AST>
+    args: &Vector    // Vector<&Argument>
     func: &Function
     added_method_arg: bool
 }

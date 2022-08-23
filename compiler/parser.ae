@@ -369,8 +369,15 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
                 let paren_span = .consume(TokenType::OpenParen).span
                 let args = Vector::new()
                 while not .token_is(TokenType::CloseParen) {
+                    let label = null as &AST
                     let expr = .parse_expression(TokenType::Comma)
-                    args.push(expr)
+                    if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
+                        .consume(TokenType::Colon)
+                        label = expr
+                        expr = .parse_expression(TokenType::Comma)
+                    }
+
+                    args.push(Argument::new(label, expr))
                     if not .token_is(TokenType::CloseParen) {
                         .consume(TokenType::Comma)
                     }

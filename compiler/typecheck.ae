@@ -125,7 +125,7 @@ def TypeChecker::check_method_call(&this, method_type: &Type, node: &AST) {
     } else if not member.is_pointer and not method_param.name? {
         first_arg = AST::new_unop(ASTType::Address, first_arg.span, first_arg)
     }
-    node.u.call.args.push_front(first_arg)
+    node.u.call.args.push_front(Argument::new(null, first_arg))
 }
 
 def TypeChecker::check_call(&this, node: &AST): &Type {
@@ -136,8 +136,8 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         let name = callee.u.ident.name
         if name.eq("print") or name.eq("println") {
             for let i = 0; i < node.u.call.args.size; i += 1 {
-                let arg = node.u.call.args.at(i) as &AST
-                .check_expression(arg)
+                let arg = node.u.call.args.at(i) as &Argument
+                .check_expression(arg.expr)
             }
             return Type::new(BaseType::Void, node.span)
         }
@@ -169,15 +169,32 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             func_type.span, `This function expects {params.size} arguments, got {node.u.call.args.size}`
         )
     }
+
     for let i = 0; i < params.size; i += 1 {
         let param = params.at(i) as &Variable
-        let arg = node.u.call.args.at(i) as &AST
-        let arg_type = .check_expression(arg)
+        let arg = node.u.call.args.at(i) as &Argument
+        let arg_type = .check_expression(arg.expr)
         if not param.type.eq(arg_type) {
             error_span_note_span(
-                arg.span, "Argument type does not match function parameter type",
+                arg.expr.span, "Argument type does not match function parameter type",
                 param.span, `Expected '{param.type.str()}', got '{arg_type.str()}'`
             )
+        }
+
+        if arg.label? {
+            if param.name.eq("") {
+                error_span_note_span(
+                    arg.label.span, "Label on non-labeled parameter",
+                    param.span, "This parameter does not have a name"
+                )
+            }
+            let label = arg.label.u.ident.name
+            if not label.eq(param.name) {
+                error_span_note_span(
+                    arg.label.span, "Label on parameter does not match parameter name",
+                    param.span, `Expected '{param.name}', got '{label}'`
+                )
+            }
         }
     }
 
