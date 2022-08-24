@@ -563,11 +563,11 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = Type::new(BaseType::Bool, node.span)
         }
         Match => {
-            .check_match(node, true)
+            .check_match(node, is_expr: true)
             etype = node.etype
         }
         If => {
-            .check_if(node, true)
+            .check_if(node, is_expr: true)
             etype = node.etype
         }
         else => {
@@ -588,7 +588,7 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
         ASTType::Match => .check_match(body, is_expr)
         ASTType::If => .check_if(body, is_expr)
 
-        ASTType::Block => .check_block(body, is_expr)
+        ASTType::Block => .check_block(body, can_yield: is_expr)
         else => .check_statement(body)
     }
 
@@ -763,9 +763,9 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool) {
 
 def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
-        ASTType::Block => .check_block(node, false)
+        ASTType::Block => .check_block(node, can_yield: false)
         ASTType::Defer => .check_expression(node.u.unary)
-        ASTType::Match => .check_match(node, false)
+        ASTType::Match => .check_match(node, is_expr: false)
         ASTType::Yield => {
             if not .can_yield {
                 error_span(node.span, "Cannot yield in this context")
@@ -871,7 +871,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
             .pop_scope()
             .in_loop = was_in_loop
         }
-        ASTType::If => .check_if(node, false)
+        ASTType::If => .check_if(node, is_expr: false)
         else => .check_expression(node)
     }
 }
@@ -918,7 +918,7 @@ def TypeChecker::check_function(&this, func: &Function) {
     }
 
     if func.body? {
-        .check_block(func.body, false)
+        .check_block(func.body, can_yield: false)
         if not func.body.returns and func.return_type.base != BaseType::Void {
             if not func.name.eq("main") {
               error_span(func.span, "Function does not always return")

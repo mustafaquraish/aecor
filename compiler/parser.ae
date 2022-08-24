@@ -182,7 +182,7 @@ def Parser::parse_type_with_parent(&this, parent: &Type): &Type {
             .parse_type_with_parent(type)
 
             .consume(TokenType::Semicolon)
-            type.size_expr = .parse_expression(TokenType::CloseSquare)
+            type.size_expr = .parse_expression(end_type: TokenType::CloseSquare)
 
             type.span = type.span.join(.token().span)
             .consume(TokenType::CloseSquare)
@@ -254,7 +254,7 @@ def Parser::parse_format_string(&this): &AST {
         let tokens = lexer.lex()
 
         .push_context(tokens)
-        let expr = .parse_expression(TokenType::CloseCurly)
+        let expr = .parse_expression(end_type: TokenType::CloseCurly)
         .pop_context()
 
         expr_nodes.push(expr)
@@ -341,7 +341,7 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
         }
         TokenType::OpenParen => {
             let open = .consume(TokenType::OpenParen)
-            node = .parse_expression(TokenType::CloseParen)
+            node = .parse_expression(end_type: TokenType::CloseParen)
             let close = .consume(TokenType::CloseParen)
             node.span = open.span.join(close.span)
         }
@@ -370,11 +370,11 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
                 let args = Vector::new()
                 while not .token_is(TokenType::CloseParen) {
                     let label = null as &AST
-                    let expr = .parse_expression(TokenType::Comma)
+                    let expr = .parse_expression(end_type: TokenType::Comma)
                     if expr.type == ASTType::Identifier and .token_is(TokenType::Colon) {
                         .consume(TokenType::Colon)
                         label = expr
-                        expr = .parse_expression(TokenType::Comma)
+                        expr = .parse_expression(end_type: TokenType::Comma)
                     }
 
                     args.push(Argument::new(label, expr))
@@ -392,7 +392,7 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
             }
             TokenType::OpenSquare => {
                 .consume(TokenType::OpenSquare)
-                let index = .parse_expression(TokenType::CloseSquare)
+                let index = .parse_expression(end_type: TokenType::CloseSquare)
                 .consume(TokenType::CloseSquare)
                 node = AST::new_binop(ASTType::Index, node, index)
             }
@@ -561,7 +561,7 @@ def Parser::parse_expression(&this, end_type: TokenType): &AST {
 
 def Parser::parse_match(&this): &AST {
     let op = .consume(TokenType::Match)
-    let expr = .parse_expression(TokenType::OpenCurly)
+    let expr = .parse_expression(end_type: TokenType::OpenCurly)
     let node = AST::new(ASTType::Match, op.span.join(expr.span))
     node.u.match_stmt.expr = expr
 
@@ -597,7 +597,7 @@ def Parser::parse_match(&this): &AST {
 def Parser::parse_if(&this): &AST {
     let start_span = .token().span
     .consume(TokenType::If)
-    let cond = .parse_expression(TokenType::Newline)
+    let cond = .parse_expression(end_type: TokenType::Newline)
     .consume_if(TokenType::Then)
     let body = .parse_statement()
 
@@ -626,7 +626,7 @@ def Parser::parse_statement(&this): &AST {
             .consume(TokenType::Return)
             let expr = null as &AST
             if not .token().seen_newline {
-                expr = .parse_expression(TokenType::Newline)
+                expr = .parse_expression(end_type: TokenType::Newline)
             }
             node = AST::new_unop(ASTType::Return, start_span.join(.token().span), expr)
             .consume_newline_or(TokenType::Semicolon)
@@ -648,13 +648,13 @@ def Parser::parse_statement(&this): &AST {
         }
         TokenType::Yield => {
             .consume(TokenType::Yield)
-            let expr = .parse_expression(TokenType::Newline)
+            let expr = .parse_expression(end_type: TokenType::Newline)
             node = AST::new_unop(ASTType::Yield, start_span.join(expr.span), expr)
             .consume_newline_or(TokenType::Semicolon)
         }
         TokenType::While => {
             .consume(TokenType::While)
-            let cond = .parse_expression(TokenType::Newline)
+            let cond = .parse_expression(end_type: TokenType::Newline)
             let body = .parse_statement()
             node = AST::new(ASTType::While, start_span.join(body.span))
             node.u.loop.cond = cond
@@ -679,12 +679,12 @@ def Parser::parse_statement(&this): &AST {
             }
             .consume(TokenType::Semicolon)
             if not .token_is(TokenType::Semicolon)
-                node.u.loop.cond = .parse_expression(TokenType::Semicolon)
+                node.u.loop.cond = .parse_expression(end_type: TokenType::Semicolon)
             .consume(TokenType::Semicolon)
 
             // FIXME: Should we always require a curly?
             if not .token_is(TokenType::CloseCurly)
-                node.u.loop.incr = .parse_expression(TokenType::Newline)
+                node.u.loop.incr = .parse_expression(end_type: TokenType::Newline)
 
             node.u.loop.body = .parse_statement()
             node.span = node.span.join(node.u.loop.body.span)
@@ -701,7 +701,7 @@ def Parser::parse_statement(&this): &AST {
             }
             let init = null as &AST
             if .consume_if(TokenType::Equals) {
-                init = .parse_expression(TokenType::Newline)
+                init = .parse_expression(end_type: TokenType::Newline)
                 end_span = init.span
             }
             .consume_newline_or(TokenType::Semicolon)
@@ -711,7 +711,7 @@ def Parser::parse_statement(&this): &AST {
             node.u.var_decl.init = init
         }
         else => {
-            node = .parse_expression(TokenType::Newline)
+            node = .parse_expression(end_type: TokenType::Newline)
             .consume_if(TokenType::Semicolon)
         }
     }
@@ -930,7 +930,7 @@ def Parser::parse_global_var(&this): &AST {
     } else {
         var.is_extern = false
         if .consume_if(TokenType::Equals) {
-            node.u.var_decl.init = .parse_expression(TokenType::Newline)
+            node.u.var_decl.init = .parse_expression(end_type: TokenType::Newline)
         }
     }
     .consume_newline_or(TokenType::Semicolon)

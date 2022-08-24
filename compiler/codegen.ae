@@ -23,9 +23,7 @@ def CodeGenerator::make(debug: bool): CodeGenerator {
 def CodeGenerator::gen_debug_info(&this, span: Span) {
     if not .debug return
     let loc = span.start
-    let text = `\n#line {loc.line} \"{loc.filename}\"\n`
-    .out.puts(text)
-    free(text)
+    .out.putsf(`\n#line {loc.line} \"{loc.filename}\"\n`)
 }
 
 def CodeGenerator::indent(&this, num: i32) {
@@ -67,12 +65,12 @@ def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST, indent: i32) 
 }
 
 def CodeGenerator::gen_enum_value(&this, enum_name: string, value_name: string) {
-  .out.puts(`{enum_name}__{value_name}`)
+  .out.putsf(`{enum_name}__{value_name}`)
 }
 
 def CodeGenerator::gen_enum(&this, struc: &Structure) {
     if not struc.is_extern {
-        .out.puts(`enum {struc.name}`)
+        .out.putsf(`enum {struc.name}`)
         .out.puts(" {\n")
         for let i = 0; i < struc.fields.size; i += 1 {
             let field = struc.fields.at(i) as &Variable
@@ -167,8 +165,8 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => .out.puts(node.u.num_literal)
         FloatLiteral => .out.puts(node.u.num_literal)
-        StringLiteral => .out.puts(`\"{node.u.string_literal}\"`)
-        CharLiteral => .out.puts(`'{node.u.char_literal}'`)
+        StringLiteral => .out.putsf(`\"{node.u.string_literal}\"`)
+        CharLiteral => .out.putsf(`'{node.u.char_literal}'`)
         Null => .out.puts("NULL")
         Match => .gen_in_yield_context(node)
 
@@ -193,11 +191,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
         }
         BoolLiteral => {
-            if node.u.bool_literal {
-                .out.puts("true")
-            } else {
-                .out.puts("false")
-            }
+            .out.puts(if node.u.bool_literal "true" else "false")
         }
         Identifier => {
             let ident = node.u.ident
@@ -557,7 +551,7 @@ def CodeGenerator::gen_struct_decls(&this, program: &Program) {
         } else {
             .out.puts("typedef struct ")
         }
-        .out.puts(`{name} {name};\n`)
+        .out.putsf(`{name} {name};\n`)
     }
     .out.puts("\n")
 }
@@ -577,9 +571,9 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
         match cur.base {
             // These should all be terminal types
             Void | Bool | Char |
-            I8 | I16 | I32 | I64 |
-            U8 | U16 | U32 | U64 |
-            F32 | F64 => final.replace(`{cur.base.str()} {final}`)
+            I8   | I16  | I32  | I64 |
+            U8   | U16  | U32  | U64 |
+            F32  | F64 => final.replace(`{cur.base.str()} {final}`)
 
             Structure => {
                 let struct_name = if cur.struct_def.is_extern {
@@ -618,7 +612,7 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
                 for let i = 0; i < params.size; i += 1 {
                     if i != 0 then acc.puts(", ")
                     let var = params.at(i) as &Variable
-                    let arg_str = .get_type_name_string(var.type, var.name, false)
+                    let arg_str = .get_type_name_string(var.type, var.name, is_func_def: false)
                     acc.putsf(arg_str)
                 }
                 if is_func_def and cur == type {
@@ -628,7 +622,11 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
                     final.replace(`(*{final})({acc.str()})`)
                 }
                 free(acc.data)
-                final.replace(.get_type_name_string(cur.return_type, final, false))
+                final.replace(.get_type_name_string(
+                    cur.return_type,
+                    name: final,
+                    is_func_def: false
+                ))
             }
         }
     }
@@ -637,11 +635,11 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
 }
 
 def CodeGenerator::gen_type_and_name(&this, type: &Type, name: string) {
-    .out.putsf(.get_type_name_string(type, name, false))
+    .out.putsf(.get_type_name_string(type, name, is_func_def: false))
 }
 
 def CodeGenerator::gen_type(&this, type: &Type) {
-    .gen_type_and_name(type, "")
+    .gen_type_and_name(type, name: "")
 }
 
 def CodeGenerator::get_function_name(&this, func: &Function): string {
@@ -699,7 +697,7 @@ def CodeGenerator::gen_embed_headers(&this, program: &Program) {
     if not program.c_embed_headers.empty() {
         for let i = 0; i < program.c_embed_headers.size; i += 1 {
             let filename = program.c_embed_headers.at(i) as string
-            .out.puts(`/***************** embed '{filename}' *****************/\n`)
+            .out.putsf(`/***************** embed '{filename}' *****************/\n`)
 
             let file = File::open(filename, "r")
             defer file.close()
@@ -716,7 +714,7 @@ def CodeGenerator::gen_embed_headers(&this, program: &Program) {
 def CodeGenerator::gen_program(&this, program: &Program): string {
     for let i = 0; i < program.c_includes.size; i += 1 {
         let include = program.c_includes.at(i) as string
-        .out.puts(`#include \"{include}\"\n`)
+        .out.putsf(`#include \"{include}\"\n`)
     }
     .out.puts("\n")
 

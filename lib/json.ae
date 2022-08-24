@@ -94,52 +94,52 @@ def JSON::is(this, type: JSONType): bool {
 
 def JSON::at(&this, idx: i32): &JSON {
     .ensure(JSONType::Array)
-    return this.u.arr.at(idx)
+    return .u.arr.at(idx)
 }
 
 def JSON::set(&this, idx: i32, value: &JSON) {
     .ensure(JSONType::Array)
-    this.u.arr.data[idx] = value
+    .u.arr.data[idx] = value
 }
 
 def JSON::push(&this, value: &JSON) {
     .ensure(JSONType::Array)
-    this.u.arr.push(value)
+    .u.arr.push(value)
 }
 
 def JSON::get(&this, key: string): &JSON {
     .ensure(JSONType::Object)
-    return this.u.obj.get(key)
+    return .u.obj.get(key)
 }
 
 def JSON::insert(&this, key: string, value: &JSON) {
     .ensure(JSONType::Object)
-    this.u.obj.insert(key, value)
+    .u.obj.insert(key, value)
 }
 
 def JSON::as_bool(&this): bool {
     .ensure(JSONType::Bool)
-    return this.u.bul
+    return .u.bul
 }
 
 def JSON::as_num(&this): i32 {
     .ensure(JSONType::Number)
-    return this.u.num
+    return .u.num
 }
 
 def JSON::as_str(&this): string {
     .ensure(JSONType::String)
-    return this.u.str
+    return .u.str
 }
 
 def JSON::as_arr(&this): &Vector {
     .ensure(JSONType::Array)
-    return this.u.arr
+    return .u.arr
 }
 
 def JSON::as_obj(&this): &Map {
     .ensure(JSONType::Object)
-    return this.u.obj
+    return .u.obj
 }
 
 struct JSONParser {

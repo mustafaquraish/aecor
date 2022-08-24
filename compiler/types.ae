@@ -88,7 +88,7 @@ def Type::is_struct_or_ptr(&this): bool {
 }
 
 def Type::is_integer(&this): bool {
-    return match this.base {
+    return match .base {
         I8 | I16 | I32 | I64 |
         U8 | U16 | U32 | U64 => true
         else => false
@@ -96,7 +96,7 @@ def Type::is_integer(&this): bool {
 }
 
 def Type::is_numeric(&this): bool {
-    return match this.base {
+    return match .base {
         I8 | I16 | I32 | I64 |
         U8 | U16 | U32 | U64 |
         F32 | F64 => true

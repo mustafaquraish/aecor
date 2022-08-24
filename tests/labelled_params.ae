@@ -1,3 +1,5 @@
+/// compile
+
 def foo(val: i32, does_exist: bool): i32 {
     return val
 }

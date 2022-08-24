@@ -249,7 +249,7 @@ def Program::is_file_included(&this, filename: string): bool {
     if len > 2 and filename[0] == '.' and filename[1] == '/' {
         filename = &filename[2]
     }
-    return this.included_files.exists(filename)
+    return .included_files.exists(filename)
 }
 
 def Program::add_included_file(&this, filename: string) {

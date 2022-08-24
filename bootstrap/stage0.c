@@ -4443,9 +4443,7 @@ void CodeGenerator__gen_debug_info(CodeGenerator *this, Span span) {
   return;
   
   Location loc = span.start;
-  char *text = format_string("\n#line %d \"%s\"\n", loc.line, loc.filename);
-  StringBuilder__puts((&this->out), text);
-  free(text);
+  StringBuilder__putsf((&this->out), format_string("\n#line %d \"%s\"\n", loc.line, loc.filename));
 }
 
 void CodeGenerator__indent(CodeGenerator *this, i32 num) {
@@ -4485,12 +4483,12 @@ void CodeGenerator__gen_control_body(CodeGenerator *this, AST *node, AST *body, 
 }
 
 void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, char *value_name) {
-  StringBuilder__puts((&this->out), format_string("%s__%s", enum_name, value_name));
+  StringBuilder__putsf((&this->out), format_string("%s__%s", enum_name, value_name));
 }
 
 void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc) {
   if ((!struc->is_extern)) {
-    StringBuilder__puts((&this->out), format_string("enum %s", struc->name));
+    StringBuilder__putsf((&this->out), format_string("enum %s", struc->name));
     StringBuilder__puts((&this->out), " {\n");
     for (i32 i = 0; (i < struc->fields->size); i += 1) {
       Variable *field = ((Variable *)Vector__at(struc->fields, i));
@@ -4633,10 +4631,10 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
       StringBuilder__puts((&this->out), node->u.num_literal);
     } break;
     case ASTType__StringLiteral: {
-      StringBuilder__puts((&this->out), format_string("\"%s\"", node->u.string_literal));
+      StringBuilder__putsf((&this->out), format_string("\"%s\"", node->u.string_literal));
     } break;
     case ASTType__CharLiteral: {
-      StringBuilder__puts((&this->out), format_string("'%s'", node->u.char_literal));
+      StringBuilder__putsf((&this->out), format_string("'%s'", node->u.char_literal));
     } break;
     case ASTType__Null: {
       StringBuilder__puts((&this->out), "NULL");
@@ -4660,11 +4658,7 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
       } 
     } break;
     case ASTType__BoolLiteral: {
-      if (node->u.bool_literal) {
-        StringBuilder__puts((&this->out), "true");
-      }  else {
-        StringBuilder__puts((&this->out), "false");
-      } 
+      StringBuilder__puts((&this->out), (node->u.bool_literal ? "true" : "false"));
     } break;
     case ASTType__Identifier: {
       Identifier ident = node->u.ident;
@@ -5032,7 +5026,7 @@ void CodeGenerator__gen_struct_decls(CodeGenerator *this, Program *program) {
       StringBuilder__puts((&this->out), "typedef struct ");
     } 
     
-    StringBuilder__puts((&this->out), format_string("%s %s;\n", name, name));
+    StringBuilder__putsf((&this->out), format_string("%s %s;\n", name, name));
   } 
   StringBuilder__puts((&this->out), "\n");
 }
@@ -5187,7 +5181,7 @@ void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program) {
   if ((!Vector__empty(program->c_embed_headers))) {
     for (i32 i = 0; (i < program->c_embed_headers->size); i += 1) {
       char *filename = ((char *)Vector__at(program->c_embed_headers, i));
-      StringBuilder__puts((&this->out), format_string("/***************** embed '%s' *****************/\n", filename));
+      StringBuilder__putsf((&this->out), format_string("/***************** embed '%s' *****************/\n", filename));
       FILE *file = File__open(filename, "r");
       ;
       char *contents = File__slurp(file);
@@ -5205,7 +5199,7 @@ void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program) {
 char *CodeGenerator__gen_program(CodeGenerator *this, Program *program) {
   for (i32 i = 0; (i < program->c_includes->size); i += 1) {
     char *include = ((char *)Vector__at(program->c_includes, i));
-    StringBuilder__puts((&this->out), format_string("#include \"%s\"\n", include));
+    StringBuilder__putsf((&this->out), format_string("#include \"%s\"\n", include));
   } 
   StringBuilder__puts((&this->out), "\n");
   CodeGenerator__gen_embed_headers(this, program);
