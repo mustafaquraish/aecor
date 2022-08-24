@@ -240,7 +240,12 @@ def TypeChecker::error_unknown_identifier(&this, span: Span, name: string) exits
         let scope = .scopes.at(i) as &Map
         scope.push_keys(options)
     }
-    .functions.push_keys(options)
+    for let iter = .functions.iter(); iter.cur?; iter.next() {
+        let func = iter.value() as &Function
+        if not func.is_method {
+            options.push(iter.key())
+        }
+    }
 
     let suggestion = find_word_suggestion(name, options)
     if suggestion? {
@@ -250,6 +255,44 @@ def TypeChecker::error_unknown_identifier(&this, span: Span, name: string) exits
         )
     } else {
         error_span(span, "Unknown Identifier")
+    }
+}
+
+def TypeChecker::error_unknown_member(&this, node: &AST, struct_type: &Type, field_name: string, is_static: bool) {
+    let suggestion = null as string
+
+    if struct_type.struct_def? {
+        let options = Vector::new()
+
+        if struct_type.struct_def.is_enum == is_static {
+            let fields = struct_type.struct_def.fields
+            for let i = 0; i < fields.size; i += 1 {
+                let field = fields.at(i) as &Variable
+                options.push(field.name)
+            }
+        }
+
+        let s_methods = .methods.get(struct_type.name) as &Map
+        if s_methods? {
+            for let iter = s_methods.iter(); iter.cur?; iter.next() {
+                let method = iter.value() as &Function
+                if method.is_static == is_static {
+                    options.push(method.name)
+                }
+            }
+        }
+        suggestion = find_word_suggestion(field_name, options)
+    }
+
+    if suggestion? {
+        error_span_note(
+            node.u.member.rhs.span, `Type '{struct_type.str()}' has no member with this name`,
+            `Possible alternative: \x1b[32m{suggestion}\x1b[0m`
+        )
+    } else {
+        error_span(
+            node.u.member.rhs.span, `Type '{struct_type.str()}' has no member with this name`
+        )
     }
 }
 
@@ -476,7 +519,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             } else if method? {
                 etype = method.type
             } else {
-                error_span(node.span, "Struct has no static method with this name")
+                .error_unknown_member(node, struc.type, field_name, is_static: true)
             }
         }
         Member => {
@@ -511,10 +554,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 }
                 etype = method.type
             } else {
-                error_span_note_span(
-                    node.u.member.rhs.span, "Type has no member with this name",
-                    node.u.member.lhs.span, `LHS type is '{struct_type.str()}'`
-                )
+                .error_unknown_member(node, struct_type, field_name, is_static: false)
             }
         }
         Cast => {

@@ -1,4 +1,4 @@
-/// fail: Struct has no static method with this name
+/// fail: Type 'Foo' has no member with this name
 
 struct Foo {}
 
