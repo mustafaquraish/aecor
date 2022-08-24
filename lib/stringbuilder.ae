@@ -15,23 +15,22 @@ def StringBuilder::make(): StringBuilder {
     return builder
 }
 
-def StringBuilder::puts(&this, s: string) {
-    let len = s.len()
-    let needed = .size + len + 1 // +1 for the null terminator
-    if needed >= .capacity {
-        let new_capacity = max(.capacity * 2, needed)
+def StringBuilder::resize_if_necessary(&this, new_size: i32) {
+    if new_size >= .capacity {
+        let new_capacity = max(.capacity * 2, new_size)
         .data = realloc(.data, new_capacity) as string
     }
+}
+
+def StringBuilder::puts(&this, s: string) {
+    let len = s.len()
+    .resize_if_necessary(new_size: .size + len + 1) // +1 for null terminator
     copy_memory(.data + .size, s, len + 1) // Copy over null terminator
     .size += len
 }
 
 def StringBuilder::putc(&this, c: char) {
-    let needed = .size + 2 // +1 for the null terminator
-    if needed >= .capacity {
-        let new_capacity = max(.capacity * 2, needed)
-        .data = realloc(.data, new_capacity) as string
-    }
+    .resize_if_necessary(new_size: .size + 2) // +1 for null terminator
     .data[.size] = c
     .size += 1
     .data[.size] = '\0'
