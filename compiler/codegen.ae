@@ -110,20 +110,15 @@ def CodeGenerator::gen_format_string_part(&this, part: string) {
             i += 1
             match part[i] {
                 // We want to unescape these
-                '`' | '{' | '}' => .out.putc(part[i])
+                '`' | '{' | '}' => {}
                 // Anything else should remain escaped
-                else => {
-                    .out.putc('\\')
-                    .out.putc(part[i])
-                }
+                else => .out.putc('\\')
             }
-        } else {
-            // If we have double quotes in a string we should escape it
-            if part[i] == '"' {
-                .out.putc('\\')
-            }
-            .out.putc(part[i])
+        // If we have double quotes in a string we should escape it
+        } else if part[i] == '"' {
+            .out.putc('\\')
         }
+        .out.putc(part[i])
     }
 }
 

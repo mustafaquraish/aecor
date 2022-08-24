@@ -78,10 +78,14 @@ def MessageType::str(this): string {
     }
 }
 
+def display_line() {
+    println("--------------------------------------------------------------------------------")
+}
+
 def display_message(type: MessageType, span: Span, msg: string) {
-    println("---------------------------------------------------------------")
+    display_line()
     println("%s: %s: %s", span.start.str(), type.str(), msg)
-    println("---------------------------------------------------------------")
+    display_line()
 }
 
 def display_message_with_span(type: MessageType, span: Span, msg: string) {
@@ -137,7 +141,7 @@ def error_loc(loc: Location, msg: string) exits {
 // Just shows the line with the error
 def error_span(span: Span, msg: string) exits {
     display_message_with_span(MessageType::Error, span, msg)
-    println("---------------------------------------------------------------")
+    display_line()
     exit(1)
 }
 
@@ -152,7 +156,7 @@ def error_span_note(span: Span, msg: string, note: string) exits {
 def error_span_note_span(msg_span: Span, msg: string, note_span: Span, note: string) exits {
     display_message_with_span(MessageType::Error, msg_span, msg)
     display_message_with_span(MessageType::Note, note_span, note)
-    println("---------------------------------------------------------------")
+    display_line()
     exit(1)
 }
 

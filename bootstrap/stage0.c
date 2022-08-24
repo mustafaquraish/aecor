@@ -545,6 +545,7 @@ i32 edit_distance(char *str1, char *str2);
 char *find_word_suggestion(char *s, Vector *options);
 char *MessageType__to_color(MessageType this);
 char *MessageType__str(MessageType this);
+void display_line(void);
 void display_message(MessageType type, Span span, char *msg);
 void display_message_with_span(MessageType type, Span span, char *msg);
 __attribute__((noreturn)) void error_loc(Location loc, char *msg);
@@ -653,6 +654,7 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node);
 Type *TypeChecker__check_format_string(TypeChecker *this, AST *node);
 Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, Type *rhs);
 __attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker *this, Span span, char *name);
+void TypeChecker__error_unknown_member(TypeChecker *this, AST *node, Type *struct_type, char *field_name, bool is_static);
 Type *TypeChecker__check_expression(TypeChecker *this, AST *node);
 void TypeChecker__check_expression_statement(TypeChecker *this, AST *node, AST *body, bool is_expr);
 void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST *node, bool is_expr);
@@ -666,6 +668,7 @@ void TypeChecker__dfs_structs(TypeChecker *this, Structure *struc, Vector *resul
 void TypeChecker__check_all_structs(TypeChecker *this, Program *program);
 void TypeChecker__check_program(TypeChecker *this, Program *program);
 StringBuilder StringBuilder__make(void);
+void StringBuilder__resize_if_necessary(StringBuilder *this, i32 new_size);
 void StringBuilder__puts(StringBuilder *this, char *s);
 void StringBuilder__putc(StringBuilder *this, char c);
 void StringBuilder__putsf(StringBuilder *this, char *s);
@@ -1370,10 +1373,14 @@ char *MessageType__str(MessageType this) {
 ;__yield_0; });
 }
 
+void display_line(void) {
+  printf("--------------------------------------------------------------------------------" "\n");
+}
+
 void display_message(MessageType type, Span span, char *msg) {
-  printf("---------------------------------------------------------------" "\n");
+  display_line();
   printf("%s: %s: %s" "\n", Location__str(span.start), MessageType__str(type), msg);
-  printf("---------------------------------------------------------------" "\n");
+  display_line();
 }
 
 void display_message_with_span(MessageType type, Span span, char *msg) {
@@ -1428,7 +1435,7 @@ __attribute__((noreturn)) void error_loc(Location loc, char *msg) {
 
 __attribute__((noreturn)) void error_span(Span span, char *msg) {
   display_message_with_span(MessageType__Error, span, msg);
-  printf("---------------------------------------------------------------" "\n");
+  display_line();
   exit(1);
 }
 
@@ -1441,7 +1448,7 @@ __attribute__((noreturn)) void error_span_note(Span span, char *msg, char *note)
 __attribute__((noreturn)) void error_span_note_span(Span msg_span, char *msg, Span note_span, char *note) {
   display_message_with_span(MessageType__Error, msg_span, msg);
   display_message_with_span(MessageType__Note, note_span, note);
-  printf("---------------------------------------------------------------" "\n");
+  display_line();
   exit(1);
 }
 
@@ -3676,12 +3683,46 @@ __attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker
     Map *scope = ((Map *)Vector__at(this->scopes, i));
     Map__push_keys(scope, options);
   } 
-  Map__push_keys(this->functions, options);
+  for (MapIterator iter = Map__iter(this->functions); ((bool)iter.cur); MapIterator__next((&iter))) {
+    Function *func = ((Function *)MapIterator__value((&iter)));
+    if ((!func->is_method)) {
+      Vector__push(options, MapIterator__key((&iter)));
+    } 
+  } 
   char *suggestion = find_word_suggestion(name, options);
   if (((bool)suggestion)) {
     error_span_note(span, "Unknown Identifier", format_string("Possible alternative: \x1b[32m%s\x1b[0m", suggestion));
   }  else {
     error_span(span, "Unknown Identifier");
+  } 
+}
+
+void TypeChecker__error_unknown_member(TypeChecker *this, AST *node, Type *struct_type, char *field_name, bool is_static) {
+  char *suggestion = ((char *)NULL);
+  if (((bool)struct_type->struct_def)) {
+    Vector *options = Vector__new();
+    if (struct_type->struct_def->is_enum == is_static) {
+      Vector *fields = struct_type->struct_def->fields;
+      for (i32 i = 0; (i < fields->size); i += 1) {
+        Variable *field = ((Variable *)Vector__at(fields, i));
+        Vector__push(options, field->name);
+      } 
+    } 
+    Map *s_methods = ((Map *)Map__get(this->methods, struct_type->name));
+    if (((bool)s_methods)) {
+      for (MapIterator iter = Map__iter(s_methods); ((bool)iter.cur); MapIterator__next((&iter))) {
+        Function *method = ((Function *)MapIterator__value((&iter)));
+        if (method->is_static == is_static) {
+          Vector__push(options, method->name);
+        } 
+      } 
+    } 
+    suggestion = find_word_suggestion(field_name, options);
+  } 
+  if (((bool)suggestion)) {
+    error_span_note(node->u.member.rhs->span, format_string("Type '%s' has no member with this name", Type__str(struct_type)), format_string("Possible alternative: \x1b[32m%s\x1b[0m", suggestion));
+  }  else {
+    error_span(node->u.member.rhs->span, format_string("Type '%s' has no member with this name", Type__str(struct_type)));
   } 
 }
 
@@ -3887,7 +3928,7 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       }  else       if (((bool)method)) {
         etype = method->type;
       }  else {
-        error_span(node->span, "Struct has no static method with this name");
+        TypeChecker__error_unknown_member(this, node, struc->type, field_name, true);
       } 
       
     } break;
@@ -3913,7 +3954,7 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
         } 
         etype = method->type;
       }  else {
-        error_span_note_span(node->u.member.rhs->span, "Type has no member with this name", node->u.member.lhs->span, format_string("LHS type is '%s'", Type__str(struct_type)));
+        TypeChecker__error_unknown_member(this, node, struct_type, field_name, false);
       } 
       
     } break;
@@ -4361,23 +4402,22 @@ StringBuilder StringBuilder__make(void) {
   return builder;
 }
 
-void StringBuilder__puts(StringBuilder *this, char *s) {
-  i32 len = strlen(s);
-  i32 needed = ((this->size + len) + 1);
-  if ((needed >= this->capacity)) {
-    i32 new_capacity = max((this->capacity * 2), needed);
+void StringBuilder__resize_if_necessary(StringBuilder *this, i32 new_size) {
+  if ((new_size >= this->capacity)) {
+    i32 new_capacity = max((this->capacity * 2), new_size);
     this->data = ((char *)realloc(this->data, new_capacity));
   } 
+}
+
+void StringBuilder__puts(StringBuilder *this, char *s) {
+  i32 len = strlen(s);
+  StringBuilder__resize_if_necessary(this, ((this->size + len) + 1));
   memcpy((this->data + this->size), s, (len + 1));
   this->size += len;
 }
 
 void StringBuilder__putc(StringBuilder *this, char c) {
-  i32 needed = (this->size + 2);
-  if ((needed >= this->capacity)) {
-    i32 new_capacity = max((this->capacity * 2), needed);
-    this->data = ((char *)realloc(this->data, new_capacity));
-  } 
+  StringBuilder__resize_if_necessary(this, (this->size + 2));
   this->data[this->size] = c;
   this->size += 1;
   this->data[this->size] = '\0';
@@ -4496,19 +4536,16 @@ void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part) {
         case '`':
         case '{':
         case '}': {
-          StringBuilder__putc((&this->out), part[i]);
         } break;
         default: {
           StringBuilder__putc((&this->out), '\\');
-          StringBuilder__putc((&this->out), part[i]);
         } break;
       }
-    }  else {
-      if (part[i] == '"') {
-        StringBuilder__putc((&this->out), '\\');
-      } 
-      StringBuilder__putc((&this->out), part[i]);
+    }  else     if (part[i] == '"') {
+      StringBuilder__putc((&this->out), '\\');
     } 
+    
+    StringBuilder__putc((&this->out), part[i]);
   } 
 }
 
