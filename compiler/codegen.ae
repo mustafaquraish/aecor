@@ -23,7 +23,7 @@ def CodeGenerator::make(debug: bool): CodeGenerator {
 def CodeGenerator::gen_debug_info(&this, span: Span) {
     if not .debug return
     let loc = span.start
-    .out.putsf(`\n#line {loc.line} \"{loc.filename}\"\n`)
+    .out.putsf(`\n#line {loc.line} "{loc.filename}"\n`)
 }
 
 def CodeGenerator::indent(&this, num: i32) {
@@ -70,8 +70,7 @@ def CodeGenerator::gen_enum_value(&this, enum_name: string, value_name: string) 
 
 def CodeGenerator::gen_enum(&this, struc: &Structure) {
     if not struc.is_extern {
-        .out.putsf(`enum {struc.name}`)
-        .out.puts(" {\n")
+        .out.putsf(`enum {struc.name} \{\n`)
         for let i = 0; i < struc.fields.size; i += 1 {
             let field = struc.fields.at(i) as &Variable
             .indent(1)
@@ -100,6 +99,73 @@ def CodeGenerator::gen_struct(&this, struc: &Structure) {
         }
         .out.puts("};\n\n")
     }
+}
+
+// The point of this is to escape / unescape the correct characters
+def CodeGenerator::gen_format_string_part(&this, part: string) {
+    let len = part.len()
+    for let i = 0; i < len; i += 1 {
+        if part[i] == '\\' {
+            // This should be safe
+            i += 1
+            match part[i] {
+                // We want to unescape these
+                '`' | '{' | '}' => .out.putc(part[i])
+                // Anything else should remain escaped
+                else => {
+                    .out.putc('\\')
+                    .out.putc(part[i])
+                }
+            }
+        } else {
+            // If we have double quotes in a string we should escape it
+            if part[i] == '"' {
+                .out.putc('\\')
+            }
+            .out.putc(part[i])
+        }
+    }
+}
+
+def CodeGenerator::gen_format_string(&this, node: &AST) {
+    let parts = node.u.fmt_str.parts
+    let exprs = node.u.fmt_str.exprs
+
+    .out.puts("format_string(\"")
+    for let i = 0; i < exprs.size; i += 1 {
+        let part = parts.at(i) as string
+        .gen_format_string_part(part)
+
+        let expr = exprs.at(i) as &AST
+        let expr_type = expr.etype
+        match expr_type.base {
+            I8 | I16 | I32 => .out.puts("%d")
+            U8 | U16 | U32 => .out.puts("%u")
+            I64 => .out.puts("%lld")
+            U64 => .out.puts("%llu")
+            Bool => .out.puts("%s")
+            F32 | F64 => .out.puts("%f")
+            Char => .out.puts("%c")
+            Pointer => {
+                if expr_type.ptr.base == BaseType::Char
+                    .out.puts("%s")
+                else
+                    .out.puts("%p")
+            }
+            else => error_span(expr.span, "Invalid type for format string")
+        }
+    }
+    // Put the last part:
+    let part = parts.back() as string
+    .gen_format_string_part(part)
+    .out.putc('"')
+
+    for let i = 0; i < exprs.size; i += 1 {
+        .out.puts(", ")
+        let expr = exprs.at(i) as &AST
+        .gen_expression(expr)
+    }
+    .out.puts(")")
 }
 
 def CodeGenerator::get_op(type: ASTType): string {
@@ -165,10 +231,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral => .out.puts(node.u.num_literal)
         FloatLiteral => .out.puts(node.u.num_literal)
-        StringLiteral => .out.putsf(`\"{node.u.string_literal}\"`)
+        StringLiteral => .out.putsf(`"{node.u.string_literal}"`)
         CharLiteral => .out.putsf(`'{node.u.char_literal}'`)
         Null => .out.puts("NULL")
         Match => .gen_in_yield_context(node)
+        FormatStringLiteral => .gen_format_string(node)
 
         // In order to preserve sanity in generated code, we'll try and convert this to a ternary if we can
         If => {
@@ -280,18 +347,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_type(node.u.cast.to)
             .out.puts(")")
             .gen_expression(node.u.cast.lhs)
-            .out.puts(")")
-        }
-        FormatStringLiteral => {
-            .out.puts("format_string(\"")
-            .out.puts(node.u.fmt_str.str)
-            .out.puts("\"")
-            let exprs = node.u.fmt_str.exprs
-            for let i = 0; i < exprs.size; i += 1 {
-                let expr = exprs.at(i) as &AST
-                .out.puts(", ")
-                .gen_expression(expr)
-            }
             .out.puts(")")
         }
         Defer => .scope().push(node.u.unary)
@@ -714,7 +769,7 @@ def CodeGenerator::gen_embed_headers(&this, program: &Program) {
 def CodeGenerator::gen_program(&this, program: &Program): string {
     for let i = 0; i < program.c_includes.size; i += 1 {
         let include = program.c_includes.at(i) as string
-        .out.putsf(`#include \"{include}\"\n`)
+        .out.putsf(`#include "{include}"\n`)
     }
     .out.puts("\n")
 

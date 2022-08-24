@@ -374,7 +374,6 @@ struct Identifier {
 };
 
 struct FormatString {
-  char *str;
   Vector *parts;
   Vector *exprs;
 };
@@ -668,6 +667,7 @@ void TypeChecker__check_all_structs(TypeChecker *this, Program *program);
 void TypeChecker__check_program(TypeChecker *this, Program *program);
 StringBuilder StringBuilder__make(void);
 void StringBuilder__puts(StringBuilder *this, char *s);
+void StringBuilder__putc(StringBuilder *this, char c);
 void StringBuilder__putsf(StringBuilder *this, char *s);
 char *StringBuilder__str(StringBuilder *this);
 char *StringBuilder__new_str(StringBuilder *this);
@@ -681,6 +681,8 @@ void CodeGenerator__gen_control_body(CodeGenerator *this, AST *node, AST *body, 
 void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, char *value_name);
 void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc);
 void CodeGenerator__gen_struct(CodeGenerator *this, Structure *struc);
+void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part);
+void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node);
 char *CodeGenerator__get_op(ASTType type);
 void CodeGenerator__gen_in_yield_context(CodeGenerator *this, AST *node);
 void CodeGenerator__gen_expression(CodeGenerator *this, AST *node);
@@ -2662,14 +2664,14 @@ AST *Parser__parse_format_string(Parser *this) {
   i32 count = 0;
   i32 cur_start = 0;
   for (i32 i = 0; (i < fstr_len); i += 1) {
-    if (fstr->text[i] == '{') {
+    if ((fstr->text[i] == '{' && (fstr->text[(i - 1)] != '\\'))) {
       if (count == 0) {
         char *part = string__substring(fstr->text, cur_start, (i - cur_start));
         Vector__push(format_parts, part);
         cur_start = (i + 1);
       } 
       count += 1;
-    }  else     if (fstr->text[i] == '}') {
+    }  else     if ((fstr->text[i] == '}' && (fstr->text[(i - 1)] != '\\'))) {
       count -= 1;
       if (count == 0) {
         char *part = string__substring(fstr->text, cur_start, (i - cur_start));
@@ -2701,6 +2703,9 @@ AST *Parser__parse_format_string(Parser *this) {
     Vector *tokens = Lexer__lex((&lexer));
     Parser__push_context(this, tokens);
     AST *expr = Parser__parse_expression(this, TokenType__CloseCurly);
+    if ((!Parser__token_is(this, TokenType__EOF))) {
+      error_loc(Parser__token(this)->span.start, "Invalid expression in format string");
+    } 
     Parser__pop_context(this);
     Vector__push(expr_nodes, expr);
   } 
@@ -3641,57 +3646,9 @@ Type *TypeChecker__check_format_string(TypeChecker *this, AST *node) {
   if ((parts->size != (exprs->size + 1))) {
     error_span(node->span, "Number of format string parts does not match number of expressions");
   } 
-  i32 size = 0;
-  for (i32 i = 0; (i < parts->size); i += 1) {
-    size += (strlen(((char *)Vector__at(parts, i))) + 3);
-  } 
-  char *buf = ((char *)calloc((size + 1), 1));
   for (i32 i = 0; (i < exprs->size); i += 1) {
-    char *part = ((char *)Vector__at(parts, i));
-    AST *expr = ((AST *)Vector__at(exprs, i));
-    strcat(buf, part);
-    Type *expr_type = TypeChecker__check_expression(this, expr);
-    switch (expr_type->base) {
-      case BaseType__I8:
-      case BaseType__I16:
-      case BaseType__I32: {
-        strcat(buf, "%d");
-      } break;
-      case BaseType__U8:
-      case BaseType__U16:
-      case BaseType__U32: {
-        strcat(buf, "%u");
-      } break;
-      case BaseType__I64: {
-        strcat(buf, "%lld");
-      } break;
-      case BaseType__U64: {
-        strcat(buf, "%llu");
-      } break;
-      case BaseType__Bool: {
-        strcat(buf, "%s");
-      } break;
-      case BaseType__F32:
-      case BaseType__F64: {
-        strcat(buf, "%f");
-      } break;
-      case BaseType__Char: {
-        strcat(buf, "%c");
-      } break;
-      case BaseType__Pointer: {
-        if (expr_type->ptr->base == BaseType__Char) 
-        strcat(buf, "%s");
-         else 
-        strcat(buf, "%p");
-        
-      } break;
-      default: {
-        error_span(expr->span, "Invalid type for format string");
-      } break;
-    }
+    TypeChecker__check_expression(this, Vector__at(exprs, i));
   } 
-  strcat(buf, ((char *)Vector__back(parts)));
-  node->u.fmt_str.str = buf;
   return Type__ptr_to(BaseType__Char, node->span);
 }
 
@@ -4415,6 +4372,17 @@ void StringBuilder__puts(StringBuilder *this, char *s) {
   this->size += len;
 }
 
+void StringBuilder__putc(StringBuilder *this, char c) {
+  i32 needed = (this->size + 2);
+  if ((needed >= this->capacity)) {
+    i32 new_capacity = max((this->capacity * 2), needed);
+    this->data = ((char *)realloc(this->data, new_capacity));
+  } 
+  this->data[this->size] = c;
+  this->size += 1;
+  this->data[this->size] = '\0';
+}
+
 void StringBuilder__putsf(StringBuilder *this, char *s) {
   StringBuilder__puts(this, s);
   free(s);
@@ -4488,8 +4456,7 @@ void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, char *v
 
 void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc) {
   if ((!struc->is_extern)) {
-    StringBuilder__putsf((&this->out), format_string("enum %s", struc->name));
-    StringBuilder__puts((&this->out), " {\n");
+    StringBuilder__putsf((&this->out), format_string("enum %s {\n", struc->name));
     for (i32 i = 0; (i < struc->fields->size); i += 1) {
       Variable *field = ((Variable *)Vector__at(struc->fields, i));
       CodeGenerator__indent(this, 1);
@@ -4518,6 +4485,90 @@ void CodeGenerator__gen_struct(CodeGenerator *this, Structure *struc) {
     } 
     StringBuilder__puts((&this->out), "};\n\n");
   } 
+}
+
+void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part) {
+  i32 len = strlen(part);
+  for (i32 i = 0; (i < len); i += 1) {
+    if (part[i] == '\\') {
+      i += 1;
+      switch (part[i]) {
+        case '`':
+        case '{':
+        case '}': {
+          StringBuilder__putc((&this->out), part[i]);
+        } break;
+        default: {
+          StringBuilder__putc((&this->out), '\\');
+          StringBuilder__putc((&this->out), part[i]);
+        } break;
+      }
+    }  else {
+      if (part[i] == '"') {
+        StringBuilder__putc((&this->out), '\\');
+      } 
+      StringBuilder__putc((&this->out), part[i]);
+    } 
+  } 
+}
+
+void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node) {
+  Vector *parts = node->u.fmt_str.parts;
+  Vector *exprs = node->u.fmt_str.exprs;
+  StringBuilder__puts((&this->out), "format_string(\"");
+  for (i32 i = 0; (i < exprs->size); i += 1) {
+    char *part = ((char *)Vector__at(parts, i));
+    CodeGenerator__gen_format_string_part(this, part);
+    AST *expr = ((AST *)Vector__at(exprs, i));
+    Type *expr_type = expr->etype;
+    switch (expr_type->base) {
+      case BaseType__I8:
+      case BaseType__I16:
+      case BaseType__I32: {
+        StringBuilder__puts((&this->out), "%d");
+      } break;
+      case BaseType__U8:
+      case BaseType__U16:
+      case BaseType__U32: {
+        StringBuilder__puts((&this->out), "%u");
+      } break;
+      case BaseType__I64: {
+        StringBuilder__puts((&this->out), "%lld");
+      } break;
+      case BaseType__U64: {
+        StringBuilder__puts((&this->out), "%llu");
+      } break;
+      case BaseType__Bool: {
+        StringBuilder__puts((&this->out), "%s");
+      } break;
+      case BaseType__F32:
+      case BaseType__F64: {
+        StringBuilder__puts((&this->out), "%f");
+      } break;
+      case BaseType__Char: {
+        StringBuilder__puts((&this->out), "%c");
+      } break;
+      case BaseType__Pointer: {
+        if (expr_type->ptr->base == BaseType__Char) 
+        StringBuilder__puts((&this->out), "%s");
+         else 
+        StringBuilder__puts((&this->out), "%p");
+        
+      } break;
+      default: {
+        error_span(expr->span, "Invalid type for format string");
+      } break;
+    }
+  } 
+  char *part = ((char *)Vector__back(parts));
+  CodeGenerator__gen_format_string_part(this, part);
+  StringBuilder__putc((&this->out), '"');
+  for (i32 i = 0; (i < exprs->size); i += 1) {
+    StringBuilder__puts((&this->out), ", ");
+    AST *expr = ((AST *)Vector__at(exprs, i));
+    CodeGenerator__gen_expression(this, expr);
+  } 
+  StringBuilder__puts((&this->out), ")");
 }
 
 char *CodeGenerator__get_op(ASTType type) {
@@ -4642,6 +4693,9 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
     case ASTType__Match: {
       CodeGenerator__gen_in_yield_context(this, node);
     } break;
+    case ASTType__FormatStringLiteral: {
+      CodeGenerator__gen_format_string(this, node);
+    } break;
     case ASTType__If: {
       AST *a = node->u.if_stmt.body;
       AST *b = node->u.if_stmt.els;
@@ -4755,18 +4809,6 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
       CodeGenerator__gen_type(this, node->u.cast.to);
       StringBuilder__puts((&this->out), ")");
       CodeGenerator__gen_expression(this, node->u.cast.lhs);
-      StringBuilder__puts((&this->out), ")");
-    } break;
-    case ASTType__FormatStringLiteral: {
-      StringBuilder__puts((&this->out), "format_string(\"");
-      StringBuilder__puts((&this->out), node->u.fmt_str.str);
-      StringBuilder__puts((&this->out), "\"");
-      Vector *exprs = node->u.fmt_str.exprs;
-      for (i32 i = 0; (i < exprs->size); i += 1) {
-        AST *expr = ((AST *)Vector__at(exprs, i));
-        StringBuilder__puts((&this->out), ", ");
-        CodeGenerator__gen_expression(this, expr);
-      } 
       StringBuilder__puts((&this->out), ")");
     } break;
     case ASTType__Defer: {
