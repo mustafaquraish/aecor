@@ -63,8 +63,12 @@ def CodeGenerator::gen_control_body(&this, node: &AST, body: &AST, indent: i32) 
     }
 }
 
-def CodeGenerator::gen_enum_value(&this, enum_name: string, value_name: string) {
-  .out.putsf(`{enum_name}__{value_name}`)
+def CodeGenerator::gen_enum_value(&this, enum_name: string, var: &Variable) {
+    if var.is_extern {
+        .out.puts(var.extern_name)
+    } else {
+        .out.putsf(`{enum_name}__{var.name}`)
+    }
 }
 
 def CodeGenerator::gen_enum(&this, struc: &Structure) {
@@ -73,7 +77,7 @@ def CodeGenerator::gen_enum(&this, struc: &Structure) {
         for let i = 0; i < struc.fields.size; i += 1 {
             let field = struc.fields.at(i) as &Variable
             .indent(1)
-            .gen_enum_value(struc.name, field.name)
+            .gen_enum_value(struc.name, field)
             .out.puts(",\n")
         }
         .out.puts("};\n\n")
@@ -346,7 +350,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         }
         EnumValue => {
             let enum_value = node.u.enum_val
-            .gen_enum_value(enum_value.struct_def.name, enum_value.name)
+            .gen_enum_value(enum_value.struct_def.name, enum_value.var)
         }
         // Perhaps there's a nicer way to do this...
         IsNotNull => {

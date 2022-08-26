@@ -574,8 +574,9 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 // This is an enum value
                 node.type = ASTType::EnumValue
                 node.u.enum_val.struct_def = struc
-                node.u.enum_val.name = field_name
+                node.u.enum_val.var = var
                 etype = struc.type
+
             } else if method? {
                 etype = method.type
             } else {
@@ -698,14 +699,15 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
         let name: string
         if cond.type == ASTType::Identifier {
             name = cond.u.ident.name
-            if not struc.find_field(name)? {
+            let var = struc.find_field(name)
+            if not var? {
                 error_span(cond.span, "Enum has no field with this name")
             }
 
             // FIXME: This is a hack, we're modifying the AST Node type
             cond.type = ASTType::EnumValue
             cond.u.enum_val.struct_def = struc
-            cond.u.enum_val.name = name
+            cond.u.enum_val.var = var
             cond.etype = struc.type
 
         } else {
@@ -716,7 +718,7 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
                     node.u.match_stmt.expr.span, `Match expression is of type '{struc.type.str()}'`
                 )
             }
-            name = cond.u.enum_val.name
+            name = cond.u.enum_val.var.name
         }
 
         let prev = mapping.get(name) as &MatchCase

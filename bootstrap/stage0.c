@@ -406,7 +406,7 @@ struct Member {
 
 struct EnumValue {
   Structure *struct_def;
-  char *name;
+  Variable *var;
 };
 
 struct VarDeclaration {
@@ -688,7 +688,7 @@ void CodeGenerator__push_scope(CodeGenerator *this);
 Vector *CodeGenerator__scope(CodeGenerator *this);
 void CodeGenerator__pop_scope(CodeGenerator *this);
 void CodeGenerator__gen_control_body(CodeGenerator *this, AST *node, AST *body, i32 indent);
-void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, char *value_name);
+void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, Variable *var);
 void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc);
 void CodeGenerator__gen_struct(CodeGenerator *this, Structure *struc);
 void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part);
@@ -3260,11 +3260,29 @@ Structure *Parser__parse_enum(Parser *this) {
   enum_def->type = type;
   type->name = name->text;
   type->struct_def = enum_def;
+  if (Parser__consume_if(this, TokenType__Extern)) {
+    enum_def->is_extern = true;
+    enum_def->extern_name = enum_def->name;
+    if (Parser__consume_if(this, TokenType__OpenParen)) {
+      Token *name = Parser__consume(this, TokenType__StringLiteral);
+      enum_def->extern_name = name->text;
+      Parser__consume(this, TokenType__CloseParen);
+    } 
+  } 
   Parser__consume(this, TokenType__OpenCurly);
   while ((!Parser__token_is(this, TokenType__CloseCurly))) {
     Token *name = Parser__consume(this, TokenType__Identifier);
     Type *type = Type__new(BaseType__I32, name->span);
     Variable *var = Variable__new(name->text, type, name->span);
+    if (enum_def->is_extern) {
+      Parser__consume(this, TokenType__Equals);
+      Parser__consume(this, TokenType__Extern);
+      Parser__consume(this, TokenType__OpenParen);
+      Token *name = Parser__consume(this, TokenType__StringLiteral);
+      Parser__consume(this, TokenType__CloseParen);
+      var->extern_name = name->text;
+      var->is_extern = true;
+    } 
     Vector__push(enum_def->fields, var);
     if ((!Parser__token_is(this, TokenType__CloseCurly))) {
       Parser__consume_newline_or(this, TokenType__Comma);
@@ -3940,7 +3958,7 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       if ((struc->is_enum && ((bool)var))) {
         node->type = ASTType__EnumValue;
         node->u.enum_val.struct_def = struc;
-        node->u.enum_val.name = field_name;
+        node->u.enum_val.var = var;
         etype = struc->type;
       }  else       if (((bool)method)) {
         etype = method->type;
@@ -4051,19 +4069,20 @@ void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST 
     char *name;
     if (cond->type == ASTType__Identifier) {
       name = cond->u.ident.name;
-      if ((!((bool)Structure__find_field(struc, name)))) {
+      Variable *var = Structure__find_field(struc, name);
+      if ((!((bool)var))) {
         error_span(cond->span, "Enum has no field with this name");
       } 
       cond->type = ASTType__EnumValue;
       cond->u.enum_val.struct_def = struc;
-      cond->u.enum_val.name = name;
+      cond->u.enum_val.var = var;
       cond->etype = struc->type;
     }  else {
       Type *cond_type = TypeChecker__check_expression(this, cond);
       if ((!Type__eq(cond_type, struc->type))) {
         error_span_note_span(cond->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(struc->type)));
       } 
-      name = cond->u.enum_val.name;
+      name = cond->u.enum_val.var->name;
     } 
     MatchCase *prev = ((MatchCase *)Map__get(mapping, name));
     if (((bool)prev)) {
@@ -4498,8 +4517,12 @@ void CodeGenerator__gen_control_body(CodeGenerator *this, AST *node, AST *body, 
   } 
 }
 
-void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, char *value_name) {
-  StringBuilder__putsf((&this->out), format_string("%s__%s", enum_name, value_name));
+void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, Variable *var) {
+  if (var->is_extern) {
+    StringBuilder__puts((&this->out), var->extern_name);
+  }  else {
+    StringBuilder__putsf((&this->out), format_string("%s__%s", enum_name, var->name));
+  } 
 }
 
 void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc) {
@@ -4508,7 +4531,7 @@ void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc) {
     for (i32 i = 0; (i < struc->fields->size); i += 1) {
       Variable *field = ((Variable *)Vector__at(struc->fields, i));
       CodeGenerator__indent(this, 1);
-      CodeGenerator__gen_enum_value(this, struc->name, field->name);
+      CodeGenerator__gen_enum_value(this, struc->name, field);
       StringBuilder__puts((&this->out), ",\n");
     } 
     StringBuilder__puts((&this->out), "};\n\n");
@@ -4861,7 +4884,7 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
     } break;
     case ASTType__EnumValue: {
       EnumValue enum_value = node->u.enum_val;
-      CodeGenerator__gen_enum_value(this, enum_value.struct_def->name, enum_value.name);
+      CodeGenerator__gen_enum_value(this, enum_value.struct_def->name, enum_value.var);
     } break;
     case ASTType__IsNotNull: {
       StringBuilder__puts((&this->out), "((bool)");

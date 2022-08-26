@@ -836,12 +836,34 @@ def Parser::parse_enum(&this): &Structure {
     type.name = name.text
     type.struct_def = enum_def
 
+    if .consume_if(TokenType::Extern) {
+        enum_def.is_extern = true
+        enum_def.extern_name = enum_def.name
+        if .consume_if(TokenType::OpenParen) {
+            let name = .consume(TokenType::StringLiteral)
+            enum_def.extern_name = name.text
+            .consume(TokenType::CloseParen)
+        }
+    }
+
     .consume(TokenType::OpenCurly)
     while not .token_is(TokenType::CloseCurly) {
         let name = .consume(TokenType::Identifier)
         let type = Type::new(BaseType::I32, name.span)
 
         let var = Variable::new(name.text, type, name.span)
+
+        // Enforce extern enums to have all values defined
+        if enum_def.is_extern {
+            .consume(TokenType::Equals)
+            .consume(TokenType::Extern)
+            .consume(TokenType::OpenParen)
+            let name = .consume(TokenType::StringLiteral)
+            .consume(TokenType::CloseParen)
+            var.extern_name = name.text
+            var.is_extern = true
+        }
+
         enum_def.fields.push(var)
         if not .token_is(TokenType::CloseCurly) {
             .consume_newline_or(TokenType::Comma)

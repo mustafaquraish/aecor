@@ -316,7 +316,7 @@ struct Member {
 
 struct EnumValue {
     struct_def: &Structure
-    name: string
+    var: &Variable
 }
 
 struct VarDeclaration {
