@@ -165,10 +165,7 @@ def MapIterator::value(&this): untyped_ptr {
 }
 
 def MapIterator::make(map: &Map): MapIterator {
-    let it: MapIterator
-    it.map = map
-    it.idx = -1
-    it.cur = null
+    let it = MapIterator(idx: -1, cur: null, map)
     it.next()
     return it
 }

@@ -506,9 +506,9 @@ struct StringBuilder {
 struct CodeGenerator {
   StringBuilder out;
   Vector *scopes;
-  bool debug;
   Vector *yield_vars;
   i32 yield_count;
+  bool debug;
 };
 
 /* function declarations */
@@ -532,9 +532,7 @@ void *Vector__back(Vector *this);
 void *Vector__at(Vector *this, i32 i);
 bool Vector__empty(Vector *this);
 void Vector__free(Vector *this);
-Location Location__make(char *filename, i32 line, i32 col);
 char *Location__str(Location this);
-Span Span__make(Location start, Location end);
 char *Span__str(Span this);
 Span Span__join(Span this, Span other);
 Token *Token__new(TokenType type, Span span, char *text);
@@ -860,23 +858,8 @@ void Vector__free(Vector *this) {
   free(this);
 }
 
-Location Location__make(char *filename, i32 line, i32 col) {
-  Location loc;
-  loc.filename = filename;
-  loc.line = line;
-  loc.col = col;
-  return loc;
-}
-
 char *Location__str(Location this) {
   return format_string("%s:%d:%d", this.filename, this.line, this.col);
-}
-
-Span Span__make(Location start, Location end) {
-  Span span;
-  span.start = start;
-  span.end = end;
-  return span;
 }
 
 char *Span__str(Span this) {
@@ -892,10 +875,7 @@ Span Span__join(Span this, Span other) {
 
 Token *Token__new(TokenType type, Span span, char *text) {
   Token *tok = ((Token *)calloc(1, sizeof(Token)));
-  tok->type = type;
-  tok->span = span;
-  tok->text = text;
-  tok->seen_newline = false;
+  (*tok) = (Token){type, span, text, .seen_newline = false};
   return tok;
 }
 
@@ -1439,7 +1419,7 @@ void display_message_with_span(MessageType type, Span span, char *msg) {
 }
 
 __attribute__((noreturn)) void error_loc(Location loc, char *msg) {
-  error_span(Span__make(loc, loc), msg);
+  error_span((Span){loc, loc}, msg);
 }
 
 __attribute__((noreturn)) void error_span(Span span, char *msg) {
@@ -1462,14 +1442,7 @@ __attribute__((noreturn)) void error_span_note_span(Span msg_span, char *msg, Sp
 }
 
 Lexer Lexer__make(char *source, char *filename) {
-  Lexer lexer;
-  lexer.source = source;
-  lexer.source_len = strlen(source);
-  lexer.i = 0;
-  lexer.loc = Location__make(filename, 1, 1);
-  lexer.seen_newline = false;
-  lexer.tokens = Vector__new();
-  return lexer;
+  return (Lexer){source, .source_len = strlen(source), .i = 0, .loc = (Location){filename, 1, 1}, .seen_newline = false, .tokens = Vector__new()};
 }
 
 void Lexer__push(Lexer *this, Token *token) {
@@ -1482,7 +1455,7 @@ void Lexer__push_type(Lexer *this, TokenType type, i32 len) {
   Location start_loc = this->loc;
   this->loc.col += len;
   this->i += len;
-  Lexer__push(this, Token__from_type(type, Span__make(start_loc, this->loc)));
+  Lexer__push(this, Token__from_type(type, (Span){start_loc, this->loc}));
 }
 
 char Lexer__peek(Lexer *this, i32 offset) {
@@ -1509,7 +1482,7 @@ void Lexer__lex_char_literal(Lexer *this) {
   char *text = string__substring(this->source, start, len);
   this->loc.col += (len + 2);
   this->i += 1;
-  Lexer__push(this, Token__new(TokenType__CharLiteral, Span__make(start_loc, this->loc), text));
+  Lexer__push(this, Token__new(TokenType__CharLiteral, (Span){start_loc, this->loc}, text));
 }
 
 void Lexer__lex_string_literal(Lexer *this) {
@@ -1528,9 +1501,9 @@ void Lexer__lex_string_literal(Lexer *this) {
   this->loc.col += (len + 2);
   this->i += 1;
   if (end_char == '`') {
-    Lexer__push(this, Token__new(TokenType__FormatStringLiteral, Span__make(start_loc, this->loc), text));
+    Lexer__push(this, Token__new(TokenType__FormatStringLiteral, (Span){start_loc, this->loc}, text));
   }  else {
-    Lexer__push(this, Token__new(TokenType__StringLiteral, Span__make(start_loc, this->loc), text));
+    Lexer__push(this, Token__new(TokenType__StringLiteral, (Span){start_loc, this->loc}, text));
   } 
 }
 
@@ -1723,7 +1696,7 @@ Vector *Lexer__lex(Lexer *this) {
           i32 len = (this->i - start);
           char *text = string__substring(this->source, start, len);
           this->loc.col += len;
-          Lexer__push(this, Token__new(token_type, Span__make(start_loc, this->loc), text));
+          Lexer__push(this, Token__new(token_type, (Span){start_loc, this->loc}, text));
         }  else         if ((isalpha(c) || c == '_')) {
           i32 start = this->i;
           while ((isalnum(this->source[this->i]) || this->source[this->i] == '_')) {
@@ -1732,7 +1705,7 @@ Vector *Lexer__lex(Lexer *this) {
           i32 len = (this->i - start);
           char *text = string__substring(this->source, start, len);
           this->loc.col += len;
-          Lexer__push(this, Token__from_ident(text, Span__make(start_loc, this->loc)));
+          Lexer__push(this, Token__from_ident(text, (Span){start_loc, this->loc}));
         }  else {
           printf("%s: Unrecognized char in lexer: '%c'" "\n", Location__str(this->loc), c);
           exit(1);
@@ -1889,10 +1862,7 @@ void *MapIterator__value(MapIterator *this) {
 }
 
 MapIterator MapIterator__make(Map *map) {
-  MapIterator it;
-  it.map = map;
-  it.idx = (-1);
-  it.cur = NULL;
+  MapIterator it = (MapIterator){.idx = (-1), .cur = NULL, map};
   MapIterator__next((&it));
   return it;
 }
@@ -2487,8 +2457,7 @@ bool AST__callee_is(AST *this, char *expected) {
 
 ParserContext *ParserContext__new(Vector *tokens, i32 offset) {
   ParserContext *context = ((ParserContext *)calloc(1, sizeof(ParserContext)));
-  context->tokens = tokens;
-  context->offset = offset;
+  (*context) = (ParserContext){tokens, offset};
   return context;
 }
 
@@ -3626,14 +3595,14 @@ Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *n
     Variable *field = ((Variable *)Vector__at(fields, i));
     Argument *arg = ((Argument *)Vector__at(args, i));
     Type *arg_type = TypeChecker__check_expression(this, arg->expr);
-    if ((!Type__eq(field->type, arg_type))) {
-      error_span_note_span(arg->expr->span, "Argument type does not match struct field", field->span, format_string("Expected '%s', got '%s'", Type__str(field->type), Type__str(arg_type)));
-    } 
     if (((bool)arg->label)) {
       char *label = arg->label->u.ident.name;
       if ((!string__eq(label, field->name))) {
         error_span_note_span(arg->label->span, "Label on parameter does not match struct field", field->span, format_string("Expected '%s', got '%s'", field->name, label));
       } 
+    } 
+    if ((!Type__eq(field->type, arg_type))) {
+      error_span_note_span(arg->expr->span, "Argument type does not match struct field", field->span, format_string("Expected '%s', got '%s'", Type__str(field->type), Type__str(arg_type)));
     } 
   } 
   return struc->type;
@@ -3797,6 +3766,9 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     } break;
     case ASTType__FormatStringLiteral: {
       etype = TypeChecker__check_format_string(this, node);
+    } break;
+    case ASTType__Constructor: {
+      etype = node->etype;
     } break;
     case ASTType__SizeOf: {
       if ((!TypeChecker__type_is_valid(this, node->u.size_of_type))) {
@@ -4440,11 +4412,8 @@ void TypeChecker__check_program(TypeChecker *this, Program *program) {
 }
 
 StringBuilder StringBuilder__make(void) {
-  StringBuilder builder;
-  builder.size = 0;
-  builder.capacity = 16;
-  builder.data = ((char *)calloc(builder.capacity, sizeof(char)));
-  return builder;
+  i32 initial_capacity = 16;
+  return (StringBuilder){.data = calloc(initial_capacity, 1), .size = 0, .capacity = initial_capacity};
 }
 
 void StringBuilder__resize_if_necessary(StringBuilder *this, i32 new_size) {
@@ -4482,13 +4451,7 @@ char *StringBuilder__new_str(StringBuilder *this) {
 }
 
 CodeGenerator CodeGenerator__make(bool debug) {
-  CodeGenerator gen;
-  gen.out = StringBuilder__make();
-  gen.scopes = Vector__new();
-  gen.yield_vars = Vector__new();
-  gen.yield_count = 0;
-  gen.debug = debug;
-  return gen;
+  return (CodeGenerator){.out = StringBuilder__make(), .scopes = Vector__new(), .yield_vars = Vector__new(), .yield_count = 0, .debug = debug};
 }
 
 void CodeGenerator__gen_debug_info(CodeGenerator *this, Span span) {

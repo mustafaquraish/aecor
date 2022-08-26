@@ -17,14 +17,14 @@ struct Lexer {
 }
 
 def Lexer::make(source: string, filename: string): Lexer {
-    let lexer: Lexer
-    lexer.source = source
-    lexer.source_len = source.len()
-    lexer.i = 0
-    lexer.loc = Location::make(filename, 1, 1)
-    lexer.seen_newline = false
-    lexer.tokens = Vector::new()
-    return lexer
+    return Lexer(
+        source,
+        source_len: source.len(),
+        i: 0,
+        loc: Location(filename, 1, 1),
+        seen_newline: false,
+        tokens: Vector::new()
+    )
 }
 
 def Lexer::push(&this, token: &Token) {
@@ -37,7 +37,7 @@ def Lexer::push_type(&this, type: TokenType, len: i32) {
     let start_loc = .loc
     .loc.col += len
     .i += len
-    .push(Token::from_type(type, Span::make(start_loc, .loc)))
+    .push(Token::from_type(type, Span(start_loc, .loc)))
 }
 
 def Lexer::peek(&this, offset: i32): char {
@@ -67,7 +67,7 @@ def Lexer::lex_char_literal(&this) {
 
     .loc.col += len + 2
     .i += 1
-    .push(Token::new(TokenType::CharLiteral, Span::make(start_loc, .loc), text))
+    .push(Token::new(TokenType::CharLiteral, Span(start_loc, .loc), text))
 }
 
 def Lexer::lex_string_literal(&this) {
@@ -87,9 +87,9 @@ def Lexer::lex_string_literal(&this) {
     .loc.col += len + 2
     .i += 1
     if end_char == '`' {
-        .push(Token::new(TokenType::FormatStringLiteral, Span::make(start_loc, .loc), text))
+        .push(Token::new(TokenType::FormatStringLiteral, Span(start_loc, .loc), text))
     } else {
-        .push(Token::new(TokenType::StringLiteral, Span::make(start_loc, .loc), text))
+        .push(Token::new(TokenType::StringLiteral, Span(start_loc, .loc), text))
     }
 }
 
@@ -190,7 +190,7 @@ def Lexer::lex(&this): &Vector {
                     let text = .source.substring(start, len)
 
                     .loc.col += len
-                    .push(Token::new(token_type, Span::make(start_loc, .loc), text))
+                    .push(Token::new(token_type, Span(start_loc, .loc), text))
 
                 } else if is_alpha(c) or c == '_' {
                     let start = .i
@@ -201,7 +201,7 @@ def Lexer::lex(&this): &Vector {
                     let text = .source.substring(start, len)
 
                     .loc.col += len
-                    .push(Token::from_ident(text, Span::make(start_loc, .loc)))
+                    .push(Token::from_ident(text, Span(start_loc, .loc)))
 
                 } else {
                     println("%s: Unrecognized char in lexer: '%c'", .loc.str(), c)

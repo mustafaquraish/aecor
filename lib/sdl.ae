@@ -16,33 +16,14 @@ struct SDLRect extern("SDL_Rect") {
     h: i32
 }
 
-def SDLRect::make(x: i32, y: i32, w: i32, h: i32): SDLRect {
-    let rect: SDLRect
-    rect.x = x
-    rect.y = y
-    rect.w = w
-    rect.h = h
-    return rect
-}
-
 struct SDLSurface extern("SDL_Surface")
 def SDLSurface::destroy(&this) extern("SDL_FreeSurface")
 
 struct SDLColor extern("SDL_Color") {
-    r: u8
-    g: u8
-    b: u8
-    a: u8
-}
-
-// FIXME: Make params take in u8 once we have u8 literals
-def SDLColor::make(r: i32, g: i32, b: i32, a: i32): SDLColor {
-    let color: SDLColor
-    color.r = r as u8
-    color.g = g as u8
-    color.b = b as u8
-    color.a = a as u8
-    return color
+    r: i32 // Not really i32, but it's convenient
+    g: i32
+    b: i32
+    a: i32
 }
 
 let SDLKey_Q: i32 extern("SDLK_q")

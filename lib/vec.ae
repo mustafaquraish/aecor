@@ -8,48 +8,40 @@ struct Vec {
     z: f32
 }
 
-def Vec::make(x: f32, y: f32, z: f32): Vec {
-    let vec: Vec
-    vec.x = x
-    vec.y = y
-    vec.z = z
-    return vec
-}
-
 def Vec::print(this) {
     println("%f %f %f\n", .x, .y, .z)
 }
 
 def Vec::add(this, other: Vec): Vec {
-    return Vec::make(.x + other.x, .y + other.y, .z + other.z)
+    return Vec(.x + other.x, .y + other.y, .z + other.z)
 }
 
 def Vec::addf(this, val: f32): Vec {
-    return Vec::make(.x + val, .y + val, .z + val)
+    return Vec(.x + val, .y + val, .z + val)
 }
 
 def Vec::sub(this, other: Vec): Vec {
-    return Vec::make(.x - other.x, .y - other.y, .z - other.z)
+    return Vec(.x - other.x, .y - other.y, .z - other.z)
 }
 
 def Vec::subf(this, val: f32): Vec {
-    return Vec::make(.x - val, .y - val, .z - val)
+    return Vec(.x - val, .y - val, .z - val)
 }
 
 def Vec::mult(this, other: Vec): Vec {
-    return Vec::make(.x * other.x, .y * other.y, .z * other.z)
+    return Vec(.x * other.x, .y * other.y, .z * other.z)
 }
 
 def Vec::multf(this, val: f32): Vec {
-    return Vec::make(.x * val, .y * val, .z * val)
+    return Vec(.x * val, .y * val, .z * val)
 }
 
 def Vec::div(this, other: Vec): Vec {
-    return Vec::make(.x / other.x, .y / other.y, .z / other.z)
+    return Vec(.x / other.x, .y / other.y, .z / other.z)
 }
 
 def Vec::divf(this, val: f32): Vec {
-    return Vec::make(.x / val, .y / val, .z / val)
+    return Vec(.x / val, .y / val, .z / val)
 }
 
 def Vec::dot(this, other: Vec): f32 {
@@ -57,7 +49,7 @@ def Vec::dot(this, other: Vec): f32 {
 }
 
 def Vec::cross(this, other: Vec): Vec {
-    return Vec::make(
+    return Vec(
         .y * other.z - .z * other.y,
         .z * other.x - .x * other.z,
         .x * other.y - .y * other.x,

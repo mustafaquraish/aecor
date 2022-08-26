@@ -12,9 +12,7 @@ struct Image {
 
 def Image::new(width: i32, height: i32): &Image {
     let img = calloc(1, sizeof(Image)) as &Image
-    img.width = width
-    img.height = height
-    img.data = calloc(1, width * height * sizeof(Vec)) as &Vec
+    *img = Image(width, height, calloc(width * height, sizeof(Vec)))
     return img
 }
 

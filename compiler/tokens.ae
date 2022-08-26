@@ -5,14 +5,6 @@ struct Location {
     col: i32
 }
 
-def Location::make(filename: string, line: i32, col: i32): Location {
-    let loc: Location
-    loc.filename = filename
-    loc.line = line
-    loc.col = col
-    return loc
-}
-
 def Location::str(this): string {
     return `{.filename}:{.line}:{.col}`
 }
@@ -20,13 +12,6 @@ def Location::str(this): string {
 struct Span {
     start: Location
     end: Location
-}
-
-def Span::make(start: Location, end: Location): Span {
-    let span: Span
-    span.start = start
-    span.end = end
-    return span
 }
 
 def Span::str(this): string {
@@ -50,10 +35,7 @@ struct Token {
 
 def Token::new(type: TokenType, span: Span, text: string): &Token {
     let tok = calloc(1, sizeof(Token)) as &Token
-    tok.type = type
-    tok.span = span
-    tok.text = text
-    tok.seen_newline = false
+    *tok = Token (type, span, text, seen_newline: false)
     return tok
 }
 

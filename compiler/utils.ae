@@ -135,7 +135,7 @@ def display_message_with_span(type: MessageType, span: Span, msg: string) {
 }
 
 def error_loc(loc: Location, msg: string) exits {
-    error_span(Span::make(loc, loc), msg)
+    error_span(Span(loc, loc), msg)
 }
 
 // Just shows the line with the error

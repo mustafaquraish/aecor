@@ -156,13 +156,6 @@ def TypeChecker::check_constructor(&this, struc: &Structure, node: &AST): &Type 
         let arg = args.at(i) as &Argument
         let arg_type = .check_expression(arg.expr)
 
-        if not field.type.eq(arg_type) {
-            error_span_note_span(
-                arg.expr.span, "Argument type does not match struct field",
-                field.span, `Expected '{field.type.str()}', got '{arg_type.str()}'`
-            )
-        }
-
         if arg.label? {
             let label = arg.label.u.ident.name
             if not label.eq(field.name) {
@@ -172,6 +165,14 @@ def TypeChecker::check_constructor(&this, struc: &Structure, node: &AST): &Type 
                 )
             }
         }
+
+        if not field.type.eq(arg_type) {
+            error_span_note_span(
+                arg.expr.span, "Argument type does not match struct field",
+                field.span, `Expected '{field.type.str()}', got '{arg_type.str()}'`
+            )
+        }
+
     }
 
     return struc.type
@@ -362,6 +363,10 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         CharLiteral     => etype = Type::new(BaseType::Char, node.span)
         Null            => etype = Type::ptr_to(BaseType::Void, node.span)
         FormatStringLiteral => etype = .check_format_string(node)
+
+        // If we have a Constructor node, we've already checked it.
+        Constructor => etype = node.etype
+
         SizeOf => {
             if not .type_is_valid(node.u.size_of_type) {
                 error_span(node.u.size_of_type.span, "Invalid type")

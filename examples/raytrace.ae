@@ -8,7 +8,7 @@ use "lib/image.ae"
 let TOL = 0.00001;
 
 def random_vec(): Vec {
-    return Vec::make(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
+    return Vec(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
 }
 
 def random_vec_unit(): Vec {
@@ -18,7 +18,7 @@ def random_vec_unit(): Vec {
             return vec.normalized()
         }
     }
-    return Vec::make(0.0, 0.0, 0.0)
+    return Vec(0.0, 0.0, 0.0)
 }
 
 struct Ray {
@@ -38,9 +38,7 @@ struct Sphere {
 
 def Sphere::new(x: f32, y: f32, z: f32, radius: f32, r: f32, g: f32, b: f32): &Sphere {
     let s = malloc(sizeof(Sphere)) as &Sphere
-    s.center = Vec::make(x, y, z)
-    s.color = Vec::make(r, g, b)
-    s.radius = radius
+    *s = Sphere(center: Vec(x, y, z), color: Vec(r, g, b), radius)
     return s
 }
 
@@ -71,9 +69,9 @@ def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec, col: &Vec): bool {
 
 def background_color(ray: &Ray): Vec {
     let t = 0.5 * (ray.dir.y + 1.0)
-    let col2 = Vec::make(1.0, 1.0, 1.0).multf(1.0-t)
+    let col2 = Vec(1.0, 1.0, 1.0).multf(1.0-t)
 
-    let res = Vec::make(0.5, 0.7, 1.0)
+    let res = Vec(0.5, 0.7, 1.0)
     return res.multf(t).add(col2)
 }
 
@@ -101,7 +99,7 @@ def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, obj_col: &Vec): i32 {
 
 def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
     if depth < 0
-        return Vec::make(0.0, 0.0, 0.0)
+        return Vec(0.0, 0.0, 0.0)
 
     let t = -1.0
     let n: Vec
@@ -133,14 +131,14 @@ def main() {
     let viewport_width = aspect_ratio * viewport_height
     let focal_length = 1.0
 
-    let origin = Vec::make(0.0, 0.0, 0.0)
-    let horizontal = Vec::make(viewport_width, 0.0, 0.0)
-    let vertical = Vec::make(0.0, viewport_height, 0.0)
+    let origin = Vec(0.0, 0.0, 0.0)
+    let horizontal = Vec(viewport_width, 0.0, 0.0)
+    let vertical = Vec(0.0, viewport_height, 0.0)
 
     let ll_corner = (origin
         .sub(horizontal.divf(2.0))
         .sub(vertical.divf(2.0))
-        .sub(Vec::make(0.0, 0.0, focal_length)))
+        .sub(Vec(0.0, 0.0, focal_length)))
 
     let img = Image::new(image_width, image_height);
     defer img.free()
@@ -150,7 +148,7 @@ def main() {
         print("\r%d / %d done", y, image_height)
         for let x = 0; x < image_width; x += 1 {
 
-            let total_col = Vec::make(0.0, 0.0, 0.0)
+            let total_col = Vec(0.0, 0.0, 0.0)
             for let s = 0; s < samples_per_pixel; s += 1 {
                 let u = (rand01() + x as f32) / (image_width-1) as f32
                 let v = 1.0 - (rand01() + y as f32) / (image_height-1) as f32

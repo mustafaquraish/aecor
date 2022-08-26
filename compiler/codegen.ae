@@ -4,20 +4,19 @@ use "compiler/ast.ae"
 struct CodeGenerator {
     out: StringBuilder
     scopes: &Vector  // Vector<Vector<AST>>
-    debug: bool
-
     yield_vars: &Vector // Vector<string>
     yield_count: i32
+    debug: bool
 }
 
 def CodeGenerator::make(debug: bool): CodeGenerator {
-    let gen: CodeGenerator
-    gen.out = StringBuilder::make()
-    gen.scopes = Vector::new()
-    gen.yield_vars = Vector::new()
-    gen.yield_count = 0
-    gen.debug = debug
-    return gen
+    return CodeGenerator(
+        out: StringBuilder::make(),
+        scopes: Vector::new(),
+        yield_vars: Vector::new(),
+        yield_count: 0,
+        debug: debug,
+    )
 }
 
 def CodeGenerator::gen_debug_info(&this, span: Span) {

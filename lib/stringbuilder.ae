@@ -8,11 +8,12 @@ struct StringBuilder {
 }
 
 def StringBuilder::make(): StringBuilder {
-    let builder: StringBuilder
-    builder.size = 0
-    builder.capacity = 16
-    builder.data = calloc(builder.capacity, sizeof(char)) as string
-    return builder
+    let initial_capacity = 16;
+    return StringBuilder(
+        data: calloc(initial_capacity, 1),
+        size: 0,
+        capacity: initial_capacity
+    )
 }
 
 def StringBuilder::resize_if_necessary(&this, new_size: i32) {

@@ -12,8 +12,7 @@ struct ParserContext {
 
 def ParserContext::new(tokens: &Vector, offset: i32): &ParserContext {
     let context = calloc(1, sizeof(ParserContext)) as &ParserContext
-    context.tokens = tokens
-    context.offset = offset
+    *context = ParserContext(tokens, offset)
     return context
 }
 

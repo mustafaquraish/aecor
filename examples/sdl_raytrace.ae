@@ -10,7 +10,7 @@ use "lib/image.ae"
 let TOL = 0.00001;
 
 def random_vec(): Vec {
-    return Vec::make(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
+    return Vec(rand01(), rand01(), rand01()).multf(2.0).subf(1.0);
 }
 
 def Vec::reflect(this, normal: Vec): Vec {
@@ -24,7 +24,7 @@ def random_vec_unit(): Vec {
             return vec.normalized()
         }
     }
-    return Vec::make(0.0, 0.0, 0.0)
+    return Vec(0.0, 0.0, 0.0)
 }
 
 struct Ray {
@@ -51,11 +51,7 @@ struct Sphere {
 
 def Sphere::new(mat: Material, pos: Vec, radius: f32, color: Vec, fuzz: f32): &Sphere {
     let s = malloc(sizeof(Sphere)) as &Sphere
-    s.center = pos
-    s.mat = mat
-    s.color = color
-    s.radius = radius
-    s.fuzz = fuzz
+    *s = Sphere(mat, pos, color, radius, fuzz)
     return s
 }
 
@@ -85,9 +81,9 @@ def Sphere::hit(&this, ray: &Ray, t: &f32, n: &Vec): bool {
 
 def background_color(ray: &Ray): Vec {
     let t = 0.5 * (ray.dir.y + 1.0)
-    let col2 = Vec::make(1.0, 1.0, 1.0).multf(1.0-t)
+    let col2 = Vec(1.0, 1.0, 1.0).multf(1.0-t)
 
-    let res = Vec::make(0.5, 0.7, 1.0)
+    let res = Vec(0.5, 0.7, 1.0)
     return res.multf(t).add(col2)
 }
 
@@ -114,7 +110,7 @@ def find_hit(ray: &Ray, objs: &Vector, t: &f32, n: &Vec, hit_obj: &&Sphere): boo
 
 def raytrace(ray: &Ray, objs: &Vector, depth: i32): Vec {
     if depth < 0
-        return Vec::make(0.0, 0.0, 0.0)
+        return Vec(0.0, 0.0, 0.0)
 
     let t = -1.0
     let n: Vec
@@ -161,7 +157,7 @@ def Camera::make(origin: Vec, direction: Vec): Camera {
     let viewport_width = aspect_ratio * viewport_height
     let focal_length = 1.0
 
-    let up = Vec::make(0.0, 1.0, 0.0)
+    let up = Vec(0.0, 1.0, 0.0)
 
     cam.origin = origin
     cam.direction = direction.normalized()
@@ -231,7 +227,7 @@ def Vec::rotateX(&this, angle: f32): Vec {
     let s = sin(angle)
     let y = .y * c - .z * s
     let z = .y * s + .z * c
-    return Vec::make(.x, y, z)
+    return Vec(.x, y, z)
 }
 
 def Vec::rotateY(&this, angle: f32): Vec {
@@ -239,7 +235,7 @@ def Vec::rotateY(&this, angle: f32): Vec {
     let s = sin(angle)
     let z = .z * c - .x * s
     let x = .z * s + .x * c
-    return Vec::make(x, .y, z)
+    return Vec(x, .y, z)
 }
 
 def Vec::rotateZ(&this, angle: f32): Vec {
@@ -247,20 +243,20 @@ def Vec::rotateZ(&this, angle: f32): Vec {
     let s = sin(angle)
     let x = .x * c - .y * s
     let y = .x * s + .y * c
-    return Vec::make(x, y, .z)
+    return Vec(x, y, .z)
 }
 
 let window: &SDLWindow
 let renderer: &SDLRenderer
 
 def draw_text(font: &TTFFont, text: string, x: i32, y: i32) {
-    let col = SDLColor::make(0, 0, 0, 255)
+    let col = SDLColor(0, 0, 0, 255)
     let msg_surf = font.render_solid(text, col)
     let msg = renderer.create_texture_from_surface(msg_surf)
     let w = 0
     let h = 0
     msg.query(null, null, &w, &h)
-    let rect = SDLRect::make(x, y, w, h)
+    let rect = SDLRect(x, y, w, h)
     renderer.copy(msg, null, &rect)
     msg_surf.destroy()
     msg.destroy()
@@ -284,14 +280,14 @@ def main() {
     )
 
     objs = Vector::new()
-    objs.push(Sphere::new(Material::Diffuse, Vec::make(0.0,    0.0, 1.0),   0.5, Vec::make(1.0, 0.6, 0.3), 0.0))
-    objs.push(Sphere::new(Material::Mirror,  Vec::make(1.0,    0.0, 1.0),   0.5, Vec::make(0.8, 0.8, 0.8), 0.7))
-    objs.push(Sphere::new(Material::Mirror,  Vec::make(-1.0,   0.0, 1.0),   0.5, Vec::make(0.8, 0.6, 0.2), 0.0))
-    objs.push(Sphere::new(Material::Diffuse, Vec::make(0.0, -100.5, 1.0), 100.0, Vec::make(0.5, 0.5, 0.5), 0.0))
+    objs.push(Sphere::new(Material::Diffuse, Vec(0.0,    0.0, 1.0),   0.5, Vec(1.0, 0.6, 0.3), 0.0))
+    objs.push(Sphere::new(Material::Mirror,  Vec(1.0,    0.0, 1.0),   0.5, Vec(0.8, 0.8, 0.8), 0.7))
+    objs.push(Sphere::new(Material::Mirror,  Vec(-1.0,   0.0, 1.0),   0.5, Vec(0.8, 0.6, 0.2), 0.0))
+    objs.push(Sphere::new(Material::Diffuse, Vec(0.0, -100.5, 1.0), 100.0, Vec(0.5, 0.5, 0.5), 0.0))
 
 
-    let origin = Vec::make(0.0, 0.0, 0.0)
-    let direction = Vec::make(0.0, 0.0, 1.0)
+    let origin = Vec(0.0, 0.0, 0.0)
+    let direction = Vec(0.0, 0.0, 1.0)
     camera = Camera::make(origin, direction)
 
     img = Image::new(WIDTH, HEIGHT);
@@ -336,8 +332,8 @@ def main() {
                 }
 
                 if key == SDLKey_R {
-                    origin = Vec::make(0.0, 0.0, 0.0)
-                    direction = Vec::make(0.0, 0.0, 1.0)
+                    origin = Vec(0.0, 0.0, 0.0)
+                    direction = Vec(0.0, 0.0, 1.0)
                     modified = true
                 }
 
