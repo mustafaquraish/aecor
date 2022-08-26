@@ -158,10 +158,12 @@ enum TokenType {
   TokenType__FloatLiteral,
   TokenType__FormatStringLiteral,
   TokenType__GreaterThan,
+  TokenType__GreaterThanGreaterThan,
   TokenType__GreaterThanEquals,
   TokenType__Identifier,
   TokenType__IntLiteral,
   TokenType__LessThan,
+  TokenType__LessThanLessThan,
   TokenType__LessThanEquals,
   TokenType__Line,
   TokenType__Minus,
@@ -289,6 +291,7 @@ enum ASTType {
   ASTType__Index,
   ASTType__IntLiteral,
   ASTType__IsNotNull,
+  ASTType__LeftShift,
   ASTType__LessThan,
   ASTType__LessThanEquals,
   ASTType__Match,
@@ -305,6 +308,7 @@ enum ASTType {
   ASTType__Plus,
   ASTType__PlusEquals,
   ASTType__Return,
+  ASTType__RightShift,
   ASTType__SizeOf,
   ASTType__ScopeLookup,
   ASTType__StringLiteral,
@@ -564,6 +568,8 @@ void Lexer__push_type(Lexer *this, TokenType type, i32 len);
 char Lexer__peek(Lexer *this, i32 offset);
 void Lexer__lex_char_literal(Lexer *this);
 void Lexer__lex_string_literal(Lexer *this);
+void Lexer__lex_int_literal_different_base(Lexer *this);
+void Lexer__lex_numeric_literal(Lexer *this);
 Vector *Lexer__lex(Lexer *this);
 MapNode *MapNode__new(char *key, void *value, MapNode *next);
 void MapNode__free_list(MapNode *node);
@@ -626,6 +632,7 @@ AST *Parser__parse_format_string(Parser *this);
 AST *Parser__parse_factor(Parser *this, TokenType end_type);
 AST *Parser__parse_term(Parser *this, TokenType end_type);
 AST *Parser__parse_additive(Parser *this, TokenType end_type);
+AST *Parser__parse_shift(Parser *this, TokenType end_type);
 AST *Parser__parse_bw_and(Parser *this, TokenType end_type);
 AST *Parser__parse_bw_xor(Parser *this, TokenType end_type);
 AST *Parser__parse_bw_or(Parser *this, TokenType end_type);
@@ -1173,6 +1180,9 @@ char *TokenType__str(TokenType this) {
     case TokenType__GreaterThan: {
       __yield_0 = "GreaterThan";
 } break;
+    case TokenType__GreaterThanGreaterThan: {
+      __yield_0 = "GreaterThanGreaterThan";
+} break;
     case TokenType__GreaterThanEquals: {
       __yield_0 = "GreaterThanEquals";
 } break;
@@ -1184,6 +1194,9 @@ char *TokenType__str(TokenType this) {
 } break;
     case TokenType__LessThan: {
       __yield_0 = "LessThan";
+} break;
+    case TokenType__LessThanLessThan: {
+      __yield_0 = "LessThanLessThan";
 } break;
     case TokenType__LessThanEquals: {
       __yield_0 = "LessThanEquals";
@@ -1507,6 +1520,65 @@ void Lexer__lex_string_literal(Lexer *this) {
   } 
 }
 
+void Lexer__lex_int_literal_different_base(Lexer *this) {
+  Location start_loc = this->loc;
+  i32 start = this->i;
+  this->i += 1;
+  switch (this->source[this->i]) {
+    case 'x': {
+      this->i += 1;
+      while (((this->i < this->source_len) && isalnum(this->source[this->i]))) {
+        this->i += 1;
+      } 
+    } break;
+    case 'b': {
+      this->i += 1;
+      while ((((this->i < this->source_len) && this->source[this->i] == '0') || this->source[this->i] == '1')) {
+        this->i += 1;
+      } 
+    } break;
+    default: {
+    } break;
+  }
+  i32 len = (this->i - start);
+  char *text = string__substring(this->source, start, len);
+  this->loc.col += len;
+  Lexer__push(this, Token__new(TokenType__IntLiteral, (Span){start_loc, this->loc}, text));
+}
+
+void Lexer__lex_numeric_literal(Lexer *this) {
+  Location start_loc = this->loc;
+  if (this->source[this->i] == '0') {
+    switch (Lexer__peek(this, 1)) {
+      case 'x':
+      case 'b': {
+        Lexer__lex_int_literal_different_base(this);
+        return;
+      } break;
+      default: {
+      } break;
+    }
+  } 
+  i32 start = this->i;
+  TokenType token_type;
+  while (isdigit(this->source[this->i])) {
+    this->i += 1;
+  } 
+  if (this->source[this->i] == '.') {
+    this->i += 1;
+    while (isdigit(this->source[this->i])) {
+      this->i += 1;
+    } 
+    token_type = TokenType__FloatLiteral;
+  }  else {
+    token_type = TokenType__IntLiteral;
+  } 
+  i32 len = (this->i - start);
+  char *text = string__substring(this->source, start, len);
+  this->loc.col += len;
+  Lexer__push(this, Token__new(token_type, (Span){start_loc, this->loc}, text));
+}
+
 Vector *Lexer__lex(Lexer *this) {
   while ((this->i < this->source_len)) {
     char c = this->source[this->i];
@@ -1638,6 +1710,9 @@ Vector *Lexer__lex(Lexer *this) {
           case '=': {
             Lexer__push_type(this, TokenType__LessThanEquals, 2);
           } break;
+          case '<': {
+            Lexer__push_type(this, TokenType__LessThanLessThan, 2);
+          } break;
           default: {
             Lexer__push_type(this, TokenType__LessThan, 1);
           } break;
@@ -1647,6 +1722,9 @@ Vector *Lexer__lex(Lexer *this) {
         switch (Lexer__peek(this, 1)) {
           case '=': {
             Lexer__push_type(this, TokenType__GreaterThanEquals, 2);
+          } break;
+          case '>': {
+            Lexer__push_type(this, TokenType__GreaterThanGreaterThan, 2);
           } break;
           default: {
             Lexer__push_type(this, TokenType__GreaterThan, 1);
@@ -1679,24 +1757,7 @@ Vector *Lexer__lex(Lexer *this) {
       default: {
         Location start_loc = this->loc;
         if (isdigit(c)) {
-          i32 start = this->i;
-          TokenType token_type;
-          while (isdigit(this->source[this->i])) {
-            this->i += 1;
-          } 
-          if (this->source[this->i] == '.') {
-            this->i += 1;
-            while (isdigit(this->source[this->i])) {
-              this->i += 1;
-            } 
-            token_type = TokenType__FloatLiteral;
-          }  else {
-            token_type = TokenType__IntLiteral;
-          } 
-          i32 len = (this->i - start);
-          char *text = string__substring(this->source, start, len);
-          this->loc.col += len;
-          Lexer__push(this, Token__new(token_type, (Span){start_loc, this->loc}, text));
+          Lexer__lex_numeric_literal(this);
         }  else         if ((isalpha(c) || c == '_')) {
           i32 start = this->i;
           while ((isalnum(this->source[this->i]) || this->source[this->i] == '_')) {
@@ -2200,6 +2261,9 @@ char *ASTType__str(ASTType this) {
     case ASTType__IsNotNull: {
       __yield_0 = "IsNotNull";
 } break;
+    case ASTType__LeftShift: {
+      __yield_0 = "LeftShift";
+} break;
     case ASTType__LessThan: {
       __yield_0 = "LessThan";
 } break;
@@ -2247,6 +2311,9 @@ char *ASTType__str(ASTType this) {
 } break;
     case ASTType__Return: {
       __yield_0 = "Return";
+} break;
+    case ASTType__RightShift: {
+      __yield_0 = "RightShift";
 } break;
     case ASTType__SizeOf: {
       __yield_0 = "SizeOf";
@@ -2297,11 +2364,17 @@ ASTType ASTType__from_token(TokenType type) {
     case TokenType__GreaterThanEquals: {
       __yield_0 = ASTType__GreaterThanEquals;
 } break;
+    case TokenType__GreaterThanGreaterThan: {
+      __yield_0 = ASTType__RightShift;
+} break;
     case TokenType__LessThan: {
       __yield_0 = ASTType__LessThan;
 } break;
     case TokenType__LessThanEquals: {
       __yield_0 = ASTType__LessThanEquals;
+} break;
+    case TokenType__LessThanLessThan: {
+      __yield_0 = ASTType__LeftShift;
 } break;
     case TokenType__Line: {
       __yield_0 = ASTType__BitwiseOr;
@@ -2904,15 +2977,29 @@ AST *Parser__parse_additive(Parser *this, TokenType end_type) {
   return lhs;
 }
 
-AST *Parser__parse_bw_and(Parser *this, TokenType end_type) {
+AST *Parser__parse_shift(Parser *this, TokenType end_type) {
   AST *lhs = Parser__parse_additive(this, end_type);
-  while (Parser__token_is(this, TokenType__Ampersand)) {
+  while ((Parser__token_is(this, TokenType__LessThanLessThan) || Parser__token_is(this, TokenType__GreaterThanGreaterThan))) {
     if (Parser__token_is(this, end_type)) 
     break;
     
     ASTType op = ASTType__from_token(Parser__token(this)->type);
     this->curr += 1;
     AST *rhs = Parser__parse_additive(this, end_type);
+    lhs = AST__new_binop(op, lhs, rhs);
+  } 
+  return lhs;
+}
+
+AST *Parser__parse_bw_and(Parser *this, TokenType end_type) {
+  AST *lhs = Parser__parse_shift(this, end_type);
+  while (Parser__token_is(this, TokenType__Ampersand)) {
+    if (Parser__token_is(this, end_type)) 
+    break;
+    
+    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    this->curr += 1;
+    AST *rhs = Parser__parse_shift(this, end_type);
     lhs = AST__new_binop(op, lhs, rhs);
   } 
   return lhs;
@@ -3880,7 +3967,9 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__Modulus:
     case ASTType__BitwiseOr:
     case ASTType__BitwiseAnd:
-    case ASTType__BitwiseXor: {
+    case ASTType__BitwiseXor:
+    case ASTType__LeftShift:
+    case ASTType__RightShift: {
       Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
       if (((!Type__is_integer(lhs)) || (!Type__is_integer(rhs)))) {
@@ -4678,6 +4767,9 @@ char *CodeGenerator__get_op(ASTType type) {
     case ASTType__GreaterThanEquals: {
       __yield_0 = " >= ";
 } break;
+    case ASTType__LeftShift: {
+      __yield_0 = " << ";
+} break;
     case ASTType__LessThan: {
       __yield_0 = " < ";
 } break;
@@ -4713,6 +4805,9 @@ char *CodeGenerator__get_op(ASTType type) {
 } break;
     case ASTType__PlusEquals: {
       __yield_0 = " += ";
+} break;
+    case ASTType__RightShift: {
+      __yield_0 = " >> ";
 } break;
     case ASTType__UnaryMinus: {
       __yield_0 = "-";
@@ -4847,6 +4942,7 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
     case ASTType__Divide:
     case ASTType__GreaterThan:
     case ASTType__GreaterThanEquals:
+    case ASTType__LeftShift:
     case ASTType__LessThan:
     case ASTType__LessThanEquals:
     case ASTType__Minus:
@@ -4854,7 +4950,8 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
     case ASTType__Multiply:
     case ASTType__NotEquals:
     case ASTType__Or:
-    case ASTType__Plus: {
+    case ASTType__Plus:
+    case ASTType__RightShift: {
       StringBuilder__puts((&this->out), "(");
       CodeGenerator__gen_expression(this, node->u.binary.lhs);
       StringBuilder__puts((&this->out), CodeGenerator__get_op(node->type));

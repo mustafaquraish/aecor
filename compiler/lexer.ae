@@ -93,6 +93,68 @@ def Lexer::lex_string_literal(&this) {
     }
 }
 
+def Lexer::lex_int_literal_different_base(&this) {
+    let start_loc = .loc
+    let start = .i
+    .i += 1
+    match .source[.i] {
+        'x' => {
+            .i += 1
+            // FIXME: check for invalid hex digits
+            while .i < .source_len and is_alnum(.source[.i]) {
+                .i += 1
+            }
+        }
+        'b' => {
+            .i += 1
+            while .i < .source_len and .source[.i] == '0' or .source[.i] == '1' {
+                .i += 1
+            }
+        }
+
+        // Should be unreachable
+        else => {}
+    }
+    let len = .i - start
+    let text = .source.substring(start, len)
+    .loc.col += len
+    .push(Token::new(TokenType::IntLiteral, Span(start_loc, .loc), text))
+}
+
+def Lexer::lex_numeric_literal(&this) {
+    let start_loc = .loc
+    if .source[.i] == '0' {
+        match .peek(1) {
+            'x' | 'b' => {
+                .lex_int_literal_different_base()
+                return
+            }
+            // Do nothing, fall through
+            else => {}
+        }
+    }
+
+    let start = .i
+    let token_type: TokenType
+    while is_digit(.source[.i]) {
+        .i += 1
+    }
+    if .source[.i] == '.' {
+        .i += 1
+        while is_digit(.source[.i]) {
+            .i += 1
+        }
+        token_type = TokenType::FloatLiteral
+    } else {
+        token_type = TokenType::IntLiteral
+    }
+    let len = .i - start
+    let text = .source.substring(start, len)
+
+    .loc.col += len
+    .push(Token::new(token_type, Span(start_loc, .loc), text))
+}
+
 def Lexer::lex(&this): &Vector {
     while .i < .source_len {
         let c = .source[.i]
@@ -173,26 +235,7 @@ def Lexer::lex(&this): &Vector {
                 let start_loc = .loc
 
                 if is_digit(c) {
-                    let start = .i
-
-                    let token_type: TokenType
-                    while is_digit(.source[.i]) {
-                        .i += 1
-                    }
-                    if .source[.i] == '.' {
-                        .i += 1
-                        while is_digit(.source[.i]) {
-                            .i += 1
-                        }
-                        token_type = TokenType::FloatLiteral
-                    } else {
-                        token_type = TokenType::IntLiteral
-                    }
-                    let len = .i - start
-                    let text = .source.substring(start, len)
-
-                    .loc.col += len
-                    .push(Token::new(token_type, Span(start_loc, .loc), text))
+                    .lex_numeric_literal()
 
                 } else if is_alpha(c) or c == '_' {
                     let start = .i
