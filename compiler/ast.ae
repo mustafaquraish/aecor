@@ -15,6 +15,7 @@ enum ASTType {
   Call
   Cast
   CharLiteral
+  Constructor
   Continue
   Defer
   Dereference
@@ -71,6 +72,7 @@ def ASTType::str(this): string {
         Call => "Call"
         Cast => "Cast"
         CharLiteral => "CharLiteral"
+        Constructor => "Constructor"
         Continue => "Continue"
         Defer => "Defer"
         Dereference => "Dereference"
@@ -300,6 +302,11 @@ struct FuncCall {
     added_method_arg: bool
 }
 
+struct Constructor {
+    struc: &Structure
+    args: &Vector    // Vector<&Argument>
+}
+
 struct Member {
     lhs: &AST
     rhs: &AST   // &Identifier
@@ -372,6 +379,7 @@ union ASTUnion {
     bool_literal: bool
     string_literal: string
     char_literal: string
+    constructor: Constructor
     size_of_type: &Type
 }
 

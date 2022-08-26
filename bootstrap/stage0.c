@@ -62,6 +62,7 @@ typedef struct Identifier Identifier;
 typedef struct FormatString FormatString;
 typedef struct Argument Argument;
 typedef struct FuncCall FuncCall;
+typedef struct Constructor Constructor;
 typedef struct Member Member;
 typedef struct EnumValue EnumValue;
 typedef struct VarDeclaration VarDeclaration;
@@ -270,6 +271,7 @@ enum ASTType {
   ASTType__Call,
   ASTType__Cast,
   ASTType__CharLiteral,
+  ASTType__Constructor,
   ASTType__Continue,
   ASTType__Defer,
   ASTType__Dereference,
@@ -390,6 +392,11 @@ struct FuncCall {
   bool added_method_arg;
 };
 
+struct Constructor {
+  Structure *struc;
+  Vector *args;
+};
+
 struct Member {
   AST *lhs;
   AST *rhs;
@@ -455,6 +462,7 @@ union ASTUnion {
   bool bool_literal;
   char *string_literal;
   char *char_literal;
+  Constructor constructor;
   Type *size_of_type;
 };
 
@@ -650,6 +658,7 @@ Variable *TypeChecker__find_var(TypeChecker *this, char *name);
 Variable *TypeChecker__get_struct_member(TypeChecker *this, char *lhs, char *rhs);
 bool TypeChecker__type_is_valid(TypeChecker *this, Type *type);
 void TypeChecker__check_method_call(TypeChecker *this, Type *method_type, AST *node);
+Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *node);
 Type *TypeChecker__check_call(TypeChecker *this, AST *node);
 Type *TypeChecker__check_format_string(TypeChecker *this, AST *node);
 Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, Type *rhs);
@@ -2167,6 +2176,9 @@ char *ASTType__str(ASTType this) {
     case ASTType__CharLiteral: {
       __yield_0 = "CharLiteral";
 } break;
+    case ASTType__Constructor: {
+      __yield_0 = "Constructor";
+} break;
     case ASTType__Continue: {
       __yield_0 = "Continue";
 } break;
@@ -3598,6 +3610,35 @@ void TypeChecker__check_method_call(TypeChecker *this, Type *method_type, AST *n
   Vector__push_front(node->u.call.args, Argument__new(NULL, first_arg));
 }
 
+Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *node) {
+  if ((struc->is_enum || struc->is_union)) {
+    error_span(node->span, "Cannot use constructor for enum or union");
+  } 
+  Vector *args = node->u.call.args;
+  node->type = ASTType__Constructor;
+  node->u.constructor.struc = struc;
+  node->u.constructor.args = args;
+  Vector *fields = struc->fields;
+  if ((fields->size != args->size)) {
+    error_span_note_span(node->span, "Constructor has wrong number of arguments", struc->span, format_string("Struct has %d fields, but got %d arguments", fields->size, args->size));
+  } 
+  for (i32 i = 0; (i < fields->size); i += 1) {
+    Variable *field = ((Variable *)Vector__at(fields, i));
+    Argument *arg = ((Argument *)Vector__at(args, i));
+    Type *arg_type = TypeChecker__check_expression(this, arg->expr);
+    if ((!Type__eq(field->type, arg_type))) {
+      error_span_note_span(arg->expr->span, "Argument type does not match struct field", field->span, format_string("Expected '%s', got '%s'", Type__str(field->type), Type__str(arg_type)));
+    } 
+    if (((bool)arg->label)) {
+      char *label = arg->label->u.ident.name;
+      if ((!string__eq(label, field->name))) {
+        error_span_note_span(arg->label->span, "Label on parameter does not match struct field", field->span, format_string("Expected '%s', got '%s'", field->name, label));
+      } 
+    } 
+  } 
+  return struc->type;
+}
+
 Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
   AST *callee = node->u.call.callee;
   if (callee->type == ASTType__Identifier) {
@@ -3609,6 +3650,10 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
         TypeChecker__check_expression(this, arg->expr);
       } 
       return Type__new(BaseType__Void, node->span);
+    } 
+    Structure *struc = ((Structure *)Map__get(this->structures, name));
+    if (((bool)struc)) {
+      return TypeChecker__check_constructor(this, struc, node);
     } 
   } 
   Type *func_type = TypeChecker__check_expression(this, callee);
@@ -4789,6 +4834,25 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
         } 
       } 
       StringBuilder__puts((&this->out), ")");
+    } break;
+    case ASTType__Constructor: {
+      Structure *struc = node->u.constructor.struc;
+      Vector *args = node->u.constructor.args;
+      StringBuilder__puts((&this->out), "(");
+      CodeGenerator__gen_type(this, struc->type);
+      StringBuilder__puts((&this->out), "){");
+      for (i32 i = 0; (i < args->size); i += 1) {
+        if ((i > 0)) {
+          StringBuilder__puts((&this->out), ", ");
+        } 
+        Argument *arg = ((Argument *)Vector__at(args, i));
+        if (((bool)arg->label)) {
+          char *label = arg->label->u.ident.name;
+          StringBuilder__putsf((&this->out), format_string(".%s = ", label));
+        } 
+        CodeGenerator__gen_expression(this, arg->expr);
+      } 
+      StringBuilder__puts((&this->out), "}");
     } break;
     case ASTType__And:
     case ASTType__BitwiseAnd:

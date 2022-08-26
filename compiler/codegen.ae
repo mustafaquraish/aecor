@@ -287,6 +287,24 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
             .out.puts(")")
         }
+        Constructor => {
+            let struc = node.u.constructor.struc
+            let args = node.u.constructor.args
+
+            .out.puts("(")
+            .gen_type(struc.type)
+            .out.puts("){")
+            for let i = 0; i < args.size; i += 1 {
+                if i > 0 { .out.puts(", "); }
+                let arg = args.at(i) as &Argument
+                if arg.label? {
+                    let label = arg.label.u.ident.name
+                    .out.putsf(`.{label} = `)
+                }
+                .gen_expression(arg.expr)
+            }
+            .out.puts("}")
+        }
         And |
         BitwiseAnd |
         BitwiseOr |

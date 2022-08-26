@@ -128,6 +128,55 @@ def TypeChecker::check_method_call(&this, method_type: &Type, node: &AST) {
     node.u.call.args.push_front(Argument::new(null, first_arg))
 }
 
+def TypeChecker::check_constructor(&this, struc: &Structure, node: &AST): &Type {
+    if struc.is_enum or struc.is_union {
+        error_span(node.span, "Cannot use constructor for enum or union")
+    }
+
+    let args = node.u.call.args
+
+    // We want to change the type of the node to be a constructor here, since this
+    // is not something we can determine during parsing.
+    node.type = ASTType::Constructor
+    node.u.constructor.struc = struc
+    node.u.constructor.args = args
+
+    let fields = struc.fields
+    if fields.size != args.size {
+        error_span_note_span(
+            node.span, "Constructor has wrong number of arguments",
+            struc.span, `Struct has {fields.size} fields, but got {args.size} arguments`
+        )
+    }
+
+    // FIXME: Maybe allow uninitialized fields?
+    // FIXME: Should labels be mandatory? If so, do we care about order?
+    for let i = 0; i < fields.size; i += 1 {
+        let field = fields.at(i) as &Variable
+        let arg = args.at(i) as &Argument
+        let arg_type = .check_expression(arg.expr)
+
+        if not field.type.eq(arg_type) {
+            error_span_note_span(
+                arg.expr.span, "Argument type does not match struct field",
+                field.span, `Expected '{field.type.str()}', got '{arg_type.str()}'`
+            )
+        }
+
+        if arg.label? {
+            let label = arg.label.u.ident.name
+            if not label.eq(field.name) {
+                error_span_note_span(
+                    arg.label.span, "Label on parameter does not match struct field",
+                    field.span, `Expected '{field.name}', got '{label}'`
+                )
+            }
+        }
+    }
+
+    return struc.type
+}
+
 def TypeChecker::check_call(&this, node: &AST): &Type {
     // This is a hack to avoid typechecking of `print` and `println`
     let callee = node.u.call.callee
@@ -140,6 +189,12 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
                 .check_expression(arg.expr)
             }
             return Type::new(BaseType::Void, node.span)
+        }
+
+        // If the name of the function is a Struct, then this is a constructor.
+        let struc = .structures.get(name) as &Structure
+        if struc? {
+            return .check_constructor(struc, node)
         }
     }
 
