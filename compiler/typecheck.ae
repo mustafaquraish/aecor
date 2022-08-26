@@ -466,7 +466,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             }
             etype = Type::new(BaseType::Bool, node.span)
         }
-        Modulus | BitwiseOr | BitwiseAnd | BitwiseXor => {
+        Modulus | BitwiseOr | BitwiseAnd | BitwiseXor | LeftShift | RightShift => {
             let lhs = .check_expression(node.u.binary.lhs)
             let rhs = .check_expression(node.u.binary.rhs)
             if not lhs.is_integer() or not rhs.is_integer() {

@@ -33,6 +33,7 @@ enum ASTType {
   Index
   IntLiteral
   IsNotNull
+  LeftShift
   LessThan
   LessThanEquals
   Match
@@ -49,6 +50,7 @@ enum ASTType {
   Plus
   PlusEquals
   Return
+  RightShift
   SizeOf
   ScopeLookup
   StringLiteral
@@ -90,6 +92,7 @@ def ASTType::str(this): string {
         Index => "Index"
         IntLiteral => "IntLiteral"
         IsNotNull => "IsNotNull"
+        LeftShift => "LeftShift"
         LessThan => "LessThan"
         LessThanEquals => "LessThanEquals"
         Match => "Match"
@@ -106,6 +109,7 @@ def ASTType::str(this): string {
         Plus => "Plus"
         PlusEquals => "PlusEquals"
         Return => "Return"
+        RightShift => "RightShift"
         SizeOf => "SizeOf"
         ScopeLookup => "ScopeLookup"
         StringLiteral => "StringLiteral"
@@ -125,8 +129,10 @@ def ASTType::from_token(type: TokenType): ASTType {
         Equals => ASTType::Assignment
         GreaterThan => ASTType::GreaterThan
         GreaterThanEquals => ASTType::GreaterThanEquals
+        GreaterThanGreaterThan => ASTType::RightShift
         LessThan => ASTType::LessThan
         LessThanEquals => ASTType::LessThanEquals
+        LessThanLessThan => ASTType::LeftShift
         Line => ASTType::BitwiseOr
         Minus => ASTType::Minus
         MinusEquals => ASTType::MinusEquals

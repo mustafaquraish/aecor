@@ -180,6 +180,7 @@ def CodeGenerator::get_op(type: ASTType): string {
         Equals => " == "
         GreaterThan => " > "
         GreaterThanEquals => " >= "
+        LeftShift => " << "
         LessThan => " < "
         LessThanEquals => " <= "
         Minus => " - "
@@ -192,6 +193,7 @@ def CodeGenerator::get_op(type: ASTType): string {
         Or => " || "
         Plus => " + "
         PlusEquals => " += "
+        RightShift => " >> "
         UnaryMinus => "-"
         else => {
             println("Unknown op type in get_op: %s", type.str())
@@ -315,6 +317,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Divide |
         GreaterThan |
         GreaterThanEquals |
+        LeftShift |
         LessThan |
         LessThanEquals |
         Minus |
@@ -322,7 +325,8 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
         Multiply |
         NotEquals |
         Or |
-        Plus => {
+        Plus |
+        RightShift => {
             .out.puts("(")
             .gen_expression(node.u.binary.lhs)
             .out.puts(CodeGenerator::get_op(node.type))

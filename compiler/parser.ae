@@ -466,13 +466,26 @@ def Parser::parse_additive(&this, end_type: TokenType): &AST {
     return lhs
 }
 
-def Parser::parse_bw_and(&this, end_type: TokenType): &AST {
+def Parser::parse_shift(&this, end_type: TokenType): &AST {
     let lhs = .parse_additive(end_type)
-    while .token_is(TokenType::Ampersand) {
+    while .token_is(TokenType::LessThanLessThan) or
+            .token_is(TokenType::GreaterThanGreaterThan) {
         if .token_is(end_type) break
         let op = ASTType::from_token(.token().type)
         .curr += 1
         let rhs = .parse_additive(end_type)
+        lhs = AST::new_binop(op, lhs, rhs)
+    }
+    return lhs
+}
+
+def Parser::parse_bw_and(&this, end_type: TokenType): &AST {
+    let lhs = .parse_shift(end_type)
+    while .token_is(TokenType::Ampersand) {
+        if .token_is(end_type) break
+        let op = ASTType::from_token(.token().type)
+        .curr += 1
+        let rhs = .parse_shift(end_type)
         lhs = AST::new_binop(op, lhs, rhs)
     }
     return lhs

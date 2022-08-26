@@ -117,16 +117,18 @@ enum TokenType {
   FloatLiteral
   FormatStringLiteral
   GreaterThan
+  GreaterThanGreaterThan
   GreaterThanEquals
   Identifier
   IntLiteral
   LessThan
+  LessThanLessThan
   LessThanEquals
   Line
   Minus
   MinusEquals
   NotEquals
-  Newline    // Not an actual token, but nice to have this here
+  Newline   // Not an actual token, but nice to have this here
   OpenCurly
   OpenParen
   OpenSquare
@@ -257,10 +259,12 @@ def TokenType::str(this): string {
         FloatLiteral => "FloatLiteral"
         FormatStringLiteral => "FormatStringLiteral"
         GreaterThan => "GreaterThan"
+        GreaterThanGreaterThan => "GreaterThanGreaterThan"
         GreaterThanEquals => "GreaterThanEquals"
         Identifier => "Identifier"
         IntLiteral => "IntLiteral"
         LessThan => "LessThan"
+        LessThanLessThan => "LessThanLessThan"
         LessThanEquals => "LessThanEquals"
         Line => "Line"
         Minus => "Minus"
