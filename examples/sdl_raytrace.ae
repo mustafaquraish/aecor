@@ -298,61 +298,33 @@ def main() {
     while not quit {
         let modified = false
         while SDL::poll_event(&e) {
-            if e.type == SDL_Quit {
-                quit = true
-            }
-            if e.type == SDL_KeyDown {
-                let key = e.key.keysym.sym
-                if key == SDLKey_Q or key == SDLKey_Esc {
-                    quit = true
-                }
-                if key == SDLKey_W {
-                    origin = origin.add(camera.w.multf(-0.1))
-                    modified = true
-                }
-                if key == SDLKey_S {
-                    origin = origin.add(camera.w.multf(0.1))
-                    modified = true
-                }
-                if key == SDLKey_A {
-                    origin = origin.add(camera.u.multf(0.1))
-                    modified = true
-                }
-                if key == SDLKey_D {
-                    origin = origin.add(camera.u.multf(-0.1))
-                    modified = true
-                }
-                if key == SDLKey_Z {
-                    origin = origin.add(camera.v.multf(-0.1))
-                    modified = true
-                }
-                if key == SDLKey_X {
-                    origin = origin.add(camera.v.multf(0.1))
-                    modified = true
-                }
+            match e.type {
+                Quit => quit = true
+                KeyDown => {
+                    let cur_modified = true
+                    match e.key.keysym.sym {
+                        Q | Escape => quit = true
+                        W => origin = origin.add(camera.w.multf(-0.1))
+                        S => origin = origin.add(camera.w.multf(0.1))
+                        A => origin = origin.add(camera.u.multf(0.1))
+                        D => origin = origin.add(camera.u.multf(-0.1))
+                        Z => origin = origin.add(camera.v.multf(-0.1))
+                        X => origin = origin.add(camera.v.multf(0.1))
 
-                if key == SDLKey_R {
-                    origin = Vec(0.0, 0.0, 0.0)
-                    direction = Vec(0.0, 0.0, 1.0)
-                    modified = true
-                }
+                        Left => direction = direction.rotateY(-0.1)
+                        Right => direction = direction.rotateY(0.1)
+                        Up => direction = direction.rotateX(-0.1)
+                        Down => direction = direction.rotateX(0.1)
 
-                if key == SDLKey_Left {
-                    direction = direction.rotateY(-0.1)
-                    modified = true
+                        R => {
+                            origin = Vec(0.0, 0.0, 0.0)
+                            direction = Vec(0.0, 0.0, 1.0)
+                        }
+                        else => cur_modified = false
+                    }
+                    modified = modified or cur_modified
                 }
-                if key == SDLKey_Right {
-                    direction = direction.rotateY(0.1)
-                    modified = true
-                }
-                if key == SDLKey_Up {
-                    direction = direction.rotateX(-0.1)
-                    modified = true
-                }
-                if key == SDLKey_Down {
-                    direction = direction.rotateX(0.1)
-                    modified = true
-                }
+                else => {}
             }
         }
 

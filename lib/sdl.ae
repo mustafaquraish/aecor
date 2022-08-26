@@ -26,28 +26,52 @@ struct SDLColor extern("SDL_Color") {
     a: i32
 }
 
-let SDLKey_Q: i32 extern("SDLK_q")
+enum Key extern("SDL_Keycode") {
+    A = extern("SDLK_a")
+    B = extern("SDLK_b")
+    C = extern("SDLK_c")
+    D = extern("SDLK_d")
+    E = extern("SDLK_e")
+    F = extern("SDLK_f")
+    G = extern("SDLK_g")
+    H = extern("SDLK_h")
+    I = extern("SDLK_i")
+    J = extern("SDLK_j")
+    K = extern("SDLK_k")
+    L = extern("SDLK_l")
+    M = extern("SDLK_m")
+    N = extern("SDLK_n")
+    O = extern("SDLK_o")
+    P = extern("SDLK_p")
+    Q = extern("SDLK_q")
+    R = extern("SDLK_r")
+    S = extern("SDLK_s")
+    T = extern("SDLK_t")
+    U = extern("SDLK_u")
+    V = extern("SDLK_v")
+    W = extern("SDLK_w")
+    X = extern("SDLK_x")
+    Y = extern("SDLK_y")
+    Z = extern("SDLK_z")
 
-let SDLKey_W: i32 extern("SDLK_w")
-let SDLKey_A: i32 extern("SDLK_a")
-let SDLKey_S: i32 extern("SDLK_s")
-let SDLKey_D: i32 extern("SDLK_d")
-let SDLKey_Z: i32 extern("SDLK_z")
-let SDLKey_X: i32 extern("SDLK_x")
-
-let SDLKey_R: i32 extern("SDLK_r")
-
-let SDLKey_Up: i32 extern("SDLK_UP")
-let SDLKey_Down: i32 extern("SDLK_DOWN")
-let SDLKey_Left: i32 extern("SDLK_LEFT")
-let SDLKey_Right: i32 extern("SDLK_RIGHT")
-
-let SDLKey_Esc: i32 extern("SDLK_ESCAPE")
+    Up = extern("SDLK_UP")
+    Down = extern("SDLK_DOWN")
+    Left = extern("SDLK_LEFT")
+    Right = extern("SDLK_RIGHT")
+    Space = extern("SDLK_SPACE")
+    Escape = extern("SDLK_ESCAPE")
+}
 
 struct SDLKeysym extern("SDL_Keysym") {
     scancode: i32
-    sym: i32
+    sym: Key
     mod: i32
+}
+
+enum EventType extern {
+    Quit = extern("SDL_QUIT")
+    KeyDown = extern("SDL_KEYDOWN")
+    KeyUp = extern("SDL_KEYUP")
 }
 
 struct SDLKeyboardEvent extern("SDL_KeyboardEvent") {
@@ -56,17 +80,13 @@ struct SDLKeyboardEvent extern("SDL_KeyboardEvent") {
 }
 
 struct SDLEvent extern("SDL_Event") {
-    type: i32
+    type: EventType
     key: SDLKeyboardEvent
 }
 
 let SDL_INIT_EVERYTHING: i32 extern
 let SDL_PIXELFORMAT_ABGR8888: i32 extern
 let SDL_TEXTUREACCESS_STREAMING: i32 extern
-
-let SDL_Quit: i32 extern("SDL_QUIT")
-let SDL_KeyDown: i32 extern("SDL_KEYDOWN")
-let SDL_KeyUp: i32 extern("SDL_KEYUP")
 
 // Just a namespace
 struct SDL {}
