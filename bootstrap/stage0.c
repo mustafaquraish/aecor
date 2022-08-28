@@ -600,6 +600,8 @@ bool Type__eq(Type *this, Type *other);
 char *Type__str(Type *this);
 bool Type__is_string(Type *this);
 Type *Type__decay_array(Type *this);
+bool Type__is_enum(Type *this);
+bool Type__is_struct(Type *this);
 char *ASTType__str(ASTType this);
 ASTType ASTType__from_token(TokenType type);
 Variable *Variable__new(char *name, Type *type, Span span);
@@ -877,7 +879,7 @@ char *Span__str(Span this) {
 }
 
 Span Span__join(Span this, Span other) {
-  Span span;
+  Span span = {0};
   span.start = this.start;
   span.end = other.end;
   return span;
@@ -2170,6 +2172,14 @@ Type *Type__decay_array(Type *this) {
   return this;
   
   return Type__new_link(BaseType__Pointer, this->ptr, this->span);
+}
+
+bool Type__is_enum(Type *this) {
+  return ((this->base == BaseType__Structure && ((bool)this->struct_def)) && this->struct_def->is_enum);
+}
+
+bool Type__is_struct(Type *this) {
+  return (this->base == BaseType__Structure && (!Type__is_enum(this)));
 }
 
 char *ASTType__str(ASTType this) {
@@ -4421,7 +4431,7 @@ void TypeChecker__check_statement(TypeChecker *this, AST *node) {
 void TypeChecker__check_block(TypeChecker *this, AST *node, bool can_yield) {
   bool could_yield = this->can_yield;
   this->can_yield = can_yield;
-  Span yield_span;
+  Span yield_span = {0};
   TypeChecker__push_scope(this);
   Vector *statements = node->u.block.statements;
   for (i32 i = 0; (i < statements->size); i += 1) {
@@ -5082,7 +5092,10 @@ void CodeGenerator__gen_var_decl(CodeGenerator *this, AST *node) {
   if (((bool)node->u.var_decl.init)) {
     StringBuilder__puts((&this->out), " = ");
     CodeGenerator__gen_expression(this, node->u.var_decl.init);
+  }  else   if (Type__is_struct(var->type)) {
+    StringBuilder__puts((&this->out), " = {0}");
   } 
+  
 }
 
 void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *body, i32 indent) {

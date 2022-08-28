@@ -395,6 +395,10 @@ def CodeGenerator::gen_var_decl(&this, node: &AST) {
     if node.u.var_decl.init? {
         .out.puts(" = ")
         .gen_expression(node.u.var_decl.init)
+
+    // Zero initialize structs unless otherwise specified
+    } else if var.type.is_struct() {
+        .out.puts(" = {0}")
     }
 }
 

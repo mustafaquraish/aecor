@@ -145,3 +145,6 @@ def Type::decay_array(&this): &Type {
     if .base != BaseType::Array return this
     return Type::new_link(BaseType::Pointer, .ptr, .span)
 }
+
+def Type::is_enum(&this): bool => .base == BaseType::Structure and .struct_def? and .struct_def.is_enum
+def Type::is_struct(&this): bool => .base == BaseType::Structure and not .is_enum()
