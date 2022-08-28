@@ -527,6 +527,10 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             // TODO: Only allow assignments to l-values, reject literals
             let lhs = .check_expression(node.u.binary.lhs)
             let rhs = .check_expression(node.u.binary.rhs)
+
+            if not node.u.binary.lhs.is_lvalue() {
+                error_span(node.u.binary.lhs.span, "Must be an l-value")
+            }
             if not lhs.is_numeric() or not rhs.is_numeric() {
                 error_span_note(
                     node.span, "Operator requires numeric types",
@@ -542,9 +546,12 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = lhs
         }
         Assignment => {
-            // TODO: Only allow assignments to l-values, reject literals
             let lhs = .check_expression(node.u.binary.lhs)
             let rhs = .check_expression(node.u.binary.rhs)
+
+            if not node.u.binary.lhs.is_lvalue() {
+                error_span(node.u.binary.lhs.span, "Must be an l-value")
+            }
             if not lhs.eq(rhs) {
                 error_span_note(
                     node.span, "Variable type does not match assignment type",

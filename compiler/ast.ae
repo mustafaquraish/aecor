@@ -424,3 +424,13 @@ def AST::callee_is(&this, expected: string): bool {
     let name = .u.call.callee.u.ident.name
     return name.eq(expected)
 }
+
+def AST::is_lvalue(&this): bool {
+    return match .type {
+        Dereference => true
+        Index => true
+        Member => not .u.member.is_method
+        Identifier => not .u.ident.is_function
+        else => false
+    }
+}
