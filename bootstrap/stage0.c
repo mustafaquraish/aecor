@@ -521,6 +521,7 @@ FILE *File__open(char *path, char *mode);
 bool File__exists(char *path);
 char *File__slurp(FILE *this);
 void File__puts(FILE *this, char *str);
+__attribute__((noreturn)) void panic(char *msg);
 bool string__starts_with(char *this, char *prefix);
 bool string__eq(char *this, char *str2);
 char *string__substring(char *this, i32 start, i32 len);
@@ -672,6 +673,7 @@ Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *n
 Type *TypeChecker__check_call(TypeChecker *this, AST *node);
 Type *TypeChecker__check_format_string(TypeChecker *this, AST *node);
 Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, Type *rhs);
+Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST *_rhs);
 __attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker *this, Span span, char *name);
 void TypeChecker__error_unknown_member(TypeChecker *this, AST *node, Type *struct_type, char *field_name, bool is_static);
 Type *TypeChecker__check_expression(TypeChecker *this, AST *node);
@@ -763,6 +765,11 @@ char *File__slurp(FILE *this) {
 
 void File__puts(FILE *this, char *str) {
   fwrite(str, 1, strlen(str), this);
+}
+
+__attribute__((noreturn)) void panic(char *msg) {
+  printf("%s" "\n", msg);
+  exit(1);
 }
 
 bool string__starts_with(char *this, char *prefix) {
@@ -1773,8 +1780,7 @@ Vector *Lexer__lex(Lexer *this) {
           this->loc.col += len;
           Lexer__push(this, Token__from_ident(text, (Span){start_loc, this->loc}));
         }  else {
-          printf("%s: Unrecognized char in lexer: '%c'" "\n", Location__str(this->loc), c);
-          exit(1);
+          panic(format_string("%s: Unrecognized char in lexer: '%c'", Location__str(this->loc), c));
         } 
         
       } break;
@@ -2427,8 +2433,7 @@ ASTType ASTType__from_token(TokenType type) {
       __yield_0 = ASTType__MultiplyEquals;
 } break;
     default: {
-      printf("Unhandled token type in ASTType::from_token: %s" "\n", TokenType__str(type));
-      exit(1);
+      panic(format_string("Unhandled token type in ASTType::from_token: %s", TokenType__str(type)));
     } break;
   }
 ;__yield_0; });
@@ -3640,7 +3645,7 @@ void TypeChecker__push_scope(TypeChecker *this) {
 }
 
 Map *TypeChecker__scope(TypeChecker *this) {
-  return ((Map *)Vector__back(this->scopes));
+  return Vector__back(this->scopes);
 }
 
 void TypeChecker__pop_scope(TypeChecker *this) {
@@ -3806,14 +3811,15 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
     if ((!Type__eq(param->type, arg_type))) {
       error_span_note_span(arg->expr->span, "Argument type does not match function parameter type", param->span, format_string("Expected '%s', got '%s'", Type__str(param->type), Type__str(arg_type)));
     } 
-    if (((bool)arg->label)) {
-      if (string__eq(param->name, "")) {
-        error_span_note_span(arg->label->span, "Label on non-labeled parameter", param->span, "This parameter does not have a name");
-      } 
-      char *label = arg->label->u.ident.name;
-      if ((!string__eq(label, param->name))) {
-        error_span_note_span(arg->label->span, "Label on parameter does not match parameter name", param->span, format_string("Expected '%s', got '%s'", param->name, label));
-      } 
+    if ((!((bool)arg->label))) 
+    continue;
+    
+    if (string__eq(param->name, "")) {
+      error_span_note_span(arg->label->span, "Label on non-labeled parameter", param->span, "This parameter does not have a name");
+    } 
+    char *label = arg->label->u.ident.name;
+    if ((!string__eq(label, param->name))) {
+      error_span_note_span(arg->label->span, "Label on parameter does not match parameter name", param->span, format_string("Expected '%s', got '%s'", param->name, label));
     } 
   } 
   return func_type->return_type;
@@ -3847,6 +3853,88 @@ Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, 
   } 
   error_span(node->span, "Invalid pointer arithmetic");
   return ((Type *)NULL);
+}
+
+Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST *_rhs) {
+  if (((!((bool)_lhs->etype)) || (!((bool)_rhs->etype)))) {
+    panic("Expressions not checked in check_binary_op");
+  } 
+  Type *lhs = _lhs->etype;
+  Type *rhs = _rhs->etype;
+  switch (node->type) {
+    case ASTType__Plus:
+    case ASTType__Minus:
+    case ASTType__Multiply:
+    case ASTType__Divide: {
+      if ((lhs->base == BaseType__Pointer || rhs->base == BaseType__Pointer)) {
+        return TypeChecker__check_pointer_arith(this, node, lhs, rhs);
+      }  else       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
+        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      }  else       if ((!Type__eq(lhs, rhs))) {
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      }  else {
+        return lhs;
+      } 
+      
+      
+    } break;
+    case ASTType__LessThan:
+    case ASTType__LessThanEquals:
+    case ASTType__GreaterThan:
+    case ASTType__GreaterThanEquals: {
+      if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
+        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      } 
+      if ((!Type__eq(lhs, rhs))) {
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      } 
+      return Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__Equals:
+    case ASTType__NotEquals: {
+      if ((!Type__eq(lhs, rhs))) {
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      } 
+      if (lhs->base == BaseType__Structure) {
+        Structure *struc = ((Structure *)Map__get(this->structures, lhs->name));
+        if ((!struc->is_enum)) {
+          error_span(node->span, "Cannot compare structs directly");
+        } 
+      } 
+      return Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__And:
+    case ASTType__Or: {
+      if (((!Type__eq(lhs, rhs)) || (lhs->base != BaseType__Bool))) {
+        error_span_note(node->span, "Operands must be boolean", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      } 
+      return Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__Modulus:
+    case ASTType__BitwiseOr:
+    case ASTType__BitwiseAnd:
+    case ASTType__BitwiseXor:
+    case ASTType__LeftShift:
+    case ASTType__RightShift: {
+      if (((!Type__is_integer(lhs)) || (!Type__is_integer(rhs)))) {
+        error_span_note(node->span, "Operator requires integer types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      } 
+      if ((!Type__eq(lhs, rhs))) {
+        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      } 
+      return lhs;
+    } break;
+    case ASTType__UnaryMinus: {
+      Type *etype = TypeChecker__check_expression(this, node->u.unary);
+      if ((!Type__is_numeric(etype))) {
+        error_span_note(node->u.unary->span, "Expression must be a number", format_string("Got type '%s'", Type__str(etype)));
+      } 
+      return etype;
+    } break;
+    default: {
+      panic(format_string("Internal error: unhandled op in check_binary_op: %s", ASTType__str(node->type)));
+    } break;
+  }
 }
 
 __attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker *this, Span span, char *name) {
@@ -3957,58 +4045,24 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__Plus:
     case ASTType__Minus:
     case ASTType__Multiply:
-    case ASTType__Divide: {
-      Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-      Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-      if ((lhs->base == BaseType__Pointer || rhs->base == BaseType__Pointer)) {
-        etype = TypeChecker__check_pointer_arith(this, node, lhs, rhs);
-      }  else       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
-        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
-      }  else       if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
-      }  else {
-        etype = lhs;
-      } 
-      
-      
-    } break;
+    case ASTType__Divide:
     case ASTType__LessThan:
     case ASTType__LessThanEquals:
     case ASTType__GreaterThan:
-    case ASTType__GreaterThanEquals: {
-      Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-      Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-      if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
-        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
-      } 
-      if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
-      } 
-      etype = Type__new(BaseType__Bool, node->span);
-    } break;
+    case ASTType__GreaterThanEquals:
     case ASTType__Equals:
-    case ASTType__NotEquals: {
-      Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-      Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-      if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
-      } 
-      if (lhs->base == BaseType__Structure) {
-        Structure *struc = ((Structure *)Map__get(this->structures, lhs->name));
-        if ((!struc->is_enum)) {
-          error_span(node->span, "Cannot compare structs directly");
-        } 
-      } 
-      etype = Type__new(BaseType__Bool, node->span);
-    } break;
+    case ASTType__NotEquals:
     case ASTType__And:
-    case ASTType__Or: {
-      Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-      Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-      if (((!Type__eq(lhs, rhs)) || (lhs->base != BaseType__Bool))) {
-        error_span_note(node->span, "Operands must be boolean", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
-      } 
-      etype = Type__new(BaseType__Bool, node->span);
+    case ASTType__Or:
+    case ASTType__Modulus:
+    case ASTType__BitwiseOr:
+    case ASTType__BitwiseAnd:
+    case ASTType__BitwiseXor:
+    case ASTType__LeftShift:
+    case ASTType__RightShift: {
+      TypeChecker__check_expression(this, node->u.binary.lhs);
+      TypeChecker__check_expression(this, node->u.binary.rhs);
+      etype = TypeChecker__check_binary_op(this, node, node->u.binary.lhs, node->u.binary.rhs);
     } break;
     case ASTType__Not: {
       Type *rhs = TypeChecker__check_expression(this, node->u.unary);
@@ -4016,22 +4070,6 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
         error_span_note(node->u.unary->span, "Expression must be boolean", format_string("Got type '%s'", Type__str(rhs)));
       } 
       etype = Type__new(BaseType__Bool, node->span);
-    } break;
-    case ASTType__Modulus:
-    case ASTType__BitwiseOr:
-    case ASTType__BitwiseAnd:
-    case ASTType__BitwiseXor:
-    case ASTType__LeftShift:
-    case ASTType__RightShift: {
-      Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
-      Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
-      if (((!Type__is_integer(lhs)) || (!Type__is_integer(rhs)))) {
-        error_span_note(node->span, "Operator requires integer types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
-      } 
-      if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
-      } 
-      etype = lhs;
     } break;
     case ASTType__UnaryMinus: {
       etype = TypeChecker__check_expression(this, node->u.unary);
@@ -4164,9 +4202,7 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       etype = node->etype;
     } break;
     default: {
-      printf("%s: " "\n", Span__str(node->span));
-      printf("Unhandled type in check_expression: %s" "\n", ASTType__str(node->type));
-      exit(1);
+      panic(format_string("Unhandled type in check_expression: %s", ASTType__str(node->type)));
     } break;
   }
   etype = Type__decay_array(etype);
@@ -4189,21 +4225,22 @@ void TypeChecker__check_expression_statement(TypeChecker *this, AST *node, AST *
       TypeChecker__check_statement(this, body);
     } break;
   }
-  if (is_expr) {
-    Type *ret = body->etype;
-    if (body->returns) {
-    }  else     if ((!((bool)ret))) {
-      error_span(body->span, "Must yield a value in this branch");
-    }  else     if ((!((bool)node->etype))) {
-      node->etype = ret;
-    }  else     if ((!Type__eq(node->etype, ret))) {
-      error_span_note(body->span, "Yield type doesn't match previous branches", format_string("Expected type '%s', got '%s'", Type__str(node->etype), Type__str(ret)));
-    } 
-    
-    
-    
-  } 
   node->returns = (node->returns && body->returns);
+  if ((!is_expr)) 
+  return;
+  
+  Type *ret = body->etype;
+  if (body->returns) {
+  }  else   if ((!((bool)ret))) {
+    error_span(body->span, "Must yield a value in this branch");
+  }  else   if ((!((bool)node->etype))) {
+    node->etype = ret;
+  }  else   if ((!Type__eq(node->etype, ret))) {
+    error_span_note(body->span, "Yield type doesn't match previous branches", format_string("Expected type '%s', got '%s'", Type__str(node->etype), Type__str(ret)));
+  } 
+  
+  
+  
 }
 
 void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST *node, bool is_expr) {
@@ -4440,13 +4477,14 @@ void TypeChecker__check_block(TypeChecker *this, AST *node, bool can_yield) {
     if (statement->returns) {
       node->returns = true;
     } 
-    if (statement->type == ASTType__Yield) {
-      if (((bool)node->etype)) {
-        error_span_note_span(statement->span, "Cannot yield multiple times in a block", yield_span, "Previously yield here is here");
-      } 
-      node->etype = statement->etype;
-      yield_span = statement->span;
+    if ((statement->type != ASTType__Yield)) 
+    continue;
+    
+    if (((bool)node->etype)) {
+      error_span_note_span(statement->span, "Cannot yield multiple times in a block", yield_span, "Previously yield here is here");
     } 
+    node->etype = statement->etype;
+    yield_span = statement->span;
   } 
   TypeChecker__pop_scope(this);
   this->can_yield = could_yield;
@@ -4720,6 +4758,9 @@ void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part) {
         case '{':
         case '}': {
         } break;
+        case '%': {
+          StringBuilder__putc((&this->out), '%');
+        } break;
         default: {
           StringBuilder__putc((&this->out), '\\');
         } break;
@@ -4769,11 +4810,14 @@ void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node) {
         StringBuilder__puts((&this->out), "%c");
       } break;
       case BaseType__Pointer: {
-        if (expr_type->ptr->base == BaseType__Char) 
-        StringBuilder__puts((&this->out), "%s");
-         else 
-        StringBuilder__puts((&this->out), "%p");
-        
+        switch (expr_type->ptr->base) {
+          case BaseType__Char: {
+            StringBuilder__puts((&this->out), "%s");
+          } break;
+          default: {
+            StringBuilder__puts((&this->out), "%p");
+          } break;
+        }
       } break;
       default: {
         error_span(expr->span, "Invalid type for format string");
@@ -4876,8 +4920,7 @@ char *CodeGenerator__get_op(ASTType type) {
       __yield_0 = "-";
 } break;
     default: {
-      printf("Unknown op type in get_op: %s" "\n", ASTType__str(type));
-      exit(1);
+      panic(format_string("Unknown op type in get_op: %s", ASTType__str(type)));
     } break;
   }
 ;__yield_0; });
@@ -5077,8 +5120,7 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
       CodeGenerator__gen_expression(this, node->u.binary.rhs);
     } break;
     default: {
-      printf("unknown type in gen_expression: %s" "\n", ASTType__str(node->type));
-      exit(1);
+      panic(format_string("Unhandled expression type: %s", ASTType__str(node->type)));
     } break;
   }
 }

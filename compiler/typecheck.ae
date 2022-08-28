@@ -287,6 +287,100 @@ def TypeChecker::check_pointer_arith(&this, node: &AST, lhs: &Type, rhs: &Type):
     return null as &Type
 }
 
+def TypeChecker::check_binary_op(&this, node: &AST, _lhs: &AST, _rhs: &AST): &Type {
+    if not _lhs.etype? or not _rhs.etype? {
+        panic("Expressions not checked in check_binary_op")
+    }
+    let lhs = _lhs.etype
+    let rhs = _rhs.etype
+    match node.type {
+        Plus | Minus | Multiply | Divide => {
+            if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
+                return .check_pointer_arith(node, lhs, rhs)
+            } else if not lhs.is_numeric() or not rhs.is_numeric() {
+                error_span_note(
+                    node.span, "Operator requires numeric types",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            } else if not lhs.eq(rhs) {
+                error_span_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            } else {
+                return lhs
+            }
+        }
+        LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
+            if not lhs.is_numeric() or not rhs.is_numeric() {
+                error_span_note(
+                    node.span, "Operator requires numeric types",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            }
+            if not lhs.eq(rhs) {
+                error_span_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            }
+            return Type::new(BaseType::Bool, node.span)
+        }
+        Equals | NotEquals => {
+            if not lhs.eq(rhs) {
+                error_span_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            }
+            if lhs.base == BaseType::Structure {
+                let struc = .structures.get(lhs.name) as &Structure
+                if not struc.is_enum {
+                    error_span(node.span, "Cannot compare structs directly")
+                }
+            }
+            return Type::new(BaseType::Bool, node.span)
+        }
+        And | Or => {
+            if not lhs.eq(rhs) or lhs.base != BaseType::Bool {
+                error_span_note(
+                    node.span, "Operands must be boolean",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            }
+            return Type::new(BaseType::Bool, node.span)
+        }
+        Modulus | BitwiseOr | BitwiseAnd | BitwiseXor | LeftShift | RightShift => {
+            if not lhs.is_integer() or not rhs.is_integer() {
+                error_span_note(
+                    node.span, "Operator requires integer types",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            }
+            if not lhs.eq(rhs) {
+                error_span_note(
+                    node.span, "Operands must be of the same type",
+                    `Got types '{lhs.str()}' and '{rhs.str()}'`
+                )
+            }
+            return lhs
+        }
+        UnaryMinus => {
+            let etype = .check_expression(node.u.unary)
+            if not etype.is_numeric() {
+                error_span_note(
+                    node.u.unary.span, "Expression must be a number",
+                    `Got type '{etype.str()}'`
+                )
+            }
+            return etype
+        }
+        else => {
+            panic(`Internal error: unhandled op in check_binary_op: {node.type.str()}`)
+        }
+    }
+}
+
 def TypeChecker::error_unknown_identifier(&this, span: Span, name: string) exits {
     let options = Vector::new()
     for let i = 0; i < .scopes.size; i += 1 {
@@ -389,69 +483,27 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 .error_unknown_identifier(node.span, ident.name)
             }
         }
-        Plus | Minus | Multiply | Divide => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs)
-            if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
-                etype = .check_pointer_arith(node, lhs, rhs)
-            } else if not lhs.is_numeric() or not rhs.is_numeric() {
-                error_span_note(
-                    node.span, "Operator requires numeric types",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                )
-            } else if not lhs.eq(rhs) {
-                error_span_note(
-                    node.span, "Operands must be of the same type",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                )
-            } else {
-                etype = lhs
-            }
-        }
-        LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs)
-            if not lhs.is_numeric() or not rhs.is_numeric() {
-                error_span_note(
-                    node.span, "Operator requires numeric types",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                )
-            }
-            if not lhs.eq(rhs) {
-                error_span_note(
-                    node.span, "Operands must be of the same type",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                )
-            }
-            etype = Type::new(BaseType::Bool, node.span)
-        }
-        Equals | NotEquals => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs)
-            if not lhs.eq(rhs) {
-                error_span_note(
-                    node.span, "Operands must be of the same type",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                )
-            }
-            if lhs.base == BaseType::Structure {
-                let struc = .structures.get(lhs.name) as &Structure
-                if not struc.is_enum {
-                    error_span(node.span, "Cannot compare structs directly")
-                }
-            }
-            etype = Type::new(BaseType::Bool, node.span)
-        }
-        And | Or => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs)
-            if not lhs.eq(rhs) or lhs.base != BaseType::Bool {
-                error_span_note(
-                    node.span, "Operands must be boolean",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                )
-            }
-            etype = Type::new(BaseType::Bool, node.span)
+        Plus |
+        Minus |
+        Multiply |
+        Divide |
+        LessThan |
+        LessThanEquals |
+        GreaterThan |
+        GreaterThanEquals |
+        Equals |
+        NotEquals |
+        And |
+        Or |
+        Modulus |
+        BitwiseOr |
+        BitwiseAnd |
+        BitwiseXor |
+        LeftShift |
+        RightShift => {
+            .check_expression(node.u.binary.lhs)
+            .check_expression(node.u.binary.rhs)
+            etype = .check_binary_op(node, node.u.binary.lhs, node.u.binary.rhs)
         }
         Not => {
             let rhs = .check_expression(node.u.unary)
@@ -462,23 +514,6 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 )
             }
             etype = Type::new(BaseType::Bool, node.span)
-        }
-        Modulus | BitwiseOr | BitwiseAnd | BitwiseXor | LeftShift | RightShift => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs)
-            if not lhs.is_integer() or not rhs.is_integer() {
-                error_span_note(
-                    node.span, "Operator requires integer types",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                )
-            }
-            if not lhs.eq(rhs) {
-                error_span_note(
-                    node.span, "Operands must be of the same type",
-                    `Got types '{lhs.str()}' and '{rhs.str()}'`
-                )
-            }
-            etype = lhs
         }
         UnaryMinus => {
             etype = .check_expression(node.u.unary)
