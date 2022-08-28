@@ -1,0 +1,7 @@
+/// out: 2
+
+def add_one(x: i32): i32 => x + 1
+
+def main() {
+    println("%d", add_one(1)) 
+}

@@ -753,7 +753,13 @@ def CodeGenerator::gen_function(&this, func: &Function) {
     .gen_debug_info(func.span)
     .gen_function_decl(func)
     .out.puts(" ")
-    .gen_block(func.body, 0)
+    if func.is_arrow {
+        .out.puts("{\n")
+        .gen_statement(func.body, 1)
+        .out.puts("}")
+    } else {
+        .gen_block(func.body, 0)
+    }
     .out.puts("\n\n")
 }
 

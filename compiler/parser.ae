@@ -833,6 +833,15 @@ def Parser::parse_function(&this): &Function {
             func.extern_name = name.text
             .consume(TokenType::CloseParen)
         }
+    } else if .consume_if(TokenType::FatArrow) {
+        func.is_arrow = true
+        let expr = .parse_expression(TokenType::Newline)
+        if not .token().seen_newline {
+            error_loc(expr.span.end, "Expected newline after arrow function");
+        }
+        let ret_stmt = AST::new_unop(ASTType::Return, expr.span, expr)
+        func.body = ret_stmt
+
     } else {
         func.is_extern = false
         func.body = .parse_block()

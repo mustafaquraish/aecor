@@ -999,7 +999,11 @@ def TypeChecker::check_function(&this, func: &Function) {
     }
 
     if func.body? {
-        .check_block(func.body, can_yield: false)
+        if func.is_arrow {
+            .check_statement(func.body)
+        } else {
+            .check_block(func.body, can_yield: false)
+        }
         if not func.body.returns and func.return_type.base != BaseType::Void {
             if not func.name.eq("main") {
               error_span(func.span, "Function does not always return")

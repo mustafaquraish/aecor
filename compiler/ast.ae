@@ -180,6 +180,8 @@ struct Function {
     type: &Type
     span: Span
 
+    is_arrow: bool
+
     is_extern: bool
     extern_name: string
 
