@@ -51,6 +51,7 @@ enum TokenType {
     Bool
     Break
     Char
+    Const
     Continue
     Def
     Defer
@@ -143,6 +144,7 @@ def TokenType::from_text(text: string): TokenType => match text {
     "bool" => TokenType::Bool
     "break" => TokenType::Break
     "char" => TokenType::Char
+    "const" => TokenType::Const
     "continue" => TokenType::Continue
     "def" => TokenType::Def
     "defer" => TokenType::Defer
@@ -190,6 +192,7 @@ def TokenType::str(this): string => match this {
     Bool => "bool"
     Break => "break"
     Char => "char"
+    Const => "const"
     Continue => "continue"
     Def => "def"
     Defer => "defer"

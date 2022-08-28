@@ -15,6 +15,7 @@ enum ASTType {
     Call
     Cast
     CharLiteral
+    Constant
     Constructor
     Continue
     Defer
@@ -74,6 +75,7 @@ def ASTType::str(this): string => match this {
     Cast => "Cast"
     CharLiteral => "CharLiteral"
     Constructor => "Constructor"
+    Constant => "Constant"
     Continue => "Continue"
     Defer => "Defer"
     Dereference => "Dereference"
@@ -224,6 +226,7 @@ def Structure::find_field(&this, name: string): &Variable {
 struct Program {
     functions: &Vector    // Vector<&Function>
     structures: &Vector   // Vector<&Structure>
+    constants: &Vector    // Vector<&AST>
     global_vars: &Vector  // Vector<&AST>
     span: Span
 
@@ -239,6 +242,7 @@ def Program::new(): &Program {
     prog.functions = Vector::new()
     prog.structures = Vector::new()
     prog.global_vars = Vector::new()
+    prog.constants = Vector::new()
 
     prog.included_files = Map::new()
 

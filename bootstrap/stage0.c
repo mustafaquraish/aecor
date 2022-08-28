@@ -38,6 +38,8 @@ char* format_string(const char* format, ...) {
 }
 
 
+/* constants */
+
 /* struct declarations */
 typedef struct Vector Vector;
 typedef struct Location Location;
@@ -102,6 +104,7 @@ enum TokenType {
   TokenType__Bool,
   TokenType__Break,
   TokenType__Char,
+  TokenType__Const,
   TokenType__Continue,
   TokenType__Def,
   TokenType__Defer,
@@ -273,6 +276,7 @@ enum ASTType {
   ASTType__Call,
   ASTType__Cast,
   ASTType__CharLiteral,
+  ASTType__Constant,
   ASTType__Constructor,
   ASTType__Continue,
   ASTType__Defer,
@@ -356,6 +360,7 @@ struct Structure {
 struct Program {
   Vector *functions;
   Vector *structures;
+  Vector *constants;
   Vector *global_vars;
   Span span;
   Map *included_files;
@@ -496,6 +501,7 @@ struct TypeChecker {
   Vector *scopes;
   Map *functions;
   Map *structures;
+  Map *constants;
   Map *methods;
   Function *cur_func;
   bool in_loop;
@@ -653,7 +659,7 @@ AST *Parser__parse_block(Parser *this);
 Function *Parser__parse_function(Parser *this);
 Structure *Parser__parse_enum(Parser *this);
 Structure *Parser__parse_struct(Parser *this);
-AST *Parser__parse_global_var(Parser *this);
+AST *Parser__parse_global_value(Parser *this, bool is_constant);
 char *Parser__find_file_path(Parser *this, char *filename);
 void Parser__include_file(Parser *this, Program *program, char *filename);
 void Parser__parse_use(Parser *this, Program *program);
@@ -664,6 +670,7 @@ TypeChecker *TypeChecker__new(void);
 void TypeChecker__push_scope(TypeChecker *this);
 Map *TypeChecker__scope(TypeChecker *this);
 void TypeChecker__pop_scope(TypeChecker *this);
+Variable *TypeChecker__find_constant(TypeChecker *this, char *name);
 void TypeChecker__push_var(TypeChecker *this, Variable *var);
 Variable *TypeChecker__find_var(TypeChecker *this, char *name);
 Variable *TypeChecker__get_struct_member(TypeChecker *this, char *lhs, char *rhs);
@@ -681,6 +688,8 @@ void TypeChecker__check_expression_statement(TypeChecker *this, AST *node, AST *
 void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST *node, bool is_expr);
 void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr);
 void TypeChecker__check_if(TypeChecker *this, AST *node, bool is_expr);
+Type *TypeChecker__check_constant_expression(TypeChecker *this, AST *node);
+void TypeChecker__check_var_declaration(TypeChecker *this, AST *node, bool is_constant);
 void TypeChecker__check_statement(TypeChecker *this, AST *node);
 void TypeChecker__check_block(TypeChecker *this, AST *node, bool can_yield);
 void TypeChecker__check_function(TypeChecker *this, Function *func);
@@ -710,7 +719,7 @@ void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node);
 char *CodeGenerator__get_op(ASTType type);
 void CodeGenerator__gen_in_yield_context(CodeGenerator *this, AST *node);
 void CodeGenerator__gen_expression(CodeGenerator *this, AST *node);
-void CodeGenerator__gen_var_decl(CodeGenerator *this, AST *node);
+void CodeGenerator__gen_var_decl(CodeGenerator *this, AST *node, bool is_constant);
 void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *body, i32 indent);
 void CodeGenerator__gen_match_string(CodeGenerator *this, AST *node, i32 indent);
 void CodeGenerator__gen_match(CodeGenerator *this, AST *node, i32 indent);
@@ -727,6 +736,7 @@ void CodeGenerator__gen_function_decl(CodeGenerator *this, Function *func);
 void CodeGenerator__gen_function_decls(CodeGenerator *this, Program *program);
 void CodeGenerator__gen_function(CodeGenerator *this, Function *func);
 void CodeGenerator__gen_global_vars(CodeGenerator *this, Program *program);
+void CodeGenerator__gen_constants(CodeGenerator *this, Program *program);
 void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program);
 char *CodeGenerator__gen_program(CodeGenerator *this, Program *program);
 void usage(i32 code);
@@ -925,6 +935,8 @@ TokenType TokenType__from_text(char *text) {
       __yield_0 = TokenType__Break;
 } else if (!strcmp(__match_str, "char")) {
       __yield_0 = TokenType__Char;
+} else if (!strcmp(__match_str, "const")) {
+      __yield_0 = TokenType__Const;
 } else if (!strcmp(__match_str, "continue")) {
       __yield_0 = TokenType__Continue;
 } else if (!strcmp(__match_str, "def")) {
@@ -1023,6 +1035,9 @@ char *TokenType__str(TokenType this) {
 } break;
     case TokenType__Char: {
       __yield_0 = "char";
+} break;
+    case TokenType__Const: {
+      __yield_0 = "const";
 } break;
     case TokenType__Continue: {
       __yield_0 = "continue";
@@ -2230,6 +2245,9 @@ char *ASTType__str(ASTType this) {
     case ASTType__Constructor: {
       __yield_0 = "Constructor";
 } break;
+    case ASTType__Constant: {
+      __yield_0 = "Constant";
+} break;
     case ASTType__Continue: {
       __yield_0 = "Continue";
 } break;
@@ -2476,6 +2494,7 @@ Program *Program__new(void) {
   prog->functions = Vector__new();
   prog->structures = Vector__new();
   prog->global_vars = Vector__new();
+  prog->constants = Vector__new();
   prog->included_files = Map__new();
   prog->c_flags = Vector__new();
   prog->c_includes = Vector__new();
@@ -3284,6 +3303,9 @@ AST *Parser__parse_statement(Parser *this) {
       node->u.var_decl.var = Variable__new(name->text, type, name->span);
       node->u.var_decl.init = init;
     } break;
+    case TokenType__Const: {
+      error_span(Parser__token(this)->span, "Const declarations are only allowed in the global scope");
+    } break;
     default: {
       node = Parser__parse_expression(this, TokenType__Newline);
       Parser__consume_if(this, TokenType__Semicolon);
@@ -3479,15 +3501,21 @@ Structure *Parser__parse_struct(Parser *this) {
   return struc;
 }
 
-AST *Parser__parse_global_var(Parser *this) {
-  Span start_span = Parser__consume(this, TokenType__Let)->span;
+AST *Parser__parse_global_value(Parser *this, bool is_constant) {
+  Token *start_token = ({ Token *__yield_0;
+  if (is_constant) {
+    __yield_0 = Parser__consume(this, TokenType__Const);
+  }  else {
+    __yield_0 = Parser__consume(this, TokenType__Let);
+  } 
+;__yield_0; });
   AST *node = AST__new(ASTType__VarDeclaration, Parser__token(this)->span);
   Token *name = Parser__consume(this, TokenType__Identifier);
   Type *type = ((Type *)NULL);
   if (Parser__consume_if(this, TokenType__Colon)) {
     type = Parser__parse_type(this);
   } 
-  Variable *var = Variable__new(name->text, type, Span__join(start_span, Parser__token(this)->span));
+  Variable *var = Variable__new(name->text, type, Span__join(start_token->span, Parser__token(this)->span));
   node->u.var_decl.var = var;
   if (Parser__consume_if(this, TokenType__Extern)) {
     var->is_extern = true;
@@ -3499,7 +3527,7 @@ AST *Parser__parse_global_var(Parser *this) {
       var->extern_name = var->name;
     } 
     if ((!((bool)type))) {
-      error_span(name->span, "Extern variables must have a type");
+      error_span(name->span, "Extern values must have a type specified");
     } 
   }  else {
     var->is_extern = false;
@@ -3603,8 +3631,12 @@ void Parser__parse_into_program(Parser *this, Program *program) {
         Vector__push(program->functions, func);
       } break;
       case TokenType__Let: {
-        AST *node = Parser__parse_global_var(this);
+        AST *node = Parser__parse_global_value(this, false);
         Vector__push(program->global_vars, node);
+      } break;
+      case TokenType__Const: {
+        AST *node = Parser__parse_global_value(this, true);
+        Vector__push(program->constants, node);
       } break;
       case TokenType__Struct:
       case TokenType__Union: {
@@ -3635,6 +3667,7 @@ TypeChecker *TypeChecker__new(void) {
   checker->functions = Map__new();
   checker->structures = Map__new();
   checker->methods = Map__new();
+  checker->constants = Map__new();
   Map__insert(checker->methods, "string", Map__new());
   return checker;
 }
@@ -3653,11 +3686,19 @@ void TypeChecker__pop_scope(TypeChecker *this) {
   Map__free(scope);
 }
 
+Variable *TypeChecker__find_constant(TypeChecker *this, char *name) {
+  return Map__get(this->constants, name);
+}
+
 void TypeChecker__push_var(TypeChecker *this, Variable *var) {
   Map *scope = TypeChecker__scope(this);
   Variable *existing = ((Variable *)Map__get(scope, var->name));
   if (((bool)existing)) {
     error_span_note_span(var->span, "Variable is already defined in scope", existing->span, "Previous definition here");
+  } 
+  AST *constant = ((AST *)TypeChecker__find_constant(this, var->name));
+  if (((bool)constant)) {
+    error_span_note_span(var->span, "Variable is already defined as a constant", constant->span, "Previous definition here");
   } 
   Map__insert(TypeChecker__scope(this), var->name, var);
 }
@@ -3670,7 +3711,7 @@ Variable *TypeChecker__find_var(TypeChecker *this, char *name) {
     return var;
     
   } 
-  return NULL;
+  return TypeChecker__find_constant(this, name);
 }
 
 Variable *TypeChecker__get_struct_member(TypeChecker *this, char *lhs, char *rhs) {
@@ -4001,11 +4042,11 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__BoolLiteral: {
       etype = Type__new(BaseType__Bool, node->span);
     } break;
-    case ASTType__StringLiteral: {
-      etype = Type__ptr_to(BaseType__Char, node->span);
-    } break;
     case ASTType__CharLiteral: {
       etype = Type__new(BaseType__Char, node->span);
+    } break;
+    case ASTType__StringLiteral: {
+      etype = Type__ptr_to(BaseType__Char, node->span);
     } break;
     case ASTType__Null: {
       etype = Type__ptr_to(BaseType__Void, node->span);
@@ -4357,6 +4398,105 @@ void TypeChecker__check_if(TypeChecker *this, AST *node, bool is_expr) {
   } 
 }
 
+Type *TypeChecker__check_constant_expression(TypeChecker *this, AST *node) {
+  Type *etype = ({ Type *__yield_0;
+  switch (node->type) {
+    case ASTType__Identifier: {
+      Variable *constant = TypeChecker__find_constant(this, node->u.ident.name);
+      if ((!((bool)constant))) {
+        error_span(node->span, "No constant value found with this name");
+      } 
+      node->u.ident.var = constant;
+      __yield_0 = constant->type;
+    } break;
+    case ASTType__IntLiteral: {
+      __yield_0 = Type__new(BaseType__I32, node->span);
+} break;
+    case ASTType__FloatLiteral: {
+      __yield_0 = Type__new(BaseType__F32, node->span);
+} break;
+    case ASTType__BoolLiteral: {
+      __yield_0 = Type__new(BaseType__Bool, node->span);
+} break;
+    case ASTType__CharLiteral: {
+      __yield_0 = Type__new(BaseType__Char, node->span);
+} break;
+    case ASTType__StringLiteral: {
+      __yield_0 = Type__ptr_to(BaseType__Char, node->span);
+} break;
+    case ASTType__Plus:
+    case ASTType__Minus:
+    case ASTType__Multiply:
+    case ASTType__Divide:
+    case ASTType__LessThan:
+    case ASTType__LessThanEquals:
+    case ASTType__GreaterThan:
+    case ASTType__GreaterThanEquals:
+    case ASTType__Equals:
+    case ASTType__NotEquals:
+    case ASTType__And:
+    case ASTType__Or:
+    case ASTType__Modulus:
+    case ASTType__BitwiseOr:
+    case ASTType__BitwiseAnd:
+    case ASTType__BitwiseXor:
+    case ASTType__LeftShift:
+    case ASTType__RightShift: {
+      Type *lhs = TypeChecker__check_constant_expression(this, node->u.binary.lhs);
+      Type *rhs = TypeChecker__check_constant_expression(this, node->u.binary.rhs);
+      if ((lhs->base == BaseType__Pointer || rhs->base == BaseType__Pointer)) {
+        error_span(node->span, "Cannot do pointer arithmetic in constant expressions");
+      } 
+      __yield_0 = TypeChecker__check_binary_op(this, node, node->u.binary.lhs, node->u.binary.rhs);
+    } break;
+    default: {
+      error_span(node->span, "Unsupported operator in constant expression");
+    } break;
+  }
+;__yield_0; });
+  node->etype = etype;
+  return etype;
+}
+
+void TypeChecker__check_var_declaration(TypeChecker *this, AST *node, bool is_constant) {
+  VarDeclaration *var_decl = (&node->u.var_decl);
+  if (((bool)var_decl->init)) {
+    Type *init_type = ({ Type *__yield_0;
+  if (is_constant) {
+    __yield_0 = TypeChecker__check_constant_expression(this, var_decl->init);
+  }  else {
+    __yield_0 = TypeChecker__check_expression(this, var_decl->init);
+  } 
+;__yield_0; });
+    if (init_type->base == BaseType__Method) {
+      error_span(var_decl->init->span, "Cannot assign methods to variables");
+    } 
+    if ((!((bool)var_decl->var->type))) {
+      var_decl->var->type = init_type;
+    }  else {
+      if ((!TypeChecker__type_is_valid(this, var_decl->var->type))) {
+        error_span(var_decl->var->span, "Invalid type");
+      } 
+      if ((!Type__eq(var_decl->var->type, init_type))) {
+        error_span_note(var_decl->init->span, "Variable type does not match initializer type", format_string("Expected '%s' but got '%s'", Type__str(var_decl->var->type), Type__str(init_type)));
+      } 
+    } 
+  }  else {
+    if ((!((bool)var_decl->var->type))) {
+      error_span(var_decl->var->span, "Variable type cannot be inferred, specify explicitly");
+    } 
+    if ((!TypeChecker__type_is_valid(this, var_decl->var->type))) {
+      error_span(var_decl->var->type->span, "Invalid variable type");
+    } 
+  } 
+  Variable *var = var_decl->var;
+  if (is_constant) {
+    Map__insert(this->constants, var->name, var);
+  }  else {
+    TypeChecker__push_var(this, var);
+  } 
+}
+
 void TypeChecker__check_statement(TypeChecker *this, AST *node) {
   switch (node->type) {
     case ASTType__Block: {
@@ -4400,31 +4540,7 @@ void TypeChecker__check_statement(TypeChecker *this, AST *node) {
       } 
     } break;
     case ASTType__VarDeclaration: {
-      VarDeclaration *var_decl = (&node->u.var_decl);
-      if (((bool)var_decl->init)) {
-        Type *init_type = TypeChecker__check_expression(this, var_decl->init);
-        if (init_type->base == BaseType__Method) {
-          error_span(var_decl->init->span, "Cannot assign methods to variables");
-        } 
-        if ((!((bool)var_decl->var->type))) {
-          var_decl->var->type = init_type;
-        }  else {
-          if ((!TypeChecker__type_is_valid(this, var_decl->var->type))) {
-            error_span(var_decl->var->span, "Invalid type");
-          } 
-          if ((!Type__eq(var_decl->var->type, init_type))) {
-            error_span_note(var_decl->init->span, "Variable type does not match initializer type", format_string("Expected '%s' but got '%s'", Type__str(var_decl->var->type), Type__str(init_type)));
-          } 
-        } 
-      }  else {
-        if ((!((bool)var_decl->var->type))) {
-          error_span(var_decl->var->span, "Variable type cannot be inferred, specify explicitly");
-        } 
-        if ((!TypeChecker__type_is_valid(this, var_decl->var->type))) {
-          error_span(var_decl->var->type->span, "Invalid variable type");
-        } 
-      } 
-      TypeChecker__push_var(this, var_decl->var);
+      TypeChecker__check_var_declaration(this, node, false);
     } break;
     case ASTType__While: {
       bool was_in_loop = this->in_loop;
@@ -4610,11 +4726,15 @@ void TypeChecker__check_all_structs(TypeChecker *this, Program *program) {
 }
 
 void TypeChecker__check_program(TypeChecker *this, Program *program) {
+  for (i32 i = 0; (i < program->constants->size); i += 1) {
+    AST *node = ((AST *)Vector__at(program->constants, i));
+    TypeChecker__check_var_declaration(this, node, true);
+  } 
   TypeChecker__check_all_structs(this, program);
   TypeChecker__push_scope(this);
   for (i32 i = 0; (i < program->global_vars->size); i += 1) {
     AST *var = ((AST *)Vector__at(program->global_vars, i));
-    TypeChecker__check_statement(this, var);
+    TypeChecker__check_var_declaration(this, var, false);
   } 
   TypeChecker__check_all_functions(this, program);
   TypeChecker__pop_scope(this);
@@ -5125,11 +5245,14 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
   }
 }
 
-void CodeGenerator__gen_var_decl(CodeGenerator *this, AST *node) {
+void CodeGenerator__gen_var_decl(CodeGenerator *this, AST *node, bool is_constant) {
   Variable *var = node->u.var_decl.var;
   if (var->is_extern) 
   return;
   
+  if (is_constant) {
+    StringBuilder__puts((&this->out), "const ");
+  } 
   CodeGenerator__gen_type_and_name(this, var->type, var->name);
   if (((bool)node->u.var_decl.init)) {
     StringBuilder__puts((&this->out), " = ");
@@ -5263,7 +5386,7 @@ void CodeGenerator__gen_statement(CodeGenerator *this, AST *node, i32 indent) {
     } break;
     case ASTType__VarDeclaration: {
       CodeGenerator__indent(this, indent);
-      CodeGenerator__gen_var_decl(this, node);
+      CodeGenerator__gen_var_decl(this, node, false);
       StringBuilder__puts((&this->out), ";\n");
     } break;
     case ASTType__If: {
@@ -5291,7 +5414,7 @@ void CodeGenerator__gen_statement(CodeGenerator *this, AST *node, i32 indent) {
       StringBuilder__puts((&this->out), "for (");
       if (((bool)node->u.loop.init)) {
         if (node->u.loop.init->type == ASTType__VarDeclaration) {
-          CodeGenerator__gen_var_decl(this, node->u.loop.init);
+          CodeGenerator__gen_var_decl(this, node->u.loop.init, false);
         }  else {
           CodeGenerator__gen_expression(this, node->u.loop.init);
         } 
@@ -5517,6 +5640,18 @@ void CodeGenerator__gen_global_vars(CodeGenerator *this, Program *program) {
   StringBuilder__puts((&this->out), "\n");
 }
 
+void CodeGenerator__gen_constants(CodeGenerator *this, Program *program) {
+  StringBuilder__puts((&this->out), "/* constants */\n");
+  for (i32 i = 0; (i < program->constants->size); i += 1) {
+    AST *node = ((AST *)Vector__at(program->constants, i));
+    if ((!node->u.var_decl.var->is_extern)) {
+      CodeGenerator__gen_var_decl(this, node, true);
+      StringBuilder__puts((&this->out), ";\n");
+    } 
+  } 
+  StringBuilder__puts((&this->out), "\n");
+}
+
 void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program) {
   if ((!Vector__empty(program->c_embed_headers))) {
     for (i32 i = 0; (i < program->c_embed_headers->size); i += 1) {
@@ -5543,6 +5678,7 @@ char *CodeGenerator__gen_program(CodeGenerator *this, Program *program) {
   } 
   StringBuilder__puts((&this->out), "\n");
   CodeGenerator__gen_embed_headers(this, program);
+  CodeGenerator__gen_constants(this, program);
   CodeGenerator__gen_struct_decls(this, program);
   for (i32 i = 0; (i < program->structures->size); i += 1) {
     Structure *struc = ((Structure *)Vector__at(program->structures, i));

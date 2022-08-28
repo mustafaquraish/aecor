@@ -5,6 +5,7 @@ struct TypeChecker {
     scopes: &Vector   // &Vector<&Map<string, &Variable>>
     functions: &Map   // &Map<string, &Function>
     structures: &Map  // &Map<string, &Structure>
+    constants: &Map   // &Map<string, &Variable>
     methods: &Map     // &Map<string, &Map<string, &Function>>
     cur_func: &Function
     in_loop: bool
@@ -17,6 +18,7 @@ def TypeChecker::new(): &TypeChecker {
     checker.functions = Map::new()
     checker.structures = Map::new()
     checker.methods = Map::new()
+    checker.constants = Map::new()
 
     // FIXME: This is a hack to attach methods to strings:
     checker.methods.insert("string", Map::new())
@@ -36,6 +38,8 @@ def TypeChecker::pop_scope(&this) {
     scope.free()
 }
 
+def TypeChecker::find_constant(&this, name: string): &Variable => .constants.get(name)
+
 def TypeChecker::push_var(&this, var: &Variable) {
     let scope = .scope()
     let existing = scope.get(var.name) as &Variable
@@ -43,6 +47,13 @@ def TypeChecker::push_var(&this, var: &Variable) {
         error_span_note_span(
             var.span, "Variable is already defined in scope",
             existing.span, "Previous definition here"
+        )
+    }
+    let constant = .find_constant(var.name) as &AST
+    if constant? {
+        error_span_note_span(
+            var.span, "Variable is already defined as a constant",
+            constant.span, "Previous definition here"
         )
     }
     .scope().insert(var.name, var)
@@ -54,7 +65,7 @@ def TypeChecker::find_var(&this, name: string): &Variable {
         let var = scope.get(name) as &Variable
         if var? return var
     }
-    return null
+    return .find_constant(name)
 }
 
 def TypeChecker::get_struct_member(&this, lhs: string, rhs: string): &Variable {
@@ -450,8 +461,8 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         IntLiteral      => etype = Type::new(BaseType::I32, node.span)
         FloatLiteral    => etype = Type::new(BaseType::F32, node.span)
         BoolLiteral     => etype = Type::new(BaseType::Bool, node.span)
-        StringLiteral   => etype = Type::ptr_to(BaseType::Char, node.span)
         CharLiteral     => etype = Type::new(BaseType::Char, node.span)
+        StringLiteral   => etype = Type::ptr_to(BaseType::Char, node.span)
         Null            => etype = Type::ptr_to(BaseType::Void, node.span)
         FormatStringLiteral => etype = .check_format_string(node)
 
@@ -870,6 +881,95 @@ def TypeChecker::check_if(&this, node: &AST, is_expr: bool) {
     }
 }
 
+def TypeChecker::check_constant_expression(&this, node: &AST): &Type {
+    let etype = match node.type {
+        Identifier => {
+            let constant = .find_constant(node.u.ident.name)
+            if not constant? {
+                error_span(node.span, "No constant value found with this name")
+            }
+            node.u.ident.var = constant
+            yield constant.type
+        }
+        IntLiteral  => Type::new(BaseType::I32, node.span)
+        FloatLiteral => Type::new(BaseType::F32, node.span)
+        BoolLiteral => Type::new(BaseType::Bool, node.span)
+        CharLiteral => Type::new(BaseType::Char, node.span)
+        StringLiteral => Type::ptr_to(BaseType::Char, node.span)
+        Plus |
+        Minus |
+        Multiply |
+        Divide |
+        LessThan |
+        LessThanEquals |
+        GreaterThan |
+        GreaterThanEquals |
+        Equals |
+        NotEquals |
+        And |
+        Or |
+        Modulus |
+        BitwiseOr |
+        BitwiseAnd |
+        BitwiseXor |
+        LeftShift |
+        RightShift => {
+            let lhs = .check_constant_expression(node.u.binary.lhs)
+            let rhs = .check_constant_expression(node.u.binary.rhs)
+            if lhs.base == BaseType::Pointer or rhs.base == BaseType::Pointer {
+                error_span(node.span, "Cannot do pointer arithmetic in constant expressions")
+            }
+            yield .check_binary_op(node, node.u.binary.lhs, node.u.binary.rhs)
+        }
+        else => {
+            error_span(node.span, "Unsupported operator in constant expression")
+        }
+    }
+    node.etype = etype
+    return etype
+}
+
+def TypeChecker::check_var_declaration(&this, node: &AST, is_constant: bool) {
+    let var_decl = &node.u.var_decl
+    if var_decl.init? {
+        let init_type = if is_constant {
+            yield .check_constant_expression(var_decl.init)
+        } else {
+            yield .check_expression(var_decl.init)
+        }
+        if init_type.base == BaseType::Method {
+            error_span(var_decl.init.span, "Cannot assign methods to variables")
+        }
+        if not var_decl.var.type? {
+            var_decl.var.type = init_type
+        } else {
+            if not .type_is_valid(var_decl.var.type) {
+                error_span(var_decl.var.span, "Invalid type")
+            }
+            if not var_decl.var.type.eq(init_type) {
+                error_span_note(
+                    var_decl.init.span, "Variable type does not match initializer type",
+                    `Expected '{var_decl.var.type.str()}' but got '{init_type.str()}'`
+                )
+            }
+        }
+    } else {
+        if not var_decl.var.type? {
+            error_span(var_decl.var.span, "Variable type cannot be inferred, specify explicitly")
+        }
+        if not .type_is_valid(var_decl.var.type) {
+            error_span(var_decl.var.type.span, "Invalid variable type")
+        }
+    }
+
+    let var = var_decl.var
+    if is_constant {
+        .constants.insert(var.name, var)
+    } else {
+        .push_var(var)
+    }
+}
+
 def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
         ASTType::Block => .check_block(node, can_yield: false)
@@ -915,34 +1015,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
             }
         }
         ASTType::VarDeclaration => {
-            let var_decl = &node.u.var_decl
-            if var_decl.init? {
-                let init_type = .check_expression(var_decl.init)
-                if init_type.base == BaseType::Method {
-                    error_span(var_decl.init.span, "Cannot assign methods to variables")
-                }
-                if not var_decl.var.type? {
-                    var_decl.var.type = init_type
-                } else {
-                    if not .type_is_valid(var_decl.var.type) {
-                        error_span(var_decl.var.span, "Invalid type")
-                    }
-                    if not var_decl.var.type.eq(init_type) {
-                        error_span_note(
-                            var_decl.init.span, "Variable type does not match initializer type",
-                            `Expected '{var_decl.var.type.str()}' but got '{init_type.str()}'`
-                        )
-                    }
-                }
-            } else {
-                if not var_decl.var.type? {
-                    error_span(var_decl.var.span, "Variable type cannot be inferred, specify explicitly")
-                }
-                if not .type_is_valid(var_decl.var.type) {
-                    error_span(var_decl.var.type.span, "Invalid variable type")
-                }
-            }
-            .push_var(var_decl.var)
+            .check_var_declaration(node, is_constant: false)
         }
         ASTType::While => {
             let was_in_loop = .in_loop
@@ -1165,12 +1238,17 @@ def TypeChecker::check_all_structs(&this, program: &Program) {
 }
 
 def TypeChecker::check_program(&this, program: &Program) {
+    for let i = 0; i < program.constants.size; i += 1 {
+        let node = program.constants.at(i) as &AST
+        .check_var_declaration(node, is_constant: true)
+    }
+
     .check_all_structs(program)
 
     .push_scope()
     for let i = 0; i < program.global_vars.size; i += 1 {
         let var = program.global_vars.at(i) as &AST
-        .check_statement(var)
+        .check_var_declaration(var, is_constant: false)
     }
 
     .check_all_functions(program)

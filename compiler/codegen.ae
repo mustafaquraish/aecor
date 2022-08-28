@@ -386,9 +386,14 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
     }
 }
 
-def CodeGenerator::gen_var_decl(&this, node: &AST) {
+def CodeGenerator::gen_var_decl(&this, node: &AST, is_constant: bool) {
     let var = node.u.var_decl.var
     if var.is_extern return
+
+    if is_constant {
+        .out.puts("const ")
+    }
+
     .gen_type_and_name(var.type, var.name)
     if node.u.var_decl.init? {
         .out.puts(" = ")
@@ -526,7 +531,7 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
         }
         ASTType::VarDeclaration => {
             .indent(indent)
-            .gen_var_decl(node)
+            .gen_var_decl(node, is_constant: false)
             .out.puts(";\n")
         }
         ASTType::If => {
@@ -554,7 +559,7 @@ def CodeGenerator::gen_statement(&this, node: &AST, indent: i32) {
             .out.puts("for (")
             if node.u.loop.init? {
                 if node.u.loop.init.type == ASTType::VarDeclaration {
-                    .gen_var_decl(node.u.loop.init)
+                    .gen_var_decl(node.u.loop.init, is_constant: false)
                 } else {
                     .gen_expression(node.u.loop.init)
                 }
@@ -772,6 +777,18 @@ def CodeGenerator::gen_global_vars(&this, program: &Program) {
     .out.puts("\n")
 }
 
+def CodeGenerator::gen_constants(&this, program: &Program) {
+    .out.puts("/* constants */\n")
+    for let i = 0; i < program.constants.size; i += 1 {
+        let node = program.constants.at(i) as &AST
+        if not node.u.var_decl.var.is_extern {
+            .gen_var_decl(node, is_constant: true)
+            .out.puts(";\n")
+        }
+    }
+    .out.puts("\n")
+}
+
 def CodeGenerator::gen_embed_headers(&this, program: &Program) {
     if not program.c_embed_headers.empty() {
         for let i = 0; i < program.c_embed_headers.size; i += 1 {
@@ -798,6 +815,7 @@ def CodeGenerator::gen_program(&this, program: &Program): string {
     .out.puts("\n")
 
     .gen_embed_headers(program)
+    .gen_constants(program)
 
     .gen_struct_decls(program)
     for let i = 0; i < program.structures.size; i += 1 {

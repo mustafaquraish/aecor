@@ -84,9 +84,9 @@ struct SDLEvent extern("SDL_Event") {
     key: SDLKeyboardEvent
 }
 
-let SDL_INIT_EVERYTHING: i32 extern
-let SDL_PIXELFORMAT_ABGR8888: i32 extern
-let SDL_TEXTUREACCESS_STREAMING: i32 extern
+const SDL_INIT_EVERYTHING: i32 extern
+const SDL_PIXELFORMAT_ABGR8888: i32 extern
+const SDL_TEXTUREACCESS_STREAMING: i32 extern
 
 // Just a namespace
 struct SDL {}
