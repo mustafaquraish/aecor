@@ -71,6 +71,8 @@ def string::copy(this): string extern("strdup")
 def string::concat(this, src: string): string extern("strcat")
 
 def copy_memory(dest: untyped_ptr, src: untyped_ptr, size: i32) extern("memcpy")
+def set_memory(ptr: untyped_ptr, val: u8, size: i32) extern("memset")
+
 
 def string::starts_with(this, prefix: string): bool {
     let prefix_len = prefix.len()
