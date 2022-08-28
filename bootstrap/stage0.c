@@ -334,6 +334,7 @@ struct Function {
   bool exits;
   Type *type;
   Span span;
+  bool is_arrow;
   bool is_extern;
   char *extern_name;
   bool is_static;
@@ -614,6 +615,7 @@ AST *AST__new(ASTType type, Span span);
 AST *AST__new_unop(ASTType type, Span span, AST *expr);
 AST *AST__new_binop(ASTType type, AST *lhs, AST *rhs);
 bool AST__callee_is(AST *this, char *expected);
+bool AST__is_lvalue(AST *this);
 ParserContext *ParserContext__new(Vector *tokens, i32 offset);
 Parser *Parser__new(Vector *tokens, char *filename);
 void Parser__push_context(Parser *this, Vector *tokens);
@@ -642,6 +644,7 @@ AST *Parser__parse_logical_or(Parser *this, TokenType end_type);
 AST *Parser__parse_expression(Parser *this, TokenType end_type);
 AST *Parser__parse_match(Parser *this);
 AST *Parser__parse_if(Parser *this);
+void Parser__consume_end_of_statement(Parser *this);
 AST *Parser__parse_statement(Parser *this);
 AST *Parser__parse_block(Parser *this);
 Function *Parser__parse_function(Parser *this);
@@ -2528,6 +2531,28 @@ bool AST__callee_is(AST *this, char *expected) {
   return string__eq(name, expected);
 }
 
+bool AST__is_lvalue(AST *this) {
+  return ({ bool __yield_0;
+  switch (this->type) {
+    case ASTType__Dereference: {
+      __yield_0 = true;
+} break;
+    case ASTType__Index: {
+      __yield_0 = true;
+} break;
+    case ASTType__Member: {
+      __yield_0 = (!this->u.member.is_method);
+} break;
+    case ASTType__Identifier: {
+      __yield_0 = (!this->u.ident.is_function);
+} break;
+    default: {
+      __yield_0 = false;
+} break;
+  }
+;__yield_0; });
+}
+
 ParserContext *ParserContext__new(Vector *tokens, i32 offset) {
   ParserContext *context = ((ParserContext *)calloc(1, sizeof(ParserContext)));
   (*context) = (ParserContext){tokens, offset};
@@ -3140,6 +3165,13 @@ AST *Parser__parse_if(Parser *this) {
   return node;
 }
 
+void Parser__consume_end_of_statement(Parser *this) {
+  if (Parser__token_is(this, TokenType__CloseCurly)) 
+  return;
+  
+  Parser__consume_newline_or(this, TokenType__Semicolon);
+}
+
 AST *Parser__parse_statement(Parser *this) {
   AST *node = ((AST *)NULL);
   Span start_span = Parser__token(this)->span;
@@ -3160,17 +3192,17 @@ AST *Parser__parse_statement(Parser *this) {
         expr = Parser__parse_expression(this, TokenType__Newline);
       } 
       node = AST__new_unop(ASTType__Return, Span__join(start_span, Parser__token(this)->span), expr);
-      Parser__consume_newline_or(this, TokenType__Semicolon);
+      Parser__consume_end_of_statement(this);
     } break;
     case TokenType__Break: {
       node = AST__new(ASTType__Break, start_span);
       Parser__consume(this, TokenType__Break);
-      Parser__consume_newline_or(this, TokenType__Semicolon);
+      Parser__consume_end_of_statement(this);
     } break;
     case TokenType__Continue: {
       Parser__consume(this, TokenType__Continue);
       node = AST__new(ASTType__Continue, start_span);
-      Parser__consume_newline_or(this, TokenType__Semicolon);
+      Parser__consume_end_of_statement(this);
     } break;
     case TokenType__Defer: {
       Parser__consume(this, TokenType__Defer);
@@ -3181,7 +3213,7 @@ AST *Parser__parse_statement(Parser *this) {
       Parser__consume(this, TokenType__Yield);
       AST *expr = Parser__parse_expression(this, TokenType__Newline);
       node = AST__new_unop(ASTType__Yield, Span__join(start_span, expr->span), expr);
-      Parser__consume_newline_or(this, TokenType__Semicolon);
+      Parser__consume_end_of_statement(this);
     } break;
     case TokenType__While: {
       Parser__consume(this, TokenType__While);
@@ -3230,7 +3262,7 @@ AST *Parser__parse_statement(Parser *this) {
         init = Parser__parse_expression(this, TokenType__Newline);
         end_span = init->span;
       } 
-      Parser__consume_newline_or(this, TokenType__Semicolon);
+      Parser__consume_end_of_statement(this);
       node = AST__new(ASTType__VarDeclaration, Span__join(start_span, end_span));
       node->u.var_decl.var = Variable__new(name->text, type, name->span);
       node->u.var_decl.init = init;
@@ -3330,10 +3362,19 @@ Function *Parser__parse_function(Parser *this) {
       func->extern_name = name->text;
       Parser__consume(this, TokenType__CloseParen);
     } 
+  }  else   if (Parser__consume_if(this, TokenType__FatArrow)) {
+    func->is_arrow = true;
+    AST *expr = Parser__parse_expression(this, TokenType__Newline);
+    if ((!Parser__token(this)->seen_newline)) {
+      error_loc(expr->span.end, "Expected newline after arrow function");
+    } 
+    AST *ret_stmt = AST__new_unop(ASTType__Return, expr->span, expr);
+    func->body = ret_stmt;
   }  else {
     func->is_extern = false;
     func->body = Parser__parse_block(this);
   } 
+  
   return func;
 }
 
@@ -4014,6 +4055,9 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__MultiplyEquals: {
       Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if ((!AST__is_lvalue(node->u.binary.lhs))) {
+        error_span(node->u.binary.lhs->span, "Must be an l-value");
+      } 
       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
         error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
@@ -4025,6 +4069,9 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__Assignment: {
       Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if ((!AST__is_lvalue(node->u.binary.lhs))) {
+        error_span(node->u.binary.lhs->span, "Must be an l-value");
+      } 
       if ((!Type__eq(lhs, rhs))) {
         error_span_note(node->span, "Variable type does not match assignment type", format_string("Expected type '%s', got '%s'", Type__str(lhs), Type__str(rhs)));
       } 
@@ -4402,7 +4449,11 @@ void TypeChecker__check_function(TypeChecker *this, Function *func) {
     TypeChecker__push_var(this, var);
   } 
   if (((bool)func->body)) {
-    TypeChecker__check_block(this, func->body, false);
+    if (func->is_arrow) {
+      TypeChecker__check_statement(this, func->body);
+    }  else {
+      TypeChecker__check_block(this, func->body, false);
+    } 
     if (((!func->body->returns) && (func->return_type->base != BaseType__Void))) {
       if ((!string__eq(func->name, "main"))) {
         error_span(func->span, "Function does not always return");
@@ -5388,7 +5439,13 @@ void CodeGenerator__gen_function(CodeGenerator *this, Function *func) {
   CodeGenerator__gen_debug_info(this, func->span);
   CodeGenerator__gen_function_decl(this, func);
   StringBuilder__puts((&this->out), " ");
-  CodeGenerator__gen_block(this, func->body, 0);
+  if (func->is_arrow) {
+    StringBuilder__puts((&this->out), "{\n");
+    CodeGenerator__gen_statement(this, func->body, 1);
+    StringBuilder__puts((&this->out), "}");
+  }  else {
+    CodeGenerator__gen_block(this, func->body, 0);
+  } 
   StringBuilder__puts((&this->out), "\n\n");
 }
 
