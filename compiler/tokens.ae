@@ -5,18 +5,14 @@ struct Location {
     col: i32
 }
 
-def Location::str(this): string {
-    return `{.filename}:{.line}:{.col}`
-}
+def Location::str(this): string => `{.filename}:{.line}:{.col}`
 
 struct Span {
     start: Location
     end: Location
 }
 
-def Span::str(this): string {
-    return `{.start.str()} => {.end.str()}`
-}
+def Span::str(this): string => `{.start.str()} => {.end.str()}`
 
 // Needs to be called in the correct order!
 def Span::join(this, other: Span): Span {
@@ -39,251 +35,243 @@ def Token::new(type: TokenType, span: Span, text: string): &Token {
     return tok
 }
 
-def Token::from_type(type: TokenType, span: Span): &Token {
-    return Token::new(type, span, "")
-}
+def Token::from_type(type: TokenType, span: Span): &Token => Token::new(type, span, "")
 
 def Token::from_ident(text: string, span: Span): &Token {
     let type = TokenType::from_text(text)
     return Token::new(type, span, text)
 }
 
-def Token::str(&this): string {
-    return `{.span.str()}: {.type.str()}`
-}
+def Token::str(&this): string => `{.span.str()}: {.type.str()}`
 
 enum TokenType {
-  // Keywords
-  And
-  As
-  Bool
-  Break
-  Char
-  Continue
-  Def
-  Defer
-  Else
-  Enum
-  Extern
-  False
-  F32
-  F64
-  For
-  Fn
-  I8
-  I16
-  I32
-  I64
-  If
-  Let
-  Match
-  Null
-  Not
-  Or
-  Return
-  SizeOf
-  String
-  Struct
-  True
-  Then
-  U8
-  U16
-  U32
-  U64
-  UntypedPtr
-  Union
-  Use
-  Void
-  Yield
-  While
+    // Keywords
+    And
+    As
+    Bool
+    Break
+    Char
+    Continue
+    Def
+    Defer
+    Else
+    Enum
+    Extern
+    False
+    F32
+    F64
+    For
+    Fn
+    I8
+    I16
+    I32
+    I64
+    If
+    Let
+    Match
+    Null
+    Not
+    Or
+    Return
+    SizeOf
+    String
+    Struct
+    True
+    Then
+    U8
+    U16
+    U32
+    U64
+    UntypedPtr
+    Union
+    Use
+    Void
+    Yield
+    While
 
-  // Other tokens
-  AtSign
-  Ampersand
-  Backtick
-  Caret
-  CloseCurly
-  CloseParen
-  CloseSquare
-  Colon
-  ColonColon
-  Comma
-  Dot
-  EOF
-  Equals
-  EqualEquals
-  Exclamation
-  FatArrow
-  FloatLiteral
-  FormatStringLiteral
-  GreaterThan
-  GreaterThanGreaterThan
-  GreaterThanEquals
-  Identifier
-  IntLiteral
-  LessThan
-  LessThanLessThan
-  LessThanEquals
-  Line
-  Minus
-  MinusEquals
-  NotEquals
-  Newline   // Not an actual token, but nice to have this here
-  OpenCurly
-  OpenParen
-  OpenSquare
-  Percent
-  Plus
-  PlusEquals
-  Question
-  Semicolon
-  Slash
-  SlashEquals
-  Star
-  StarEquals
-  StringLiteral
-  CharLiteral
+    // Other tokens
+    AtSign
+    Ampersand
+    Backtick
+    Caret
+    CloseCurly
+    CloseParen
+    CloseSquare
+    Colon
+    ColonColon
+    Comma
+    Dot
+    EOF
+    Equals
+    EqualEquals
+    Exclamation
+    FatArrow
+    FloatLiteral
+    FormatStringLiteral
+    GreaterThan
+    GreaterThanGreaterThan
+    GreaterThanEquals
+    Identifier
+    IntLiteral
+    LessThan
+    LessThanLessThan
+    LessThanEquals
+    Line
+    Minus
+    MinusEquals
+    NotEquals
+    Newline   // Not an actual token, but nice to have this here
+    OpenCurly
+    OpenParen
+    OpenSquare
+    Percent
+    Plus
+    PlusEquals
+    Question
+    Semicolon
+    Slash
+    SlashEquals
+    Star
+    StarEquals
+    StringLiteral
+    CharLiteral
 }
 
-def TokenType::from_text(text: string): TokenType {
-    return match text {
-        "and" => TokenType::And
-        "as" => TokenType::As
-        "bool" => TokenType::Bool
-        "break" => TokenType::Break
-        "char" => TokenType::Char
-        "continue" => TokenType::Continue
-        "def" => TokenType::Def
-        "defer" => TokenType::Defer
-        "else" => TokenType::Else
-        "enum" => TokenType::Enum
-        "extern" => TokenType::Extern
-        "false" => TokenType::False
-        "f32" => TokenType::F32
-        "f64" => TokenType::F64
-        "for" => TokenType::For
-        "fn" => TokenType::Fn
-        "i8" => TokenType::I8
-        "i16" => TokenType::I16
-        "i32" => TokenType::I32
-        "i64" => TokenType::I64
-        "if" => TokenType::If
-        "let" => TokenType::Let
-        "match" => TokenType::Match
-        "not" => TokenType::Not
-        "null" => TokenType::Null
-        "or" => TokenType::Or
-        "return" => TokenType::Return
-        "sizeof" => TokenType::SizeOf
-        "string" => TokenType::String
-        "struct" => TokenType::Struct
-        "true" => TokenType::True
-        "then" => TokenType::Then
-        "u8" => TokenType::U8
-        "u16" => TokenType::U16
-        "u32" => TokenType::U32
-        "u64" => TokenType::U64
-        "untyped_ptr" => TokenType::UntypedPtr
-        "union" => TokenType::Union
-        "use" => TokenType::Use
-        "void" => TokenType::Void
-        "yield" => TokenType::Yield
-        "while" => TokenType::While
-        else => TokenType::Identifier
-    }
+def TokenType::from_text(text: string): TokenType => match text {
+    "and" => TokenType::And
+    "as" => TokenType::As
+    "bool" => TokenType::Bool
+    "break" => TokenType::Break
+    "char" => TokenType::Char
+    "continue" => TokenType::Continue
+    "def" => TokenType::Def
+    "defer" => TokenType::Defer
+    "else" => TokenType::Else
+    "enum" => TokenType::Enum
+    "extern" => TokenType::Extern
+    "false" => TokenType::False
+    "f32" => TokenType::F32
+    "f64" => TokenType::F64
+    "for" => TokenType::For
+    "fn" => TokenType::Fn
+    "i8" => TokenType::I8
+    "i16" => TokenType::I16
+    "i32" => TokenType::I32
+    "i64" => TokenType::I64
+    "if" => TokenType::If
+    "let" => TokenType::Let
+    "match" => TokenType::Match
+    "not" => TokenType::Not
+    "null" => TokenType::Null
+    "or" => TokenType::Or
+    "return" => TokenType::Return
+    "sizeof" => TokenType::SizeOf
+    "string" => TokenType::String
+    "struct" => TokenType::Struct
+    "true" => TokenType::True
+    "then" => TokenType::Then
+    "u8" => TokenType::U8
+    "u16" => TokenType::U16
+    "u32" => TokenType::U32
+    "u64" => TokenType::U64
+    "untyped_ptr" => TokenType::UntypedPtr
+    "union" => TokenType::Union
+    "use" => TokenType::Use
+    "void" => TokenType::Void
+    "yield" => TokenType::Yield
+    "while" => TokenType::While
+    else => TokenType::Identifier
 }
 
-def TokenType::str(this): string {
-    return match this {
-        // Keywords
-        And => "and"
-        As => "as"
-        Bool => "bool"
-        Break => "break"
-        Char => "char"
-        Continue => "continue"
-        Def => "def"
-        Defer => "defer"
-        Else => "else"
-        Enum => "enum"
-        Extern => "extern"
-        False => "false"
-        F32 => "f32"
-        F64 => "f64"
-        For => "for"
-        Fn => "fn"
-        I8 => "i8"
-        I16 => "i16"
-        I32 => "i32"
-        I64 => "i64"
-        If => "if"
-        Let => "let"
-        Match => "match"
-        Not => "not"
-        Null => "null"
-        Or => "or"
-        Return => "return"
-        SizeOf => "sizeof"
-        String => "string"
-        Struct => "struct"
-        True => "true"
-        Then => "then"
-        U8 => "u8"
-        U16 => "u16"
-        U32 => "u32"
-        U64 => "u64"
-        UntypedPtr => "untyped_ptr"
-        Union => "union"
-        Use => "use"
-        Void => "void"
-        Yield => "yield"
-        While => "while"
+def TokenType::str(this): string => match this {
+    // Keywords
+    And => "and"
+    As => "as"
+    Bool => "bool"
+    Break => "break"
+    Char => "char"
+    Continue => "continue"
+    Def => "def"
+    Defer => "defer"
+    Else => "else"
+    Enum => "enum"
+    Extern => "extern"
+    False => "false"
+    F32 => "f32"
+    F64 => "f64"
+    For => "for"
+    Fn => "fn"
+    I8 => "i8"
+    I16 => "i16"
+    I32 => "i32"
+    I64 => "i64"
+    If => "if"
+    Let => "let"
+    Match => "match"
+    Not => "not"
+    Null => "null"
+    Or => "or"
+    Return => "return"
+    SizeOf => "sizeof"
+    String => "string"
+    Struct => "struct"
+    True => "true"
+    Then => "then"
+    U8 => "u8"
+    U16 => "u16"
+    U32 => "u32"
+    U64 => "u64"
+    UntypedPtr => "untyped_ptr"
+    Union => "union"
+    Use => "use"
+    Void => "void"
+    Yield => "yield"
+    While => "while"
 
-        // Others
-        AtSign => "AtSign"
-        Ampersand => "Ampersand"
-        Backtick => "Backtick"
-        Caret => "Caret"
-        CloseCurly => "CloseCurly"
-        CloseParen => "CloseParen"
-        CloseSquare => "CloseSquare"
-        Colon => "Colon"
-        ColonColon => "ColonColon"
-        Comma => "Comma"
-        Dot => "Dot"
-        EOF => "EOF"
-        Equals => "Equals"
-        EqualEquals => "EqualEquals"
-        Exclamation => "Exclamation"
-        FatArrow => "FatArrow"
-        FloatLiteral => "FloatLiteral"
-        FormatStringLiteral => "FormatStringLiteral"
-        GreaterThan => "GreaterThan"
-        GreaterThanGreaterThan => "GreaterThanGreaterThan"
-        GreaterThanEquals => "GreaterThanEquals"
-        Identifier => "Identifier"
-        IntLiteral => "IntLiteral"
-        LessThan => "LessThan"
-        LessThanLessThan => "LessThanLessThan"
-        LessThanEquals => "LessThanEquals"
-        Line => "Line"
-        Minus => "Minus"
-        MinusEquals => "MinusEquals"
-        NotEquals => "NotEquals"
-        Newline => "Newline"
-        OpenCurly => "OpenCurly"
-        OpenParen => "OpenParen"
-        OpenSquare => "OpenSquare"
-        Percent => "Percent"
-        Plus => "Plus"
-        PlusEquals => "PlusEquals"
-        Question => "Question"
-        Semicolon => "Semicolon"
-        Slash => "Slash"
-        SlashEquals => "SlashEquals"
-        Star => "Star"
-        StarEquals => "StarEquals"
-        StringLiteral => "StringLiteral"
-        CharLiteral => "CharLiteral"
-    }
+    // Others
+    AtSign => "AtSign"
+    Ampersand => "Ampersand"
+    Backtick => "Backtick"
+    Caret => "Caret"
+    CloseCurly => "CloseCurly"
+    CloseParen => "CloseParen"
+    CloseSquare => "CloseSquare"
+    Colon => "Colon"
+    ColonColon => "ColonColon"
+    Comma => "Comma"
+    Dot => "Dot"
+    EOF => "EOF"
+    Equals => "Equals"
+    EqualEquals => "EqualEquals"
+    Exclamation => "Exclamation"
+    FatArrow => "FatArrow"
+    FloatLiteral => "FloatLiteral"
+    FormatStringLiteral => "FormatStringLiteral"
+    GreaterThan => "GreaterThan"
+    GreaterThanGreaterThan => "GreaterThanGreaterThan"
+    GreaterThanEquals => "GreaterThanEquals"
+    Identifier => "Identifier"
+    IntLiteral => "IntLiteral"
+    LessThan => "LessThan"
+    LessThanLessThan => "LessThanLessThan"
+    LessThanEquals => "LessThanEquals"
+    Line => "Line"
+    Minus => "Minus"
+    MinusEquals => "MinusEquals"
+    NotEquals => "NotEquals"
+    Newline => "Newline"
+    OpenCurly => "OpenCurly"
+    OpenParen => "OpenParen"
+    OpenSquare => "OpenSquare"
+    Percent => "Percent"
+    Plus => "Plus"
+    PlusEquals => "PlusEquals"
+    Question => "Question"
+    Semicolon => "Semicolon"
+    Slash => "Slash"
+    SlashEquals => "SlashEquals"
+    Star => "Star"
+    StarEquals => "StarEquals"
+    StringLiteral => "StringLiteral"
+    CharLiteral => "CharLiteral"
 }

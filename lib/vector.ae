@@ -18,9 +18,7 @@ def Vector::new_sized(capacity: i32): &Vector {
     return vec
 }
 
-def Vector::new(): &Vector {
-    return Vector::new_sized(16)
-}
+def Vector::new(): &Vector => Vector::new_sized(16)
 
 def Vector::resize(&this, new_capacity: i32) {
     .capacity = new_capacity
@@ -72,9 +70,7 @@ def Vector::at(&this, i: i32): untyped_ptr {
     return .data[i]
 }
 
-def Vector::empty(&this): bool {
-    return .size == 0
-}
+def Vector::empty(&this): bool => .size == 0
 
 def Vector::free(&this) {
     free(.data)

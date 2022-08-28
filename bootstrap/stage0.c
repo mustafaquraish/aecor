@@ -2603,7 +2603,7 @@ void Parser__unhandled_type(Parser *this, char *func) {
 }
 
 Token *Parser__token(Parser *this) {
-  return ((Token *)Vector__at(this->tokens, this->curr));
+  return Vector__at(this->tokens, this->curr);
 }
 
 bool Parser__token_is(Parser *this, TokenType type) {
@@ -4632,7 +4632,7 @@ void CodeGenerator__push_scope(CodeGenerator *this) {
 }
 
 Vector *CodeGenerator__scope(CodeGenerator *this) {
-  return ((Vector *)Vector__back(this->scopes));
+  return Vector__back(this->scopes);
 }
 
 void CodeGenerator__pop_scope(CodeGenerator *this) {

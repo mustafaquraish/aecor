@@ -21,27 +21,25 @@ enum BaseType {
     Array
 }
 
-def BaseType::str(this): string {
-    return match this {
-        Char => "char"
-        Bool => "bool"
-        Void => "void"
-        I8 => "i8"
-        I16 => "i16"
-        I32 => "i32"
-        I64 => "i64"
-        U8 => "u8"
-        U16 => "u16"
-        U32 => "u32"
-        U64 => "u64"
-        F32 => "f32"
-        F64 => "f64"
-        Pointer => "&"
-        Structure => "structure"
-        Function => "function"
-        Method => "method"
-        Array => "[]"
-    }
+def BaseType::str(this): string => match this {
+    Char => "char"
+    Bool => "bool"
+    Void => "void"
+    I8 => "i8"
+    I16 => "i16"
+    I32 => "i32"
+    I64 => "i64"
+    U8 => "u8"
+    U16 => "u16"
+    U32 => "u32"
+    U64 => "u64"
+    F32 => "f32"
+    F64 => "f64"
+    Pointer => "&"
+    Structure => "structure"
+    Function => "function"
+    Method => "method"
+    Array => "[]"
 }
 
 struct Type {
@@ -87,21 +85,17 @@ def Type::is_struct_or_ptr(&this): bool {
     return .ptr.base == BaseType::Structure
 }
 
-def Type::is_integer(&this): bool {
-    return match .base {
-        I8 | I16 | I32 | I64 |
-        U8 | U16 | U32 | U64 => true
-        else => false
-    }
+def Type::is_integer(&this): bool => match .base {
+    I8 | I16 | I32 | I64 |
+    U8 | U16 | U32 | U64 => true
+    else => false
 }
 
-def Type::is_numeric(&this): bool {
-    return match .base {
-        I8 | I16 | I32 | I64 |
-        U8 | U16 | U32 | U64 |
-        F32 | F64 => true
-        else => false
-    }
+def Type::is_numeric(&this): bool => match .base {
+    I8  | I16 | I32 | I64 |
+    U8  | U16 | U32 | U64 |
+    F32 | F64 => true
+    else => false
 }
 
 def Type::eq(&this, other: &Type): bool {
@@ -136,20 +130,16 @@ def Type::eq(&this, other: &Type): bool {
     }
 }
 
-def Type::str(&this): string {
-    return match .base {
-        Pointer => `&{.ptr.str()}`
-        Array => `[{.ptr.str()}]`
-        Structure => .name
-        Function => "<function>"
-        Method => "<method>"
-        else => .base.str()
-    }
+def Type::str(&this): string => match .base {
+    Pointer => `&{.ptr.str()}`
+    Array => `[{.ptr.str()}]`
+    Structure => .name
+    Function => "<function>"
+    Method => "<method>"
+    else => .base.str()
 }
 
-def Type::is_string(&this): bool {
-    return .base == BaseType::Pointer and .ptr.base == BaseType::Char
-}
+def Type::is_string(&this): bool => .base == BaseType::Pointer and .ptr.base == BaseType::Char
 
 def Type::decay_array(&this): &Type {
     if .base != BaseType::Array return this

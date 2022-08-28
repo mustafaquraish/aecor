@@ -14,15 +14,13 @@ enum JSONType {
     Object
 }
 
-def JSONType::str(this): string {
-    return match this {
-        Null => "Null"
-        Bool => "Bool"
-        Number => "Number"
-        String => "String"
-        Array => "Array"
-        Object => "Object"
-    }
+def JSONType::str(this): string => match this {
+    Null => "Null"
+    Bool => "Bool"
+    Number => "Number"
+    String => "String"
+    Array => "Array"
+    Object => "Object"
 }
 
 union JSONUnion {
@@ -88,9 +86,7 @@ def JSON::ensure(&this, type: JSONType) {
     }
 }
 
-def JSON::is(this, type: JSONType): bool {
-    return .type == type
-}
+def JSON::is(this, type: JSONType): bool => .type == type
 
 def JSON::at(&this, idx: i32): &JSON {
     .ensure(JSONType::Array)
@@ -154,9 +150,7 @@ def JSONParser::make(tokens: &Vector): JSONParser {
     return parser
 }
 
-def JSONParser::token(&this): &Token {
-    return .tokens.at(.curr)
-}
+def JSONParser::token(&this): &Token => .tokens.at(.curr)
 
 def JSONParser::consume(&this, type: TokenType): &Token {
     if .token().type != type {
@@ -200,47 +194,43 @@ def JSONParser::parse_array(&this): &JSON {
 
 def string::to_i32(this): i32 extern("atoi")
 
-def JSONParser::parse_value(&this): &JSON {
-    return match .token().type {
-        Null => {
-            .consume(TokenType::Null)
-            yield JSON::new(JSONType::Null)
-        }
-        True | False => {
-            let json = JSON::new(JSONType::Bool)
-            let tok = .token()
-            json.u.bul = tok.text.eq("true")
-            .curr += 1
-            yield json
-        }
-        IntLiteral => {
-            let json = JSON::new(JSONType::Number)
-            let tok = .consume(TokenType::IntLiteral)
-            json.u.num = tok.text.to_i32()
-            yield json
-        }
-        StringLiteral => {
-            let json = JSON::new(JSONType::String)
-            json.u.str = .consume(TokenType::StringLiteral).text
-            yield json
-        }
-        OpenCurly => .parse_object()
-        OpenSquare => .parse_array()
-        else => {
-            println("Unexpected token in JSONParser::parse_value: %s", .token().type.str())
-            exit(1)
-        }
+def JSONParser::parse_value(&this): &JSON => match .token().type {
+    Null => {
+        .consume(TokenType::Null)
+        yield JSON::new(JSONType::Null)
+    }
+    True | False => {
+        let json = JSON::new(JSONType::Bool)
+        let tok = .token()
+        json.u.bul = tok.text.eq("true")
+        .curr += 1
+        yield json
+    }
+    IntLiteral => {
+        let json = JSON::new(JSONType::Number)
+        let tok = .consume(TokenType::IntLiteral)
+        json.u.num = tok.text.to_i32()
+        yield json
+    }
+    StringLiteral => {
+        let json = JSON::new(JSONType::String)
+        json.u.str = .consume(TokenType::StringLiteral).text
+        yield json
+    }
+    OpenCurly => .parse_object()
+    OpenSquare => .parse_array()
+    else => {
+        println("Unexpected token in JSONParser::parse_value: %s", .token().type.str())
+        exit(1)
     }
 }
 
-def JSONParser::parse(&this): &JSON {
-    return match .token().type {
-        OpenCurly => .parse_object()
-        OpenSquare => .parse_array()
-        else => {
-            println("Expected { or [ at JSON top level")
-            exit(1)
-        }
+def JSONParser::parse(&this): &JSON => match .token().type {
+    OpenCurly => .parse_object()
+    OpenSquare => .parse_array()
+    else => {
+        println("Expected { or [ at JSON top level")
+        exit(1)
     }
 }
 
@@ -253,9 +243,7 @@ def JSON::parse(source: string, filename: string): &JSON {
     return parser.parse()
 }
 
-def JSON::parse_from_string(json_str: string): &JSON {
-    return JSON::parse(json_str, "<anonymous>")
-}
+def JSON::parse_from_string(json_str: string): &JSON => JSON::parse(json_str, "<anonymous>")
 
 def JSON::parse_from_file(filename: string): &JSON {
     let file = File::open(filename, "r")

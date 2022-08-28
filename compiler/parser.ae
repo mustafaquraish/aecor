@@ -77,9 +77,7 @@ def Parser::unhandled_type(&this, func: string) {
     .error(`Unexpected token in {func}: {.token().type.str()}`)
 }
 
-def Parser::token(&this): &Token {
-    return .tokens.at(.curr) as &Token
-}
+def Parser::token(&this): &Token => .tokens.at(.curr)
 
 def Parser::token_is(&this, type: TokenType): bool {
     if type == TokenType::Newline {
@@ -194,9 +192,7 @@ def Parser::parse_type_with_parent(&this, parent: &Type): &Type {
     return type
 }
 
-def Parser::parse_type(&this): &Type {
-    return .parse_type_with_parent(null)
-}
+def Parser::parse_type(&this): &Type => .parse_type_with_parent(null)
 
 def Parser::parse_format_string(&this): &AST {
     let fstr = .consume(TokenType::FormatStringLiteral)

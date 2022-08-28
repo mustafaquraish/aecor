@@ -62,20 +62,16 @@ enum MessageType {
     Note
 }
 
-def MessageType::to_color(this): string {
-    return match this {
-        Error => "\x1b[31m"
-        Warning => "\x1b[33m"
-        Note => "\x1b[32m"
-    }
+def MessageType::to_color(this): string => match this {
+    Error => "\x1b[31m"
+    Warning => "\x1b[33m"
+    Note => "\x1b[32m"
 }
 
-def MessageType::str(this): string {
-    return match this {
-        Error => "Error"
-        Warning => "Warning"
-        Note => "Note"
-    }
+def MessageType::str(this): string => match this {
+    Error => "Error"
+    Warning => "Warning"
+    Note => "Note"
 }
 
 def display_line() {

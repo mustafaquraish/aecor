@@ -21,15 +21,8 @@ def Image::free(&this) {
     free(this)
 }
 
-def Image::get(&this, x: i32, y: i32): Vec {
-    let offset = (y * .width + x)
-    return *(.data + offset)
-}
-
-def Image::set(&this, x: i32, y: i32, col: Vec) {
-    let offset = (y * .width + x)
-    *(.data + offset) = col
-}
+def Image::get(&this, x: i32, y: i32): Vec => .data[y * .width + x]
+def Image::set(&this, x: i32, y: i32, col: Vec) { .data[y * .width + x] = col }
 
 def Image::save(&this, filename: string) {
     let f = File::open(filename, "wb")

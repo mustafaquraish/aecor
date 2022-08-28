@@ -35,9 +35,7 @@ def CodeGenerator::push_scope(&this) {
     .scopes.push(Vector::new())
 }
 
-def CodeGenerator::scope(&this): &Vector {
-    return .scopes.back() as &Vector
-}
+def CodeGenerator::scope(&this): &Vector => .scopes.back()
 
 def CodeGenerator::pop_scope(&this) {
     let scope = .scopes.pop() as &Vector
@@ -166,39 +164,37 @@ def CodeGenerator::gen_format_string(&this, node: &AST) {
     .out.puts(")")
 }
 
-def CodeGenerator::get_op(type: ASTType): string {
-    return match type {
-        Address => "&"
-        And => " && "
-        Assignment => " = "
-        BitwiseAnd => " & "
-        BitwiseOr => " | "
-        BitwiseXor => " ^ "
-        Dereference => "*"
-        Divide => " / "
-        DivideEquals => " /= "
-        Equals => " == "
-        GreaterThan => " > "
-        GreaterThanEquals => " >= "
-        LeftShift => " << "
-        LessThan => " < "
-        LessThanEquals => " <= "
-        Minus => " - "
-        MinusEquals => " -= "
-        Modulus => " % "
-        Multiply => " * "
-        MultiplyEquals => " *= "
-        Not => "!"
-        NotEquals => " != "
-        Or => " || "
-        Plus => " + "
-        PlusEquals => " += "
-        RightShift => " >> "
-        UnaryMinus => "-"
-        else => {
-            println("Unknown op type in get_op: %s", type.str())
-            exit(1)
-        }
+def CodeGenerator::get_op(type: ASTType): string => match type {
+    Address => "&"
+    And => " && "
+    Assignment => " = "
+    BitwiseAnd => " & "
+    BitwiseOr => " | "
+    BitwiseXor => " ^ "
+    Dereference => "*"
+    Divide => " / "
+    DivideEquals => " /= "
+    Equals => " == "
+    GreaterThan => " > "
+    GreaterThanEquals => " >= "
+    LeftShift => " << "
+    LessThan => " < "
+    LessThanEquals => " <= "
+    Minus => " - "
+    MinusEquals => " -= "
+    Modulus => " % "
+    Multiply => " * "
+    MultiplyEquals => " *= "
+    Not => "!"
+    NotEquals => " != "
+    Or => " || "
+    Plus => " + "
+    PlusEquals => " += "
+    RightShift => " >> "
+    UnaryMinus => "-"
+    else => {
+        println("Unknown op type in get_op: %s", type.str())
+        exit(1)
     }
 }
 

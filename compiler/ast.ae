@@ -3,153 +3,149 @@ use "lib/map.ae"
 use "compiler/types.ae"
 
 enum ASTType {
-  Assignment
-  Address
-  And
-  Block
-  BoolLiteral
-  BitwiseAnd
-  BitwiseOr
-  BitwiseXor
-  Break
-  Call
-  Cast
-  CharLiteral
-  Constructor
-  Continue
-  Defer
-  Dereference
-  Divide
-  DivideEquals
-  EnumValue
-  Equals
-  FloatLiteral
-  FormatStringLiteral
-  For
-  GreaterThan
-  GreaterThanEquals
-  If
-  Identifier
-  Index
-  IntLiteral
-  IsNotNull
-  LeftShift
-  LessThan
-  LessThanEquals
-  Match
-  Member
-  Minus
-  MinusEquals
-  Modulus
-  Multiply
-  MultiplyEquals
-  Not
-  NotEquals
-  Null
-  Or
-  Plus
-  PlusEquals
-  Return
-  RightShift
-  SizeOf
-  ScopeLookup
-  StringLiteral
-  UnaryMinus
-  VarDeclaration
-  Yield
-  While
+    Assignment
+    Address
+    And
+    Block
+    BoolLiteral
+    BitwiseAnd
+    BitwiseOr
+    BitwiseXor
+    Break
+    Call
+    Cast
+    CharLiteral
+    Constructor
+    Continue
+    Defer
+    Dereference
+    Divide
+    DivideEquals
+    EnumValue
+    Equals
+    FloatLiteral
+    FormatStringLiteral
+    For
+    GreaterThan
+    GreaterThanEquals
+    If
+    Identifier
+    Index
+    IntLiteral
+    IsNotNull
+    LeftShift
+    LessThan
+    LessThanEquals
+    Match
+    Member
+    Minus
+    MinusEquals
+    Modulus
+    Multiply
+    MultiplyEquals
+    Not
+    NotEquals
+    Null
+    Or
+    Plus
+    PlusEquals
+    Return
+    RightShift
+    SizeOf
+    ScopeLookup
+    StringLiteral
+    UnaryMinus
+    VarDeclaration
+    Yield
+    While
 }
 
-def ASTType::str(this): string {
-    return match this {
-        Assignment => "Assignment"
-        Address => "Address"
-        And => "And"
-        Block => "Block"
-        BoolLiteral => "BoolLiteral"
-        BitwiseAnd => "BitwiseAnd"
-        BitwiseOr => "BitwiseOr"
-        BitwiseXor => "BitwiseXor"
-        Break => "Break"
-        Call => "Call"
-        Cast => "Cast"
-        CharLiteral => "CharLiteral"
-        Constructor => "Constructor"
-        Continue => "Continue"
-        Defer => "Defer"
-        Dereference => "Dereference"
-        Divide => "Divide"
-        DivideEquals => "DivideEquals"
-        EnumValue => "EnumValue"
-        Equals => "Equals"
-        FloatLiteral => "FloatLiteral"
-        FormatStringLiteral => "FormatStringLiteral"
-        For => "For"
-        GreaterThan => "GreaterThan"
-        GreaterThanEquals => "GreaterThanEquals"
-        If => "If"
-        Identifier => "Identifier"
-        Index => "Index"
-        IntLiteral => "IntLiteral"
-        IsNotNull => "IsNotNull"
-        LeftShift => "LeftShift"
-        LessThan => "LessThan"
-        LessThanEquals => "LessThanEquals"
-        Match => "Match"
-        Member => "Member"
-        Minus => "Minus"
-        MinusEquals => "MinusEquals"
-        Modulus => "Modulus"
-        Multiply => "Multiply"
-        MultiplyEquals => "MultiplyEquals"
-        Not => "Not"
-        NotEquals => "NotEquals"
-        Null => "Null"
-        Or => "Or"
-        Plus => "Plus"
-        PlusEquals => "PlusEquals"
-        Return => "Return"
-        RightShift => "RightShift"
-        SizeOf => "SizeOf"
-        ScopeLookup => "ScopeLookup"
-        StringLiteral => "StringLiteral"
-        UnaryMinus => "UnaryMinus"
-        VarDeclaration => "VarDeclaration"
-        Yield => "Yield"
-        While => "While"
-    }
+def ASTType::str(this): string => match this {
+    Assignment => "Assignment"
+    Address => "Address"
+    And => "And"
+    Block => "Block"
+    BoolLiteral => "BoolLiteral"
+    BitwiseAnd => "BitwiseAnd"
+    BitwiseOr => "BitwiseOr"
+    BitwiseXor => "BitwiseXor"
+    Break => "Break"
+    Call => "Call"
+    Cast => "Cast"
+    CharLiteral => "CharLiteral"
+    Constructor => "Constructor"
+    Continue => "Continue"
+    Defer => "Defer"
+    Dereference => "Dereference"
+    Divide => "Divide"
+    DivideEquals => "DivideEquals"
+    EnumValue => "EnumValue"
+    Equals => "Equals"
+    FloatLiteral => "FloatLiteral"
+    FormatStringLiteral => "FormatStringLiteral"
+    For => "For"
+    GreaterThan => "GreaterThan"
+    GreaterThanEquals => "GreaterThanEquals"
+    If => "If"
+    Identifier => "Identifier"
+    Index => "Index"
+    IntLiteral => "IntLiteral"
+    IsNotNull => "IsNotNull"
+    LeftShift => "LeftShift"
+    LessThan => "LessThan"
+    LessThanEquals => "LessThanEquals"
+    Match => "Match"
+    Member => "Member"
+    Minus => "Minus"
+    MinusEquals => "MinusEquals"
+    Modulus => "Modulus"
+    Multiply => "Multiply"
+    MultiplyEquals => "MultiplyEquals"
+    Not => "Not"
+    NotEquals => "NotEquals"
+    Null => "Null"
+    Or => "Or"
+    Plus => "Plus"
+    PlusEquals => "PlusEquals"
+    Return => "Return"
+    RightShift => "RightShift"
+    SizeOf => "SizeOf"
+    ScopeLookup => "ScopeLookup"
+    StringLiteral => "StringLiteral"
+    UnaryMinus => "UnaryMinus"
+    VarDeclaration => "VarDeclaration"
+    Yield => "Yield"
+    While => "While"
 }
 
-def ASTType::from_token(type: TokenType): ASTType {
-    return match type {
-        Ampersand => ASTType::BitwiseAnd
-        And => ASTType::And
-        Caret => ASTType::BitwiseXor
-        EqualEquals => ASTType::Equals
-        Equals => ASTType::Assignment
-        GreaterThan => ASTType::GreaterThan
-        GreaterThanEquals => ASTType::GreaterThanEquals
-        GreaterThanGreaterThan => ASTType::RightShift
-        LessThan => ASTType::LessThan
-        LessThanEquals => ASTType::LessThanEquals
-        LessThanLessThan => ASTType::LeftShift
-        Line => ASTType::BitwiseOr
-        Minus => ASTType::Minus
-        MinusEquals => ASTType::MinusEquals
-        NotEquals => ASTType::NotEquals
-        Or => ASTType::Or
-        Percent => ASTType::Modulus
-        Plus => ASTType::Plus
-        PlusEquals => ASTType::PlusEquals
-        Slash => ASTType::Divide
-        SlashEquals => ASTType::DivideEquals
-        Star => ASTType::Multiply
-        StarEquals => ASTType::MultiplyEquals
+def ASTType::from_token(type: TokenType): ASTType => match type {
+    Ampersand => ASTType::BitwiseAnd
+    And => ASTType::And
+    Caret => ASTType::BitwiseXor
+    EqualEquals => ASTType::Equals
+    Equals => ASTType::Assignment
+    GreaterThan => ASTType::GreaterThan
+    GreaterThanEquals => ASTType::GreaterThanEquals
+    GreaterThanGreaterThan => ASTType::RightShift
+    LessThan => ASTType::LessThan
+    LessThanEquals => ASTType::LessThanEquals
+    LessThanLessThan => ASTType::LeftShift
+    Line => ASTType::BitwiseOr
+    Minus => ASTType::Minus
+    MinusEquals => ASTType::MinusEquals
+    NotEquals => ASTType::NotEquals
+    Or => ASTType::Or
+    Percent => ASTType::Modulus
+    Plus => ASTType::Plus
+    PlusEquals => ASTType::PlusEquals
+    Slash => ASTType::Divide
+    SlashEquals => ASTType::DivideEquals
+    Star => ASTType::Multiply
+    StarEquals => ASTType::MultiplyEquals
 
-        else => {
-            println("Unhandled token type in ASTType::from_token: %s", type.str())
-            exit(1)
-        }
+    else => {
+        println("Unhandled token type in ASTType::from_token: %s", type.str())
+        exit(1)
     }
 }
 
@@ -427,12 +423,10 @@ def AST::callee_is(&this, expected: string): bool {
     return name.eq(expected)
 }
 
-def AST::is_lvalue(&this): bool {
-    return match .type {
-        Dereference => true
-        Index => true
-        Member => not .u.member.is_method
-        Identifier => not .u.ident.is_function
-        else => false
-    }
+def AST::is_lvalue(&this): bool => match .type {
+    Dereference => true
+    Index => true
+    Member => not .u.member.is_method
+    Identifier => not .u.ident.is_function
+    else => false
 }

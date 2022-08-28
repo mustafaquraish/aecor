@@ -82,9 +82,7 @@ def string::starts_with(this, prefix: string): bool {
     return .compare_n(prefix, prefix_len) == 0
 }
 
-def string::eq(this, str2: string): bool {
-    return this.compare(str2) == 0
-}
+def string::eq(this, str2: string): bool => this.compare(str2) == 0
 
 def string::substring(this, start: i32, len: i32): string {
     let new_str = calloc(len + 1, sizeof(char)) as string
@@ -106,9 +104,5 @@ def system(str: string): i32 extern
 
 def get_environment_variable(name: string): string extern("getenv")
 
-def min(a: i32, b: i32): i32 {
-    return if a < b then a else b
-}
-def max(a: i32, b: i32): i32 {
-    return if a > b then a else b
-}
+def min(a: i32, b: i32): i32 => if a < b then a else b
+def max(a: i32, b: i32): i32 => if a > b then a else b
