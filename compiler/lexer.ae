@@ -255,6 +255,9 @@ def Lexer::lex(&this): &Vector {
             }
         }
     }
+
+    // We can assume EOF acts like a newline
+    .seen_newline = true
     .push_type(TokenType::EOF, len: 0)
     return .tokens
 }
