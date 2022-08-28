@@ -362,7 +362,7 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
         if .token_is(end_type) break
         match .token().type {
             TokenType::OpenParen => {
-                let paren_span = .consume(TokenType::OpenParen).span
+                .consume(TokenType::OpenParen)
                 let args = Vector::new()
                 while not .token_is(TokenType::CloseParen) {
                     let label = null as &AST
@@ -378,9 +378,10 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
                         .consume(TokenType::Comma)
                     }
                 }
-                .consume(TokenType::CloseParen)
+
+                let end = .consume(TokenType::CloseParen)
                 let call_type = ASTType::Call
-                let call = AST::new(call_type, paren_span)
+                let call = AST::new(call_type, node.span.join(end.span))
                 call.u.call.callee = node
                 call.u.call.args = args
                 call.u.call.added_method_arg = false
@@ -597,6 +598,7 @@ def Parser::parse_match(&this): &AST {
             cases.push(_case)
         }
     }
+    node.span = op.span.join(.token().span)
     .consume(TokenType::CloseCurly)
     node.u.match_stmt.cases = cases
 

@@ -1778,6 +1778,7 @@ Vector *Lexer__lex(Lexer *this) {
       } break;
     }
   } 
+  this->seen_newline = true;
   Lexer__push_type(this, TokenType__EOF, 0);
   return this->tokens;
 }
@@ -2905,7 +2906,7 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
     
     switch (Parser__token(this)->type) {
       case TokenType__OpenParen: {
-        Span paren_span = Parser__consume(this, TokenType__OpenParen)->span;
+        Parser__consume(this, TokenType__OpenParen);
         Vector *args = Vector__new();
         while ((!Parser__token_is(this, TokenType__CloseParen))) {
           AST *label = ((AST *)NULL);
@@ -2920,9 +2921,9 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
             Parser__consume(this, TokenType__Comma);
           } 
         } 
-        Parser__consume(this, TokenType__CloseParen);
+        Token *end = Parser__consume(this, TokenType__CloseParen);
         ASTType call_type = ASTType__Call;
-        AST *call = AST__new(call_type, paren_span);
+        AST *call = AST__new(call_type, Span__join(node->span, end->span));
         call->u.call.callee = node;
         call->u.call.args = args;
         call->u.call.added_method_arg = false;
@@ -3141,6 +3142,7 @@ AST *Parser__parse_match(Parser *this) {
       Vector__push(cases, _case);
     } 
   } 
+  node->span = Span__join(op->span, Parser__token(this)->span);
   Parser__consume(this, TokenType__CloseCurly);
   node->u.match_stmt.cases = cases;
   return node;
