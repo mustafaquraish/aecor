@@ -61,6 +61,10 @@ def File::puts(&this, str: string) {
 }
 
 def exit(code: i32) exits extern
+def panic(msg: string) exits {
+    println("%s", msg)
+    exit(1)
+}
 
 def string::len(this): i32 extern("strlen")
 def string::compare(this, str2: string): i32 extern("strcmp")

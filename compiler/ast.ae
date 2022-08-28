@@ -142,10 +142,8 @@ def ASTType::from_token(type: TokenType): ASTType => match type {
     SlashEquals => ASTType::DivideEquals
     Star => ASTType::Multiply
     StarEquals => ASTType::MultiplyEquals
-
     else => {
-        println("Unhandled token type in ASTType::from_token: %s", type.str())
-        exit(1)
+        panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
     }
 }
 

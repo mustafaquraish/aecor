@@ -29,9 +29,7 @@ def TypeChecker::push_scope(&this) {
     .scopes.push(scope)
 }
 
-def TypeChecker::scope(&this): &Map {
-    return .scopes.back() as &Map
-}
+def TypeChecker::scope(&this): &Map => .scopes.back()
 
 def TypeChecker::pop_scope(&this) {
     let scope = .scopes.pop() as &Map
@@ -237,20 +235,19 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             )
         }
 
-        if arg.label? {
-            if param.name.eq("") {
-                error_span_note_span(
-                    arg.label.span, "Label on non-labeled parameter",
-                    param.span, "This parameter does not have a name"
-                )
-            }
-            let label = arg.label.u.ident.name
-            if not label.eq(param.name) {
-                error_span_note_span(
-                    arg.label.span, "Label on parameter does not match parameter name",
-                    param.span, `Expected '{param.name}', got '{label}'`
-                )
-            }
+        if not arg.label? continue
+        if param.name.eq("") {
+            error_span_note_span(
+                arg.label.span, "Label on non-labeled parameter",
+                param.span, "This parameter does not have a name"
+            )
+        }
+        let label = arg.label.u.ident.name
+        if not label.eq(param.name) {
+            error_span_note_span(
+                arg.label.span, "Label on parameter does not match parameter name",
+                param.span, `Expected '{param.name}', got '{label}'`
+            )
         }
     }
 
@@ -524,7 +521,6 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = expr_type.ptr
         }
         PlusEquals | MinusEquals | DivideEquals | MultiplyEquals => {
-            // TODO: Only allow assignments to l-values, reject literals
             let lhs = .check_expression(node.u.binary.lhs)
             let rhs = .check_expression(node.u.binary.rhs)
 
@@ -651,9 +647,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = node.etype
         }
         else => {
-            println("%s: ", node.span.str())
-            println("Unhandled type in check_expression: %s", node.type.str())
-            exit(1)
+            panic(`Unhandled type in check_expression: {node.type.str()}`)
         }
     }
     etype = etype.decay_array()
@@ -672,25 +666,24 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
         else => .check_statement(body)
     }
 
-    if is_expr {
-        let ret = body.etype
-
-        // For now, we'll allow expression statements to early-return from the function.
-        // Maybe this should be disallowed?
-        if body.returns {
-            // Do nothing
-        } else if not ret? {
-            error_span(body.span, "Must yield a value in this branch")
-        } else if not node.etype? {
-            node.etype = ret
-        } else if not node.etype.eq(ret) {
-            error_span_note(
-                body.span, "Yield type doesn't match previous branches",
-                `Expected type '{node.etype.str()}', got '{ret.str()}'`
-            )
-        }
-    }
     node.returns = node.returns and body.returns
+    if not is_expr return
+
+    // For now, we'll allow expression statements to early-return from the function.
+    // Maybe this should be disallowed?
+    let ret = body.etype
+    if body.returns {
+        // Do nothing
+    } else if not ret? {
+        error_span(body.span, "Must yield a value in this branch")
+    } else if not node.etype? {
+        node.etype = ret
+    } else if not node.etype.eq(ret) {
+        error_span_note(
+            body.span, "Yield type doesn't match previous branches",
+            `Expected type '{node.etype.str()}', got '{ret.str()}'`
+        )
+    }
 }
 
 def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_expr: bool) {
@@ -971,16 +964,15 @@ def TypeChecker::check_block(&this, node: &AST, can_yield: bool) {
         if statement.returns {
             node.returns = true
         }
-        if statement.type == ASTType::Yield {
-            if node.etype? {
-                error_span_note_span(
-                    statement.span, "Cannot yield multiple times in a block",
-                    yield_span, "Previously yield here is here"
-                )
-            }
-            node.etype = statement.etype
-            yield_span = statement.span
+        if statement.type != ASTType::Yield continue
+        if node.etype? {
+            error_span_note_span(
+                statement.span, "Cannot yield multiple times in a block",
+                yield_span, "Previously yield here is here"
+            )
         }
+        node.etype = statement.etype
+        yield_span = statement.span
     }
 
     .pop_scope()

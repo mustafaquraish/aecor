@@ -249,8 +249,7 @@ def Lexer::lex(&this): &Vector {
                     .push(Token::from_ident(text, Span(start_loc, .loc)))
 
                 } else {
-                    println("%s: Unrecognized char in lexer: '%c'", .loc.str(), c)
-                    exit(1)
+                    panic(`{.loc.str()}: Unrecognized char in lexer: '{c}'`)
                 }
             }
         }

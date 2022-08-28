@@ -142,11 +142,9 @@ def CodeGenerator::gen_format_string(&this, node: &AST) {
             Bool => .out.puts("%s")
             F32 | F64 => .out.puts("%f")
             Char => .out.puts("%c")
-            Pointer => {
-                if expr_type.ptr.base == BaseType::Char
-                    .out.puts("%s")
-                else
-                    .out.puts("%p")
+            Pointer => match expr_type.ptr.base {
+                Char => .out.puts("%s")
+                else => .out.puts("%p")
             }
             else => error_span(expr.span, "Invalid type for format string")
         }
@@ -193,8 +191,7 @@ def CodeGenerator::get_op(type: ASTType): string => match type {
     RightShift => " >> "
     UnaryMinus => "-"
     else => {
-        println("Unknown op type in get_op: %s", type.str())
-        exit(1)
+        panic(`Unknown op type in get_op: {type.str()}`)
     }
 }
 
@@ -382,8 +379,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_expression(node.u.binary.rhs)
         }
         else => {
-            println("unknown type in gen_expression: %s", node.type.str())
-            exit(1)
+            panic(`Unhandled expression type: {node.type.str()}`)
         }
     }
 }
