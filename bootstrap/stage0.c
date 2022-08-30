@@ -854,27 +854,24 @@ void Vector__push_front(Vector *this, void *val) {
 }
 
 void *Vector__pop(Vector *this) {
-  if (this->size == 0) {
-    printf("pop on empty vector" "\n");
-    exit(1);
-  } 
+  if (this->size == 0) 
+  panic("pop on empty vector");
+  
   this->size -= 1;
   return this->data[this->size];
 }
 
 void *Vector__back(Vector *this) {
-  if (this->size == 0) {
-    printf("back on empty vector" "\n");
-    exit(1);
-  } 
+  if (this->size == 0) 
+  panic("back on empty vector");
+  
   return this->data[(this->size - 1)];
 }
 
 void *Vector__at(Vector *this, i32 i) {
-  if (((i < 0) || (i >= this->size))) {
-    printf("at out of bounds in vector" "\n");
-    exit(1);
-  } 
+  if (((i < 0) || (i >= this->size))) 
+  panic("at out of bounds in vector");
+  
   return this->data[i];
 }
 
@@ -3094,17 +3091,36 @@ AST *Parser__parse_bw_or(Parser *this, TokenType end_type) {
 }
 
 AST *Parser__parse_relational(Parser *this, TokenType end_type) {
-  AST *lhs = Parser__parse_bw_or(this, end_type);
+  Vector *operands = Vector__new();
+  Vector *operators = Vector__new();
+  Vector__push(operands, Parser__parse_bw_or(this, end_type));
   while ((((((Parser__token_is(this, TokenType__LessThan) || Parser__token_is(this, TokenType__GreaterThan)) || Parser__token_is(this, TokenType__LessThanEquals)) || Parser__token_is(this, TokenType__GreaterThanEquals)) || Parser__token_is(this, TokenType__EqualEquals)) || Parser__token_is(this, TokenType__NotEquals))) {
     if (Parser__token_is(this, end_type)) 
     break;
     
-    ASTType op = ASTType__from_token(Parser__token(this)->type);
+    Vector__push(operators, Parser__token(this));
     this->curr += 1;
-    AST *rhs = Parser__parse_bw_or(this, end_type);
-    lhs = AST__new_binop(op, lhs, rhs);
+    AST *term = Parser__parse_bw_or(this, end_type);
+    Vector__push(operands, term);
   } 
-  return lhs;
+  if (operators->size == 0) 
+  return Vector__at(operands, 0);
+  
+  AST *root = ((AST *)NULL);
+  for (i32 i = 0; (i < operators->size); i += 1) {
+    Token *tok = ((Token *)Vector__at(operators, i));
+    AST *lhs = ((AST *)Vector__at(operands, i));
+    AST *rhs = ((AST *)Vector__at(operands, (i + 1)));
+    AST *op = AST__new_binop(ASTType__from_token(tok->type), lhs, rhs);
+    if (((bool)root)) {
+      root = AST__new_binop(ASTType__And, root, op);
+    }  else {
+      root = op;
+    } 
+  } 
+  Vector__free(operands);
+  Vector__free(operators);
+  return root;
 }
 
 AST *Parser__parse_logical_and(Parser *this, TokenType end_type) {

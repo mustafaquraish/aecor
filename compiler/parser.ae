@@ -513,7 +513,10 @@ def Parser::parse_bw_or(&this, end_type: TokenType): &AST {
 }
 
 def Parser::parse_relational(&this, end_type: TokenType): &AST {
-    let lhs = .parse_bw_or(end_type)
+    let operands = Vector::new()
+    let operators = Vector::new()
+
+    operands.push(.parse_bw_or(end_type))
     while .token_is(TokenType::LessThan) or
             .token_is(TokenType::GreaterThan) or
             .token_is(TokenType::LessThanEquals) or
@@ -521,12 +524,31 @@ def Parser::parse_relational(&this, end_type: TokenType): &AST {
             .token_is(TokenType::EqualEquals) or
             .token_is(TokenType::NotEquals) {
         if .token_is(end_type) break
-        let op = ASTType::from_token(.token().type)
+        operators.push(.token())
         .curr += 1
-        let rhs = .parse_bw_or(end_type)
-        lhs = AST::new_binop(op, lhs, rhs)
+        let term = .parse_bw_or(end_type)
+        operands.push(term)
     }
-    return lhs
+
+    if operators.size == 0 then return operands.at(0)
+
+    let root = null as &AST
+    for let i = 0; i < operators.size; i += 1 {
+        let tok = operators.at(i) as &Token
+        let lhs = operands.at(i) as &AST
+        let rhs = operands.at(i+1) as &AST
+        let op = AST::new_binop(ASTType::from_token(tok.type), lhs, rhs)
+        if root? {
+            root = AST::new_binop(ASTType::And, root, op)
+        } else {
+            root = op
+        }
+    }
+
+    operands.free()
+    operators.free()
+
+    return root
 }
 
 def Parser::parse_logical_and(&this, end_type: TokenType): &AST {

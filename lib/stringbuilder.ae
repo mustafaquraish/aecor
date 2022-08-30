@@ -43,10 +43,5 @@ def StringBuilder::putsf(&this, s: string) {
     free(s)
 }
 
-def StringBuilder::str(&this): string {
-    return .data
-}
-
-def StringBuilder::new_str(&this): string {
-    return .data.copy()
-}
+def StringBuilder::str(&this): string => .data
+def StringBuilder::new_str(&this): string => .data.copy()

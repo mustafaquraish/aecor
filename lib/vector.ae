@@ -46,27 +46,18 @@ def Vector::push_front(&this, val: untyped_ptr) {
 }
 
 def Vector::pop(&this): untyped_ptr {
-    if .size == 0 {
-        println("pop on empty vector")
-        exit(1)
-    }
+    if .size == 0 then panic("pop on empty vector")
     .size -= 1
     return .data[.size]
 }
 
 def Vector::back(&this): untyped_ptr {
-    if .size == 0 {
-        println("back on empty vector")
-        exit(1)
-    }
+    if .size == 0 then panic("back on empty vector")
     return .data[.size - 1]
 }
 
 def Vector::at(&this, i: i32): untyped_ptr {
-    if i < 0 or i >= .size {
-        println("at out of bounds in vector")
-        exit(1)
-    }
+    if i < 0 or i >= .size then panic("at out of bounds in vector")
     return .data[i]
 }
 
