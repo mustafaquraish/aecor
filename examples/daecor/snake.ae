@@ -1,0 +1,167 @@
+// Ported from https://github.com/DogeSSBM/SnakeDoge
+
+use "lib/daecor/all.ae"
+
+enum Square { SU, SR, SD, SL, SF, A, E }
+
+def Square::is_snake(this): bool {
+    return match this {
+        SU | SR | SD | SL | SF => true
+        else => false
+    }
+}
+
+struct Board {
+    scale: i32
+    size: Vec2i
+    grid: &&Square
+}
+
+struct Snake {
+    head: Vec2i
+    dir: Direction
+}
+
+def Board::draw(&this) {
+	for let y = 0; y < .size.y; y += 1 {
+		for let x = 0; x < .size.x; x += 1 {
+            match .grid[x][y] {
+                SU | SR | SD | SL | SF => {
+                    set_color(Color::Green())
+                    fill_square(Vec2i(x, y).multi(.scale), .scale)
+                }
+                A => {
+                    set_color(Color::Red())
+                    fill_square(Vec2i(x, y).multi(.scale), .scale)
+                }
+                else => {
+                    set_color(Color::Grey())
+                    draw_square(Vec2i(x, y).multi(.scale), .scale)
+                }
+			}
+		}
+	}
+}
+
+def Board::place_apple(&this) {
+    while true {
+        let x = randint() % .size.x
+        let y = randint() % .size.y
+        if not .grid[x][y].is_snake() {
+            .grid[x][y] = Square::A
+            break
+        }
+    }
+}
+
+def Board::next_snake(&this, pos: Vec2i): Vec2i {
+    let cur = .grid[pos.x][pos.y]
+    return match cur {
+        SU | SR | SD | SL => pos.shift(cur as Direction, 1)
+        SF | A | E => pos
+    }
+}
+
+def Board::lose(&this) exits {
+	for let x = 0; x < .size.x; x += 1 {
+		free(.grid[x])
+    }
+	free(.grid)
+	println("Game over")
+	exit(0)
+}
+
+def Board::move_snake(&this, snake: Snake): Vec2i {
+    let ret = snake.head.shift(snake.dir, 1)
+
+    if (not in_bounds(ret.x, 0, .size.x) or
+	        not in_bounds(ret.y, 0, .size.y) or
+	        .grid[ret.x][ret.y].is_snake()) {
+        .lose()
+    }
+	let is_apple = .grid[ret.x][ret.y] == Square::A
+	if not is_apple {
+        let pos: Vec2i
+		let next = snake.head;
+		while true {
+			pos = next
+			next = .next_snake(pos)
+            if .grid[next.x][next.y] == Square::SF {
+                break
+            }
+		}
+		.grid[next.x][next.y] = Square::E
+		.grid[pos.x][pos.y] = Square::SF
+	}
+	.grid[ret.x][ret.y] = snake.dir.inv() as Square
+	if is_apple {
+		.place_apple()
+    }
+	return ret
+}
+
+def read_dir_keys(dir_keys: &bool) {
+	dir_keys[0] = dir_keys[0] or keys.pressed(Key::Up)
+	dir_keys[1] = dir_keys[1] or keys.pressed(Key::Right)
+	dir_keys[2] = dir_keys[2] or keys.pressed(Key::Down)
+	dir_keys[3] = dir_keys[3] or keys.pressed(Key::Left)
+}
+
+
+def get_dir(cur: Direction, dir_keys: &bool): Direction {
+	let ret = cur
+	for let i = 0; i < 4; i += 1 {
+        let dir = i as Direction
+		if (dir_keys[i] and
+                not dir_keys[dir.inv() as i32] and
+                dir != cur.inv()) {
+            ret = dir
+        }
+	}
+	return ret
+}
+
+def main() {
+	init()
+    let board: Board
+    board.scale = 10
+    board.size = get_window_size().divi(board.scale)
+    board.grid = calloc(sizeof(&Square), board.size.x)
+
+	for let x = 0; x < board.size.x; x += 1{
+		board.grid[x] = calloc(sizeof(Square), board.size.y)
+        for let y = 0; y < board.size.y; y += 1 {
+            board.grid[x][y] = Square::E
+        }
+	}
+
+	let snake = Snake(board.size.divi(2), Direction::Left)
+	board.grid[snake.head.x][snake.head.y] = Square::SR;
+	board.grid[snake.head.x][snake.head.y] = Square::SF;
+    board.place_apple()
+
+	let frameCount = 0;
+    let dir_keys: [bool; 4]
+    set_memory(dir_keys, 0 as u8, sizeof(bool) * 4)
+
+	while true {
+        let t = frame_start()
+
+        if keys.pressed(Key::Escape) or keys.pressed(Key::Q) {
+            break
+        }
+
+		read_dir_keys(dir_keys)
+        frameCount += 1
+		if frameCount > gfx.FPS / 8 {
+			frameCount = 0
+			snake.dir = get_dir(snake.dir, dir_keys)
+			snake.head = board.move_snake(snake)
+            set_memory(dir_keys, 0 as u8, sizeof(bool) * 4)
+		}
+        board.draw()
+
+        frame_end(t);
+	}
+	return 0;
+}

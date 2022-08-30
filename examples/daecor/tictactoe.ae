@@ -1,0 +1,102 @@
+use "lib/daecor/all.ae"
+
+enum Marker { Empty, X, O, }
+struct Board { cells: [[Marker; 3]; 3] }
+
+def hovered_cell(): Vec2i {
+    let length = get_window_size().min()
+    let stride = length / 3
+    let top_left = get_window_mid().subi(length / 2)
+
+    let pos = mouse.pos().sub(top_left)
+    if pos.x < 0 or pos.y < 0 {
+        return Vec2i(-1, -1)
+    }
+
+    let cell = pos.divi(stride)
+    if cell.x < 0 or cell.x > 2 or cell.y < 0 or cell.y > 2 {
+        return Vec2i(-1, -1)
+    }
+    return cell
+}
+
+def Board::draw(&this) {
+    let length = get_window_size().min()
+    let stride = length / 3
+
+    set_font_size(stride)
+    let thickness = 8
+    let top_left = get_window_mid().subi(length / 2)
+
+    let cell = hovered_cell()
+    if cell.x >= 0 and cell.y >= 0 {
+        set_color(Color(100, 100, 100, 255))
+        let corner = top_left.add(cell.multi(stride))
+        let rect = Rect(corner.x, corner.y, stride, stride)
+        fill_rect(rect)
+    }
+
+    set_color(Color::White())
+    for let i = 1; i < 3; i += 1 {
+        let top = top_left.add(Vec2i(stride * i, 0))
+        let left = top_left.add(Vec2i(0, stride * i))
+
+        fill_rect(Rect(top.x, top.y, thickness, length))
+        fill_rect(Rect(left.x, left.y, length, thickness))
+    }
+
+    for let x = 0; x < 3; x += 1 {
+        for let y = 0; y < 3; y += 1 {
+            let loc = top_left.add(Vec2i(x, y).multi(stride)).addi(stride / 2)
+            match .cells[x][y] {
+                Empty => {}
+                X => {
+                    set_text_color(Color::Red())
+                    draw_text_centered("X", loc)
+                }
+                O => {
+                    set_text_color(Color::Blue())
+                    draw_text_centered("O", loc)
+                }
+            }
+        }
+    }
+}
+
+
+def main() {
+    let board: Board
+    set_memory(&board, 0 as u8, sizeof(Board))
+
+    let player = Marker::X
+
+    init()
+    while true {
+        let T = frame_start()
+        if keys.pressed(Key::Escape) or keys.pressed(Key::Q) {
+            break
+        }
+
+        if keys.pressed(Key::Space) or keys.pressed(Key::R) {
+            for let x = 0; x < 3; x += 1 {
+                for let y = 0; y < 3; y += 1 {
+                    board.cells[x][y] = Marker::Empty
+                }
+            }
+        }
+
+        if mouse.pressed(MouseButton::Left) {
+            let cell = hovered_cell()
+            if cell.x >= 0 and cell.y >= 0 {
+                if board.cells[cell.x][cell.y] == Marker::Empty {
+                    board.cells[cell.x][cell.y] = player
+                    player = if player == Marker::X then Marker::O else Marker::X
+                }
+            }
+        }
+
+        board.draw()
+        frame_end(T)
+    }
+    return 0
+}

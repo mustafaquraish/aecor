@@ -1,0 +1,100 @@
+use "lib/daecor/all.ae"
+use "lib/vector.ae"
+
+const X = 5
+const Y = X * 8
+
+struct Circle {
+    pos: Vec2i
+    radius: i32
+}
+
+struct Foo {
+    lvalues: [i32; Y]
+}
+
+def Circle::new(pos: Vec2i, radius: i32): &Circle {
+    let circle = calloc(1, sizeof(Circle)) as &Circle
+    *circle = Circle(pos, radius)
+    return circle
+}
+
+let circles: &Vector
+
+def draw() {
+    set_color(Color::Red())
+    for let i = 0; i < circles.size; i += 1 {
+        let circle = circles.at(i) as &Circle
+        fill_circle(circle.pos, circle.radius)
+    }
+    let points: [Vec2i; circles.size]
+    for let i = 0; i < circles.size; i += 1 {
+        let circle = circles.at(i) as &Circle
+        points[i] = circle.pos
+    }
+    draw_bezier(circles.size, points, 10)
+}
+
+def circle_hover_idx(): i32 {
+    let mpos = mouse.pos()
+    for let i = 0; i < circles.size; i += 1 {
+        let circle = circles.at(i) as &Circle
+        let thresh = circle.radius + 10
+        if circle.pos.sub(mpos).length_sq() < thresh * thresh {
+            return i
+        }
+    }
+    return -1
+}
+
+def main() {
+	init()
+    circles = Vector::new()
+
+    let dragging = false
+    let which = -1
+
+    while true {
+        let t = frame_start()
+
+        if not dragging {
+            let cur = circle_hover_idx()
+            if cur != which {
+                if cur < 0 {
+                    set_cursor(CursorType::Arrow)
+                } else {
+                    set_cursor(CursorType::Hand)
+                }
+                which = cur
+            }
+        }
+
+        if mouse.pressed(MouseButton::Left) {
+            if which >= 0 {
+                dragging = true
+            } else {
+                let circle = Circle::new(mouse.pos(), 10)
+                circles.push(circle)
+            }
+        }
+
+        if mouse.released(MouseButton::Left) {
+            dragging = false
+        }
+
+        if dragging {
+            let circle = circles.at(which) as &Circle
+            circle.pos = mouse.pos()
+        }
+
+        if mouse.pressed(MouseButton::Right) {
+            if circles.size > 0 {
+                free(circles.pop())
+            }
+        }
+
+        draw()
+        frame_end(t);
+	}
+	return 0;
+}
