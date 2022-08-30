@@ -4559,7 +4559,7 @@ void TypeChecker__check_statement(TypeChecker *this, AST *node) {
       if (((bool)node->u.loop.init)) {
         TypeChecker__check_statement(this, node->u.loop.init);
       } 
-      if (((bool)node->u.loop.init)) {
+      if (((bool)node->u.loop.cond)) {
         Type *cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
         if ((cond_type->base != BaseType__Bool)) {
           error_span_note(node->u.loop.cond->span, "Condition must be boolean", format_string("Got type '%s'", Type__str(cond_type)));

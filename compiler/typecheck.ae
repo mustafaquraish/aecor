@@ -1037,7 +1037,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
             if node.u.loop.init? {
                 .check_statement(node.u.loop.init)
             }
-            if node.u.loop.init? {
+            if node.u.loop.cond? {
                 let cond_type = .check_expression(node.u.loop.cond)
                 if cond_type.base != BaseType::Bool {
                     error_span_note(
