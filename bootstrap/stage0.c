@@ -403,6 +403,7 @@ struct FuncCall {
 };
 
 struct Constructor {
+  AST *callee;
   Structure *struc;
   Vector *args;
 };
@@ -415,6 +416,8 @@ struct Member {
 };
 
 struct EnumValue {
+  AST *lhs;
+  AST *rhs;
   Structure *struct_def;
   Variable *var;
 };
@@ -545,8 +548,10 @@ void *Vector__at(Vector *this, i32 i);
 bool Vector__empty(Vector *this);
 void Vector__free(Vector *this);
 char *Location__str(Location this);
+bool Location__is_before(Location *this, Location other);
 char *Span__str(Span this);
 Span Span__join(Span this, Span other);
+bool Span__contains_loc(Span this, Location loc);
 Token *Token__new(TokenType type, Span span, char *text);
 Token *Token__from_type(TokenType type, Span span);
 Token *Token__from_ident(char *text, Span span);
@@ -888,6 +893,16 @@ char *Location__str(Location this) {
   return format_string("%s:%d:%d", this.filename, this.line, this.col);
 }
 
+bool Location__is_before(Location *this, Location other) {
+  if ((this->line > other.line)) 
+  return false;
+  
+  if ((this->line < other.line)) 
+  return true;
+  
+  return (this->col <= other.col);
+}
+
 char *Span__str(Span this) {
   return format_string("%s => %s", Location__str(this.start), Location__str(this.end));
 }
@@ -897,6 +912,13 @@ Span Span__join(Span this, Span other) {
   span.start = this.start;
   span.end = other.end;
   return span;
+}
+
+bool Span__contains_loc(Span this, Location loc) {
+  if ((!string__eq(this.start.filename, loc.filename))) 
+  return false;
+  
+  return (Location__is_before((&this.start), loc) && Location__is_before((&loc), this.end));
 }
 
 Token *Token__new(TokenType type, Span span, char *text) {
@@ -3501,7 +3523,7 @@ Structure *Parser__parse_struct(Parser *this) {
       Token *name = Parser__consume(this, TokenType__Identifier);
       Parser__consume(this, TokenType__Colon);
       Type *type = Parser__parse_type(this);
-      Variable *var = Variable__new(name->text, type, Span__join(name->span, type->span));
+      Variable *var = Variable__new(name->text, type, name->span);
       Vector__push(struc->fields, var);
       if ((!Parser__token_is(this, TokenType__CloseCurly))) {
         Parser__consume_newline_or(this, TokenType__Comma);
@@ -3531,7 +3553,7 @@ AST *Parser__parse_global_value(Parser *this, bool is_constant) {
   if (Parser__consume_if(this, TokenType__Colon)) {
     type = Parser__parse_type(this);
   } 
-  Variable *var = Variable__new(name->text, type, Span__join(start_token->span, Parser__token(this)->span));
+  Variable *var = Variable__new(name->text, type, name->span);
   node->u.var_decl.var = var;
   if (Parser__consume_if(this, TokenType__Extern)) {
     var->is_extern = true;
@@ -3804,9 +3826,11 @@ Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *n
     error_span(node->span, "Cannot use constructor for enum or union");
   } 
   Vector *args = node->u.call.args;
+  AST *callee = node->u.call.callee;
   node->type = ASTType__Constructor;
   node->u.constructor.struc = struc;
   node->u.constructor.args = args;
+  node->u.constructor.callee = callee;
   Vector *fields = struc->fields;
   if ((fields->size != args->size)) {
     error_span_note_span(node->span, "Constructor has wrong number of arguments", struc->span, format_string("Struct has %d fields, but got %d arguments", fields->size, args->size));
@@ -4193,17 +4217,24 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       if ((!((bool)struc))) {
         error_span(node->u.member.lhs->span, "Unknown struct with this name");
       } 
+      AST *lhs = node->u.member.lhs;
+      lhs->etype = struc->type;
       AST *rhs = node->u.member.rhs;
       char *field_name = rhs->u.ident.name;
       Variable *var = TypeChecker__get_struct_member(this, struct_name, field_name);
       Map *s_methods = ((Map *)Map__get(this->methods, struct_name));
       Function *method = ((Function *)Map__get(s_methods, field_name));
       if ((struc->is_enum && ((bool)var))) {
+        rhs->u.ident.var = var;
         node->type = ASTType__EnumValue;
         node->u.enum_val.struct_def = struc;
         node->u.enum_val.var = var;
+        node->u.enum_val.lhs = lhs;
+        node->u.enum_val.rhs = rhs;
         etype = struc->type;
       }  else       if (((bool)method)) {
+        rhs->u.ident.is_function = true;
+        rhs->u.ident.func = method;
         etype = method->type;
       }  else {
         TypeChecker__error_unknown_member(this, node, struc->type, field_name, true);
@@ -4226,10 +4257,13 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       Function *method = ((Function *)Map__get(s_methods, field_name));
       if (((((bool)struc) && ((bool)field)) && (!struc->is_enum))) {
         etype = field->type;
+        rhs->u.ident.var = field;
       }  else       if (((bool)method)) {
         if (method->is_static) {
           error_span_note_span(node->span, "Member access requires a non-static method", method->span, "This is a static method");
         } 
+        rhs->u.ident.is_function = true;
+        rhs->u.ident.func = method;
         etype = method->type;
       }  else {
         TypeChecker__error_unknown_member(this, node, struct_type, field_name, false);
@@ -4315,9 +4349,13 @@ void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST 
       if ((!((bool)var))) {
         error_span(cond->span, "Enum has no field with this name");
       } 
+      AST *rhs = AST__new(ASTType__Identifier, cond->span);
+      (*rhs) = (*cond);
       cond->type = ASTType__EnumValue;
       cond->u.enum_val.struct_def = struc;
       cond->u.enum_val.var = var;
+      cond->u.enum_val.lhs = NULL;
+      cond->u.enum_val.rhs = rhs;
       cond->etype = struc->type;
     }  else {
       Type *cond_type = TypeChecker__check_expression(this, cond);

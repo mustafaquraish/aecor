@@ -309,8 +309,9 @@ struct FuncCall {
 }
 
 struct Constructor {
+    callee: &AST      // Identifier
     struc: &Structure
-    args: &Vector    // Vector<&Argument>
+    args: &Vector     // Vector<&Argument>
 }
 
 struct Member {
@@ -321,6 +322,8 @@ struct Member {
 }
 
 struct EnumValue {
+    lhs: &AST
+    rhs: &AST
     struct_def: &Structure
     var: &Variable
 }

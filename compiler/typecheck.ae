@@ -143,12 +143,14 @@ def TypeChecker::check_constructor(&this, struc: &Structure, node: &AST): &Type 
     }
 
     let args = node.u.call.args
+    let callee = node.u.call.callee
 
     // We want to change the type of the node to be a constructor here, since this
     // is not something we can determine during parsing.
     node.type = ASTType::Constructor
     node.u.constructor.struc = struc
     node.u.constructor.args = args
+    node.u.constructor.callee = callee
 
     let fields = struc.fields
     if fields.size != args.size {
@@ -612,6 +614,9 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 error_span(node.u.member.lhs.span, "Unknown struct with this name")
             }
 
+            let lhs = node.u.member.lhs
+            lhs.etype = struc.type
+
             let rhs = node.u.member.rhs
             let field_name = rhs.u.ident.name
             let var = .get_struct_member(struct_name, field_name)
@@ -619,14 +624,19 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             let s_methods = .methods.get(struct_name) as &Map
             let method = s_methods.get(field_name) as &Function
             if struc.is_enum and var? {
+                rhs.u.ident.var = var
                 // FIXME: This is a hack, we're modifying the AST Node type
                 // This is an enum value
                 node.type = ASTType::EnumValue
                 node.u.enum_val.struct_def = struc
                 node.u.enum_val.var = var
+                node.u.enum_val.lhs = lhs
+                node.u.enum_val.rhs = rhs
                 etype = struc.type
 
             } else if method? {
+                rhs.u.ident.is_function = true
+                rhs.u.ident.func = method
                 etype = method.type
             } else {
                 .error_unknown_member(node, struc.type, field_name, is_static: true)
@@ -655,6 +665,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
 
             if struc? and field? and not struc.is_enum {
                 etype = field.type
+                rhs.u.ident.var = field
             } else if method? {
                 if method.is_static {
                     error_span_note_span(
@@ -662,6 +673,8 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                         method.span, "This is a static method"
                     )
                 }
+                rhs.u.ident.is_function = true
+                rhs.u.ident.func = method
                 etype = method.type
             } else {
                 .error_unknown_member(node, struct_type, field_name, is_static: false)
@@ -750,10 +763,15 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
                 error_span(cond.span, "Enum has no field with this name")
             }
 
+            let rhs = AST::new(ASTType::Identifier, cond.span)
+            *rhs = *cond
+
             // FIXME: This is a hack, we're modifying the AST Node type
             cond.type = ASTType::EnumValue
             cond.u.enum_val.struct_def = struc
             cond.u.enum_val.var = var
+            cond.u.enum_val.lhs = null
+            cond.u.enum_val.rhs = rhs
             cond.etype = struc.type
 
         } else {

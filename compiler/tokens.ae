@@ -29,6 +29,7 @@ def Span::join(this, other: Span): Span {
 }
 
 def Span::contains_loc(this, loc: Location): bool {
+    if not .start.filename.eq(loc.filename) return false
     return .start.is_before(loc) and loc.is_before(.end)
 }
 

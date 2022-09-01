@@ -956,7 +956,7 @@ def Parser::parse_struct(&this): &Structure {
             .consume(TokenType::Colon)
             let type = .parse_type()
 
-            let var = Variable::new(name.text, type, name.span.join(type.span))
+            let var = Variable::new(name.text, type, name.span)
             struc.fields.push(var)
             if not .token_is(TokenType::CloseCurly) {
                 .consume_newline_or(TokenType::Comma)
@@ -987,7 +987,7 @@ def Parser::parse_global_value(&this, is_constant: bool): &AST {
     let type = null as &Type
     if .consume_if(TokenType::Colon) { type = .parse_type(); }
 
-    let var = Variable::new(name.text, type, start_token.span.join(.token().span))
+    let var = Variable::new(name.text, type, name.span)
     node.u.var_decl.var = var
 
     if .consume_if(TokenType::Extern) {
