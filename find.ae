@@ -2,22 +2,78 @@ use "compiler/lexer.ae"
 use "compiler/parser.ae"
 use "compiler/typecheck.ae"
 
+enum UsageType {
+    Literal
+    Variable
+    Type
+    Function
+}
+
+def UsageType::str(this): string => match this {
+    Literal => "literal"
+    Variable => "variable"
+    Type => "type"
+    Function => "function"
+}
+
+union UsageUnion {
+    var: &Variable
+    type: &Type
+    func: &Function
+    lit: &AST
+}
+
+struct Usage {
+    type: UsageType
+    u: UsageUnion
+}
+
+def Usage::span(&this): Span => match .type {
+    Variable => .u.var.span
+    Type => if .u.type.struct_def? {
+        yield .u.type.struct_def.span
+    } else {
+        yield .u.type.span
+    }
+    Function => .u.func.span
+    Literal => .u.lit.span
+}
+
+def Usage::etype(&this): &Type => match .type {
+    Variable => .u.var.type
+    Type => .u.type
+    Function => .u.func.type
+    Literal => .u.lit.etype
+}
+
+def Usage::new(type: UsageType): &Usage {
+    let usage = calloc(1, sizeof(Usage)) as &Usage
+    usage.type = type
+    return usage
+}
+
 // Namespace thing again
 struct Finder {
     loc: Location // Location we are looking for
-    res: &Span    // Place to store result
+    usage: &Usage
 }
 
-def Finder::make(loc: Location, res: &Span): Finder {
+def Finder::make(loc: Location): Finder {
     let finder: Finder
     finder.loc = loc
-    finder.res = res
     return finder
 }
 
 def Finder::find_in_identifier(&this, node: &AST): bool {
+    let ident = &node.u.ident
     if node.span.contains_loc(.loc) {
-        *this.res = node.span
+        if ident.var? {
+            .usage = Usage::new(UsageType::Variable)
+            .usage.u.var = ident.var
+        } else if ident.func? {
+            .usage = Usage::new(UsageType::Function)
+            .usage.u.func = ident.func
+        }
         return true
     }
     return false
@@ -25,25 +81,112 @@ def Finder::find_in_identifier(&this, node: &AST): bool {
 
 def Finder::find_in_var(&this, var: &Variable): bool {
     if var.span.contains_loc(.loc) {
-        *this.res = var.span
+        .usage = Usage::new(UsageType::Variable)
+        .usage.u.var = var
         return true
     }
     // TODO: check type
     return false
 }
 
+def Finder::find_in_literal(&this, node: &AST): bool {
+    if node.span.contains_loc(.loc) {
+        .usage = Usage::new(UsageType::Literal)
+        .usage.u.lit = node
+        return true
+    }
+    // TODO: check type
+    return false
+}
+
+def Finder::find_in_call_args(&this, args: &Vector): bool {
+    for let i = 0; i < args.size; i += 1 {
+        let arg = args.at(i) as &Argument
+        if arg.label? and .find_in_identifier(arg.label) return true
+        if .find_in_expression(arg.expr) return true
+    }
+    return false
+}
+
 def Finder::find_in_expression(&this, node: &AST): bool {
     match node.type {
-        Identifier => return this.find_in_identifier(node)
-        Assignment => {
-            let lhs = node.u.binary.lhs
-            let rhs = node.u.binary.rhs
-            return .find_in_expression(lhs) or .find_in_expression(rhs)
+        IntLiteral | FloatLiteral | BoolLiteral |
+        StringLiteral | CharLiteral |
+        Null => return .find_in_literal(node)
+
+        FormatStringLiteral => {
+            let fmt = &node.u.fmt_str
+            for let i = 0; i < fmt.exprs.size; i += 1 {
+                if .find_in_expression(fmt.exprs.at(i)) return true
+            }
+            return .find_in_literal(node)
         }
+
+        Identifier => return this.find_in_identifier(node)
         Member => {
             if .find_in_expression(node.u.member.lhs) return true
             if .find_in_identifier(node.u.member.rhs) return true
         }
+        ScopeLookup => {
+            // We actually want to point to the type, not the variable
+            if .find_in_identifier(node.u.member.lhs) {
+                .usage.type = UsageType::Type
+                .usage.u.type = node.u.member.lhs.etype
+                return true
+            }
+            if .find_in_identifier(node.u.member.rhs) return true
+        }
+        EnumValue => {
+            // FIXME: Actually set the type in LHS, not identifier
+            let val = &node.u.enum_val
+            if val.lhs? and .find_in_expression(val.lhs) return true
+            if .find_in_identifier(val.rhs) return true
+        }
+        And | Assignment | BitwiseAnd |
+        BitwiseOr | BitwiseXor | Divide | DivideEquals |
+        Equals | GreaterThan | GreaterThanEquals | Index |
+        LeftShift | LessThan | LessThanEquals | Minus |
+        MinusEquals | Modulus | Multiply | MultiplyEquals |
+        NotEquals | Or | Plus | PlusEquals |
+        RightShift => {
+            let lhs = node.u.binary.lhs
+            let rhs = node.u.binary.rhs
+            return .find_in_expression(lhs) or .find_in_expression(rhs)
+        }
+        Address | Dereference | Not | UnaryMinus |
+        Defer | IsNotNull | Yield => return .find_in_expression(node.u.unary)
+        Call => {
+            let call = &node.u.call
+            if .find_in_expression(call.callee) return true
+            if .find_in_call_args(call.args) return true
+        }
+        Constructor => {
+            let cons = &node.u.constructor
+            if .find_in_expression(cons.callee) return true
+            if .find_in_call_args(cons.args) return true
+        }
+        Cast => {
+            if .find_in_expression(node.u.cast.lhs) return true
+            return .find_in_type(node.u.cast.to)
+        }
+        SizeOf => return .find_in_type(node.u.size_of_type)
+        If => {
+            let stmt = &node.u.if_stmt
+            if .find_in_expression(stmt.cond) return true
+            if .find_in_statement(stmt.body) return true
+            if stmt.els? and .find_in_statement(stmt.els) return true
+        }
+        Match => {
+            let stmt = &node.u.match_stmt
+            if .find_in_expression(stmt.expr) return true
+            for let i = 0; i < stmt.cases.size; i += 1 {
+                let case_ = stmt.cases.at(i) as &MatchCase
+                if .find_in_expression(case_.cond) return true
+                if case_.body? and .find_in_statement(case_.body) return true
+            }
+            if stmt.defolt? and .find_in_statement(stmt.defolt) return true
+        }
+        Break | Continue => {}
         else => {
             println("Unhandled node type in Finder::find_in_expression: %s", node.type.str())
         }
@@ -66,6 +209,7 @@ def Finder::find_in_statement(&this, node: &AST): bool {
             if decl.init? and .find_in_expression(decl.init) return true
         }
         Block => return .find_in_block(node)
+        Return => return node.u.unary? and .find_in_expression(node.u.unary)
         else => return .find_in_expression(node)
     }
     return false
@@ -82,7 +226,8 @@ def Finder::find_in_block(&this, node: &AST): bool {
 def Finder::find_in_type(&this, type: &Type): bool {
     // FIXME: might want to only do this for base type...
     if type.span.contains_loc(.loc) {
-        *this.res = type.span
+        .usage = Usage::new(UsageType::Type)
+        .usage.u.type = type
         return true
     }
     return false
@@ -90,22 +235,34 @@ def Finder::find_in_type(&this, type: &Type): bool {
 
 def Finder::find_in_function(&this, func: &Function): bool {
     if func.span.contains_loc(.loc) {
-        *this.res = func.span
+        .usage = Usage::new(UsageType::Function)
+        .usage.u.func = func
         return true
     }
 
     let params = func.type.params
     for let i = 0; i < params.size; i += 1 {
-        if .find_in_var(params.at(i)) return true
+        let param = params.at(i) as &Variable
+        if .find_in_var(param) return true
+        if .find_in_type(param.type) return true
     }
 
     let ret_type = func.type.return_type
     if ret_type? and .find_in_type(ret_type) return true
 
-    return func.body? and .find_in_block(func.body)
+    return func.body? and .find_in_statement(func.body)
 }
 
 def Finder::find_in_program(&this, program: &Program): bool {
+    for let i = 0; i < program.structures.size; i += 1 {
+        let struc = program.structures.at(i) as &Structure
+        for let j = 0; j < struc.fields.size; j += 1 {
+            let field = struc.fields.at(j) as &Variable
+            if .find_in_var(field) return true
+            if field.type? and .find_in_type(field.type) return true
+        }
+    }
+
     for let i = 0; i < program.functions.size; i += 1 {
         if .find_in_function(program.functions.at(i)) return true
     }
@@ -113,9 +270,20 @@ def Finder::find_in_program(&this, program: &Program): bool {
     return false
 }
 
+def Finder::find(&this, program: &Program): &Usage {
+    if .find_in_program(program) {
+        return .usage
+    }
+    return null
+}
+
+def string::to_i32(this): i32 extern("atoi")
 
 def main(argc: i32, argv: &string) {
-    let filename = "test.ae"
+    if argc < 4 {
+        panic(`Usage: {argv[0]} <file> <line> <col>`)
+    }
+    let filename = argv[1]
 
     let file = File::open(filename, "r")
     let contents = file.slurp()
@@ -131,12 +299,14 @@ def main(argc: i32, argv: &string) {
 
     println("type checked program successfully")
 
-    let loc = Location::make(filename, 25, 23)
-    let res: Span
-    let finder = Finder::make(loc, &res)
+    let loc = Location(filename, argv[2].to_i32(), argv[3].to_i32())
+    let finder = Finder::make(loc)
 
-    if finder.find_in_program(program) {
-        println("found it at: %s", res.str())
+    let usage = finder.find(program)
+    if usage? {
+        println("Found usage:")
+        println("  - type: %s", usage.etype().str())
+        println("  - loc: %s", usage.span().start.str())
     } else {
         println("didn't find it")
     }
