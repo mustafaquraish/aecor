@@ -45,6 +45,14 @@ def File::exists(path: string): bool {
     return true
 }
 
+def File::size(&this): i32 {
+    let pos = this.tell()
+    this.seek(0, SEEK_END)
+    let size = this.tell()
+    this.seek(pos, SEEK_SET)
+    return size
+}
+
 def File::slurp(&this): string {
     let pos = .tell()
     .seek(0, SEEK_END)
