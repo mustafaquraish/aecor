@@ -1588,14 +1588,16 @@ Error *Error__new_hint(Span span, char *msg, Span span2, char *hint) {
 }
 
 void display_error_messages(Vector *errors, bool condensed) {
-  for (i32 i = 0; (i < errors->size); i += 1) {
+  i32 max_num_errors = 10;
+  i32 num_errors = min(errors->size, max_num_errors);
+  for (i32 i = 0; (i < num_errors); i += 1) {
     Error *err = ((Error *)Vector__at(errors, i));
     if (condensed) {
       printf("%s: %s""\n", Location__str(err->span1.start), err->msg1);
     }  else {
-      if ((i != 0)) {
-        printf("""\n");
-      } 
+      if ((i > 0)) 
+      printf("""\n");
+      
       Error__display(err);
     } 
   } 
