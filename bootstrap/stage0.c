@@ -46,6 +46,8 @@ typedef struct Location Location;
 typedef struct Span Span;
 typedef enum TokenType TokenType;
 typedef struct Token Token;
+typedef enum ErrorType ErrorType;
+typedef struct Error Error;
 typedef enum MessageType MessageType;
 typedef struct Lexer Lexer;
 typedef struct MapNode MapNode;
@@ -294,6 +296,29 @@ struct Token {
   bool seen_newline;
 };
 
+enum ErrorType {
+  ErrorType__Standard,
+  ErrorType__WithNote,
+  ErrorType__WithHint,
+};
+
+char *ErrorType__dbg(ErrorType this) {
+  switch (this) {
+    case ErrorType__Standard: return "Standard";
+    case ErrorType__WithNote: return "WithNote";
+    case ErrorType__WithHint: return "WithHint";
+    default: return "<unknown>";
+  }
+}
+
+struct Error {
+  ErrorType type;
+  char *msg1;
+  Span span1;
+  char *msg2;
+  Span span2;
+};
+
 enum MessageType {
   MessageType__Error,
   MessageType__Warning,
@@ -316,6 +341,7 @@ struct Lexer {
   Location loc;
   bool seen_newline;
   Vector *tokens;
+  Vector *errors;
 };
 
 struct MapNode {
@@ -356,6 +382,7 @@ enum BaseType {
   BaseType__Function,
   BaseType__Method,
   BaseType__Array,
+  BaseType__Error,
 };
 
 char *BaseType__dbg(BaseType this) {
@@ -378,6 +405,7 @@ char *BaseType__dbg(BaseType this) {
     case BaseType__Function: return "Function";
     case BaseType__Method: return "Method";
     case BaseType__Array: return "Array";
+    case BaseType__Error: return "Error";
     default: return "<unknown>";
   }
 }
@@ -417,6 +445,7 @@ enum ASTType {
   ASTType__DivideEquals,
   ASTType__EnumValue,
   ASTType__Equals,
+  ASTType__Error,
   ASTType__FloatLiteral,
   ASTType__FormatStringLiteral,
   ASTType__For,
@@ -478,6 +507,7 @@ char *ASTType__dbg(ASTType this) {
     case ASTType__DivideEquals: return "DivideEquals";
     case ASTType__EnumValue: return "EnumValue";
     case ASTType__Equals: return "Equals";
+    case ASTType__Error: return "Error";
     case ASTType__FloatLiteral: return "FloatLiteral";
     case ASTType__FormatStringLiteral: return "FormatStringLiteral";
     case ASTType__For: return "For";
@@ -559,6 +589,7 @@ struct Program {
   Vector *global_vars;
   Span span;
   Map *included_files;
+  Vector *errors;
   Vector *c_flags;
   Vector *c_includes;
   Vector *c_embed_headers;
@@ -700,6 +731,7 @@ struct Parser {
   Vector *context_stack;
   char *project_root;
   Vector *include_dirs;
+  Program *program;
 };
 
 struct TypeChecker {
@@ -711,6 +743,7 @@ struct TypeChecker {
   Function *cur_func;
   bool in_loop;
   bool can_yield;
+  Program *program;
 };
 
 struct StringBuilder {
@@ -762,6 +795,18 @@ Token *Token__from_ident(char *text, Span span);
 char *Token__str(Token *this);
 TokenType TokenType__from_text(char *text);
 char *TokenType__str(TokenType this);
+char *ErrorType__str(ErrorType this);
+char *MessageType__to_color(MessageType this);
+char *MessageType__str(MessageType this);
+void display_line(void);
+void display_message(MessageType type, Span span, char *msg);
+void display_message_span(MessageType type, Span span, char *msg);
+void Error__display(Error *this);
+void Error__panic(Error *this);
+Error *Error__new(Span span, char *msg);
+Error *Error__new_note(Span span, char *msg, char *note);
+Error *Error__new_hint(Span span, char *msg, Span span2, char *hint);
+void display_error_messages(Vector *errors, bool condensed);
 f32 minf(f32 a, f32 b);
 f32 maxf(f32 a, f32 b);
 f32 clampf(f32 x, f32 min, f32 max);
@@ -770,14 +815,6 @@ f32 degrees(f32 radians);
 f32 radians(f32 degrees);
 i32 edit_distance(char *str1, char *str2);
 char *find_word_suggestion(char *s, Vector *options);
-char *MessageType__to_color(MessageType this);
-void display_line(void);
-void display_message(MessageType type, Span span, char *msg);
-void display_message_with_span(MessageType type, Span span, char *msg);
-__attribute__((noreturn)) void error_loc(Location loc, char *msg);
-__attribute__((noreturn)) void error_span(Span span, char *msg);
-__attribute__((noreturn)) void error_span_note(Span span, char *msg, char *note);
-__attribute__((noreturn)) void error_span_note_span(Span msg_span, char *msg, Span note_span, char *note);
 bool is_hex_digit(char c);
 Lexer Lexer__make(char *source, char *filename);
 void Lexer__push(Lexer *this, Token *token);
@@ -840,7 +877,8 @@ Parser *Parser__new(char *filename);
 void Parser__push_context(Parser *this, Vector *tokens);
 void Parser__pop_context(Parser *this);
 void Parser__add_include_dir(Parser *this, char *dir);
-void Parser__error(Parser *this, char *msg);
+Error *Parser__error_msg(Parser *this, char *msg);
+void Parser__error(Parser *this, Error *err);
 void Parser__unhandled_type(Parser *this, char *func);
 Token *Parser__token(Parser *this);
 bool Parser__token_is(Parser *this, TokenType type);
@@ -877,6 +915,7 @@ void Parser__parse_use(Parser *this, Program *program);
 void Parser__parse_compiler_option(Parser *this, Program *program);
 void Parser__parse_into_program(Parser *this, Program *program);
 void Parser__include_prelude(Parser *this, Program *program);
+void TypeChecker__error(TypeChecker *this, Error *err);
 TypeChecker *TypeChecker__new(void);
 void TypeChecker__push_scope(TypeChecker *this);
 Map *TypeChecker__scope(TypeChecker *this);
@@ -893,7 +932,7 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node);
 Type *TypeChecker__check_format_string(TypeChecker *this, AST *node);
 Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, Type *rhs);
 Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST *_rhs);
-__attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker *this, Span span, char *name);
+void TypeChecker__error_unknown_identifier(TypeChecker *this, Span span, char *name);
 void TypeChecker__error_unknown_member(TypeChecker *this, AST *node, Type *struct_type, char *field_name, bool is_static);
 Type *TypeChecker__check_expression(TypeChecker *this, AST *node);
 void TypeChecker__check_expression_statement(TypeChecker *this, AST *node, AST *body, bool is_expr);
@@ -917,6 +956,7 @@ void StringBuilder__putsf(StringBuilder *this, char *s);
 char *StringBuilder__str(StringBuilder *this);
 char *StringBuilder__new_str(StringBuilder *this);
 CodeGenerator CodeGenerator__make(bool debug);
+void CodeGenerator__error(CodeGenerator *this, Error *err);
 void CodeGenerator__gen_debug_info(CodeGenerator *this, Span span);
 void CodeGenerator__indent(CodeGenerator *this, i32 num);
 void CodeGenerator__push_scope(CodeGenerator *this);
@@ -1091,9 +1131,9 @@ void *Vector__back(Vector *this) {
 }
 
 void *Vector__at(Vector *this, i32 i) {
-  if (((i < 0) || (i >= this->size))) 
-  panic("at out of bounds in vector");
-  
+  if (((i < 0) || (i >= this->size))) {
+    panic("at out of bounds in vector");
+  } 
   return this->data[i];
 }
 
@@ -1393,6 +1433,174 @@ char *TokenType__str(TokenType this) {
 ;__yield_0; });
 }
 
+char *ErrorType__str(ErrorType this) {
+  return ({ char *__yield_0;
+  switch (this) {
+    case ErrorType__Standard: {
+      __yield_0 = "Standard";
+} break;
+    case ErrorType__WithNote: {
+      __yield_0 = "WithNote";
+} break;
+    case ErrorType__WithHint: {
+      __yield_0 = "WithHint";
+} break;
+  }
+;__yield_0; });
+}
+
+char *MessageType__to_color(MessageType this) {
+  return ({ char *__yield_0;
+  switch (this) {
+    case MessageType__Error: {
+      __yield_0 = "\x1b[31m";
+} break;
+    case MessageType__Warning: {
+      __yield_0 = "\x1b[33m";
+} break;
+    case MessageType__Note: {
+      __yield_0 = "\x1b[32m";
+} break;
+  }
+;__yield_0; });
+}
+
+char *MessageType__str(MessageType this) {
+  return ({ char *__yield_0;
+  switch (this) {
+    case MessageType__Error: {
+      __yield_0 = "Error";
+} break;
+    case MessageType__Warning: {
+      __yield_0 = "Warning";
+} break;
+    case MessageType__Note: {
+      __yield_0 = "Note";
+} break;
+  }
+;__yield_0; });
+}
+
+void display_line(void) {
+  printf("--------------------------------------------------------------------------------""\n");
+}
+
+void display_message(MessageType type, Span span, char *msg) {
+  display_line();
+  printf("%s: %s: %s""\n", Location__str(span.start), MessageType__str(type), msg);
+  display_line();
+}
+
+void display_message_span(MessageType type, Span span, char *msg) {
+  char *color = MessageType__to_color(type);
+  char *reset = "\x1b[0m";
+  char *filename = span.start.filename;
+  FILE *file = File__open(filename, "r");
+  ;
+  char *contents = File__slurp(file);
+  ;
+  i32 around_offset = 1;
+  i32 min_line = max((span.start.line - around_offset), 1);
+  i32 max_line = (span.end.line + around_offset);
+  display_message(type, span, msg);
+  char *lines = contents;
+  char *cur = strsep((&lines), "\n");
+  i32 line_no = 1;
+  while ((((bool)cur) && (line_no <= max_line))) {
+    if (((line_no >= min_line) && (line_no <= max_line))) {
+      printf("%4d | ", line_no);
+      if (line_no == span.start.line) {
+        i32 start_col = (span.start.col - 1);
+        i32 end_col = (span.end.col - 1);
+        if ((span.end.line != span.start.line)) {
+          end_col = strlen(cur);
+        } 
+        for (i32 i = 0; (i < start_col); i += 1) {
+          printf("%c", cur[i]);
+        } 
+        printf("%s", color);
+        for (i32 i = start_col; (i < end_col); i += 1) {
+          printf("%c", cur[i]);
+        } 
+        printf("%s%s""\n", reset, (cur + end_col));
+        printf("%*s%s^ %s%s""\n", (start_col + 7), "", color, msg, reset);
+      }  else {
+        printf("%s""\n", cur);
+      } 
+    } 
+    line_no += 1;
+    cur = strsep((&lines), "\n");
+  } 
+
+  /* defers */
+  free(contents);
+  fclose(file);
+}
+
+void Error__display(Error *this) {
+  switch (this->type) {
+    case ErrorType__Standard: {
+      display_message_span(MessageType__Error, this->span1, this->msg1);
+      display_line();
+    } break;
+    case ErrorType__WithNote: {
+      display_message_span(MessageType__Error, this->span1, this->msg1);
+      display_message(MessageType__Note, this->span1, this->msg2);
+    } break;
+    case ErrorType__WithHint: {
+      display_message_span(MessageType__Error, this->span1, this->msg1);
+      display_message_span(MessageType__Note, this->span2, this->msg2);
+      display_line();
+    } break;
+  }
+}
+
+void Error__panic(Error *this) {
+  Error__display(this);
+  exit(1);
+}
+
+Error *Error__new(Span span, char *msg) {
+  Error *err = ((Error *)calloc(1, sizeof(Error)));
+  err->type = ErrorType__Standard;
+  err->msg1 = msg;
+  err->span1 = span;
+  return err;
+}
+
+Error *Error__new_note(Span span, char *msg, char *note) {
+  Error *err = ((Error *)calloc(1, sizeof(Error)));
+  err->type = ErrorType__WithNote;
+  err->msg1 = msg;
+  err->span1 = span;
+  err->msg2 = note;
+  return err;
+}
+
+Error *Error__new_hint(Span span, char *msg, Span span2, char *hint) {
+  Error *err = ((Error *)calloc(1, sizeof(Error)));
+  err->type = ErrorType__WithHint;
+  err->msg1 = msg;
+  err->span1 = span;
+  err->msg2 = hint;
+  err->span2 = span2;
+  return err;
+}
+
+void display_error_messages(Vector *errors, bool condensed) {
+  for (i32 i = 0; (i < errors->size); i += 1) {
+    Error *err = ((Error *)Vector__at(errors, i));
+    if (condensed) {
+      printf("%s: %s""\n", Location__str(err->span1.start), err->msg1);
+    }  else {
+      if ((i != 0)) {
+        printf("""\n");
+      } 
+      Error__display(err);
+    } 
+  } 
+}
+
 f32 minf(f32 a, f32 b) {
   if ((a < b)) 
   return a;
@@ -1474,101 +1682,6 @@ char *find_word_suggestion(char *s, Vector *options) {
   return closest;
 }
 
-char *MessageType__to_color(MessageType this) {
-  return ({ char *__yield_0;
-  switch (this) {
-    case MessageType__Error: {
-      __yield_0 = "\x1b[31m";
-} break;
-    case MessageType__Warning: {
-      __yield_0 = "\x1b[33m";
-} break;
-    case MessageType__Note: {
-      __yield_0 = "\x1b[32m";
-} break;
-  }
-;__yield_0; });
-}
-
-void display_line(void) {
-  printf("--------------------------------------------------------------------------------""\n");
-}
-
-void display_message(MessageType type, Span span, char *msg) {
-  display_line();
-  printf("%s: %s: %s""\n", Location__str(span.start), MessageType__dbg(type), msg);
-  display_line();
-}
-
-void display_message_with_span(MessageType type, Span span, char *msg) {
-  char *color = MessageType__to_color(type);
-  char *reset = "\x1b[0m";
-  char *filename = span.start.filename;
-  FILE *file = File__open(filename, "r");
-  ;
-  char *contents = File__slurp(file);
-  ;
-  i32 around_offset = 1;
-  i32 min_line = max((span.start.line - around_offset), 1);
-  i32 max_line = (span.end.line + around_offset);
-  display_message(type, span, msg);
-  char *lines = contents;
-  char *cur = strsep((&lines), "\n");
-  i32 line_no = 1;
-  while ((((bool)cur) && (line_no <= max_line))) {
-    if (((line_no >= min_line) && (line_no <= max_line))) {
-      printf("%4d | ", line_no);
-      if (line_no == span.start.line) {
-        i32 start_col = (span.start.col - 1);
-        i32 end_col = (span.end.col - 1);
-        if ((span.end.line != span.start.line)) {
-          end_col = strlen(cur);
-        } 
-        for (i32 i = 0; (i < start_col); i += 1) {
-          printf("%c", cur[i]);
-        } 
-        printf("%s", color);
-        for (i32 i = start_col; (i < end_col); i += 1) {
-          printf("%c", cur[i]);
-        } 
-        printf("%s%s""\n", reset, (cur + end_col));
-        printf("%*s%s^ %s%s""\n", (start_col + 7), "", color, msg, reset);
-      }  else {
-        printf("%s""\n", cur);
-      } 
-    } 
-    line_no += 1;
-    cur = strsep((&lines), "\n");
-  } 
-
-  /* defers */
-  free(contents);
-  fclose(file);
-}
-
-__attribute__((noreturn)) void error_loc(Location loc, char *msg) {
-  error_span((Span){loc, loc}, msg);
-}
-
-__attribute__((noreturn)) void error_span(Span span, char *msg) {
-  display_message_with_span(MessageType__Error, span, msg);
-  display_line();
-  exit(1);
-}
-
-__attribute__((noreturn)) void error_span_note(Span span, char *msg, char *note) {
-  display_message_with_span(MessageType__Error, span, msg);
-  display_message(MessageType__Note, span, note);
-  exit(1);
-}
-
-__attribute__((noreturn)) void error_span_note_span(Span msg_span, char *msg, Span note_span, char *note) {
-  display_message_with_span(MessageType__Error, msg_span, msg);
-  display_message_with_span(MessageType__Note, note_span, note);
-  display_line();
-  exit(1);
-}
-
 bool is_hex_digit(char c) {
   if (isdigit(c)) 
   return true;
@@ -1583,7 +1696,7 @@ bool is_hex_digit(char c) {
 }
 
 Lexer Lexer__make(char *source, char *filename) {
-  return (Lexer){source, .source_len = strlen(source), .i = 0, .loc = (Location){filename, 1, 1}, .seen_newline = false, .tokens = Vector__new()};
+  return (Lexer){source, .source_len = strlen(source), .i = 0, .loc = (Location){filename, 1, 1}, .seen_newline = false, .tokens = Vector__new(), .errors = Vector__new()};
 }
 
 void Lexer__push(Lexer *this, Token *token) {
@@ -1617,7 +1730,7 @@ void Lexer__lex_char_literal(Lexer *this) {
   } 
   if ((this->source[this->i] != '\'')) {
     this->loc.col += ((this->i - start) + 1);
-    error_loc(this->loc, "Expected ' after character literal");
+    Vector__push(this->errors, Error__new((Span){this->loc, this->loc}, "Expected ' after character literal"));
   } 
   i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
@@ -1915,7 +2028,8 @@ Vector *Lexer__lex(Lexer *this) {
           this->loc.col += len;
           Lexer__push(this, Token__from_ident(text, (Span){start_loc, this->loc}));
         }  else {
-          panic(format_string("%s: Unrecognized char in lexer: '%c'", Location__str(this->loc), c));
+          Vector__push(this->errors, Error__new((Span){this->loc, this->loc}, format_string("Unrecognized char in lexer: '%c'", c)));
+          this->i += 1;
         } 
         
       } break;
@@ -2234,7 +2348,8 @@ bool Type__eq(Type *this, Type *other) {
   return false;
   
   switch (this->base) {
-    case BaseType__Method: {
+    case BaseType__Method:
+    case BaseType__Error: {
       return false;
     } break;
     case BaseType__Array: {
@@ -2434,6 +2549,7 @@ Program *Program__new(void) {
   prog->global_vars = Vector__new();
   prog->constants = Vector__new();
   prog->included_files = Map__new();
+  prog->errors = Vector__new();
   prog->c_flags = Vector__new();
   prog->c_includes = Vector__new();
   prog->c_embed_headers = Vector__new();
@@ -2565,12 +2681,18 @@ void Parser__add_include_dir(Parser *this, char *dir) {
   Vector__push(this->include_dirs, dir);
 }
 
-void Parser__error(Parser *this, char *msg) {
-  error_span(Parser__token(this)->span, msg);
+Error *Parser__error_msg(Parser *this, char *msg) {
+  Error *err = Error__new(Parser__token(this)->span, msg);
+  Vector__push(this->program->errors, err);
+  return err;
+}
+
+void Parser__error(Parser *this, Error *err) {
+  Vector__push(this->program->errors, err);
 }
 
 void Parser__unhandled_type(Parser *this, char *func) {
-  Parser__error(this, format_string("Unexpected token in %s: %s", func, TokenType__str(Parser__token(this)->type)));
+  Parser__error_msg(this, format_string("Unexpected token in %s: %s", func, TokenType__str(Parser__token(this)->type)));
 }
 
 Token *Parser__token(Parser *this) {
@@ -2598,7 +2720,7 @@ void Parser__consume_newline_or(Parser *this, TokenType type) {
   if (Parser__token_is(this, type)) {
     this->curr += 1;
   }  else   if ((!Parser__token(this)->seen_newline)) {
-    Parser__error(this, format_string("Expected %s or newline", TokenType__str(type)));
+    Error__panic(Parser__error_msg(this, format_string("Expected %s or newline", TokenType__str(type))));
   } 
   
 }
@@ -2606,7 +2728,7 @@ void Parser__consume_newline_or(Parser *this, TokenType type) {
 Token *Parser__consume(Parser *this, TokenType type) {
   Token *tok = Parser__token(this);
   if ((!Parser__consume_if(this, type))) {
-    Parser__error(this, format_string("Expected TokenType::%s", TokenType__str(type)));
+    Error__panic(Parser__error_msg(this, format_string("Expected TokenType::%s", TokenType__str(type))));
   } 
   return tok;
 }
@@ -2699,6 +2821,7 @@ Type *Parser__parse_type_with_parent(Parser *this, Type *parent) {
     } break;
     default: {
       Parser__unhandled_type(this, "parse_type");
+      type = Type__new(BaseType__Error, Parser__token(this)->span);
     } break;
   }
   if (((bool)parent)) {
@@ -2745,7 +2868,8 @@ AST *Parser__parse_format_string(Parser *this) {
             Location loc = fstr->span.start;
             loc.col += (specifier_loc + 1);
             Span span = (Span){loc, loc};
-            error_span(span, "Expected format specifier");
+            Parser__error(this, Error__new(span, "Expected format specifier"));
+            return NULL;
           } 
           char *spec = string__substring(fstr->text, specifier_loc, (i - specifier_loc));
           Vector__push(specifiers, spec);
@@ -2758,7 +2882,8 @@ AST *Parser__parse_format_string(Parser *this) {
         cur_start = (i + 1);
         specifier_loc = (-1);
       }  else       if ((count < 0)) {
-        error_span(fstr->span, "Unmatched '}' in format string");
+        Parser__error(this, Error__new(fstr->span, "Unmatched '}' in format string"));
+        return NULL;
       } 
       
     }  else     if ((fstr->text[i] == ':' && (fstr->text[(i - 1)] != '\\'))) {
@@ -2770,7 +2895,8 @@ AST *Parser__parse_format_string(Parser *this) {
     
   } 
   if ((count != 0)) {
-    error_span(fstr->span, "Unmatched '{' in format string");
+    Parser__error(this, Error__new(fstr->span, "Unmatched '{' in format string"));
+    return NULL;
   } 
   char *part = string__substring(fstr->text, cur_start, (fstr_len - cur_start));
   Vector__push(format_parts, part);
@@ -2785,10 +2911,14 @@ AST *Parser__parse_format_string(Parser *this) {
     lexer.loc = fstr_start;
     lexer.loc.col += (start + 1);
     Vector *tokens = Lexer__lex((&lexer));
+    for (i32 i = 0; (i < lexer.errors->size); i += 1) {
+      Parser__error(this, Vector__at(lexer.errors, i));
+    } 
+    Vector__free(lexer.errors);
     Parser__push_context(this, tokens);
     AST *expr = Parser__parse_expression(this, TokenType__CloseCurly);
     if ((!Parser__token_is(this, TokenType__EOF))) {
-      error_loc(Parser__token(this)->span.start, "Invalid expression in format string");
+      Parser__error(this, Error__new(expr->span, "Invalid expression in format string"));
     } 
     Parser__pop_context(this);
     Vector__push(expr_nodes, expr);
@@ -2810,7 +2940,9 @@ Type *Parser__parse_literal_suffix_type(Parser *this, Token *suffix) {
   Parser__push_context(this, tokens);
   Type *type = Parser__parse_type(this);
   if ((!Parser__token_is(this, TokenType__EOF))) {
-    error_loc(Parser__token(this)->span.start, "Invalid type suffix");
+    Location loc = Parser__token(this)->span.start;
+    Span span = (Span){loc, loc};
+    Parser__error(this, Error__new(span, "Invalid type suffix"));
   } 
   Parser__pop_context(this);
   Vector__free(tokens);
@@ -2855,15 +2987,23 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
     } break;
     case TokenType__Dot: {
       Token *op = Parser__consume(this, TokenType__Dot);
-      Token *rhs = Parser__consume(this, TokenType__Identifier);
       AST *lhs = AST__new(ASTType__Identifier, op->span);
       lhs->u.ident.name = "this";
       lhs->u.ident.is_function = false;
+      AST *rhs = ({ AST *__yield_0;
+  if (Parser__token_is(this, TokenType__Identifier)) {
+    Token *name = Parser__consume(this, TokenType__Identifier);
+    AST *tmp = AST__new(ASTType__Identifier, name->span);
+    tmp->u.ident.name = name->text;
+    __yield_0 = tmp;
+  }  else {
+    Parser__error(this, Error__new(op->span, "Expected identifier after '.'"));
+    __yield_0 = AST__new(ASTType__Error, op->span);
+  } 
+;__yield_0; });
       node = AST__new(ASTType__Member, Span__join(lhs->span, rhs->span));
       node->u.member.lhs = lhs;
-      AST *rhs_node = AST__new(ASTType__Identifier, rhs->span);
-      rhs_node->u.ident.name = rhs->text;
-      node->u.member.rhs = rhs_node;
+      node->u.member.rhs = rhs;
     } break;
     case TokenType__Minus: {
       Token *op = Parser__consume(this, TokenType__Minus);
@@ -2917,6 +3057,8 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
     } break;
     default: {
       Parser__unhandled_type(this, "parse_expression");
+      node = AST__new(ASTType__Error, Parser__token(this)->span);
+      this->curr += 1;
     } break;
   }
   bool running = true;
@@ -2956,11 +3098,19 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
         node = AST__new_binop(ASTType__Index, node, index);
       } break;
       case TokenType__Dot: {
-        Parser__consume(this, TokenType__Dot);
-        Token *name = Parser__consume(this, TokenType__Identifier);
-        AST *member = AST__new(ASTType__Member, Span__join(node->span, name->span));
-        AST *rhs = AST__new(ASTType__Identifier, name->span);
-        rhs->u.ident.name = name->text;
+        Token *dot = Parser__consume(this, TokenType__Dot);
+        AST *rhs = ({ AST *__yield_0;
+  if (Parser__token_is(this, TokenType__Identifier)) {
+    Token *name = Parser__consume(this, TokenType__Identifier);
+    AST *tmp = AST__new(ASTType__Identifier, name->span);
+    tmp->u.ident.name = name->text;
+    __yield_0 = tmp;
+  }  else {
+    Parser__error(this, Error__new(Parser__token(this)->span, "Expected identifier after '.'"));
+    __yield_0 = AST__new(ASTType__Error, dot->span);
+  } 
+;__yield_0; });
+        AST *member = AST__new(ASTType__Member, Span__join(node->span, rhs->span));
         member->u.member.lhs = node;
         member->u.member.rhs = rhs;
         node = member;
@@ -3270,7 +3420,7 @@ AST *Parser__parse_statement(Parser *this) {
       if ((!Parser__token_is(this, TokenType__Semicolon))) {
         AST *init = Parser__parse_statement(this);
         if (((init->type != ASTType__Assignment) && (init->type != ASTType__VarDeclaration))) {
-          error_span(init->span, "Invalid for loop initializer");
+          Parser__error(this, Error__new(init->span, "Invalid for loop initializer"));
         } 
         node->u.loop.init = init;
         Token *prev = ((Token *)Vector__at(this->tokens, (this->curr - 1)));
@@ -3309,7 +3459,7 @@ AST *Parser__parse_statement(Parser *this) {
       node->u.var_decl.init = init;
     } break;
     case TokenType__Const: {
-      error_span(Parser__token(this)->span, "Const declarations are only allowed in the global scope");
+      Parser__error(this, Error__new(Parser__token(this)->span, "Const declarations are only allowed in the global scope"));
     } break;
     default: {
       node = Parser__parse_expression(this, TokenType__Newline);
@@ -3342,7 +3492,7 @@ Function *Parser__parse_function(Parser *this) {
   if (next_token->type == TokenType__ColonColon) {
     struct_type = Parser__parse_type(this);
     if ((!((bool)struct_type->name))) {
-      error_span(struct_type->span, "Invalid type in method declaration");
+      Parser__error(this, Error__new(struct_type->span, "Invalid type in method declaration"));
     } 
     struct_name = struct_type->name;
     is_method = true;
@@ -3365,7 +3515,7 @@ Function *Parser__parse_function(Parser *this) {
           type = Type__new_link(BaseType__Pointer, type, name->span);
         } 
       }  else       if (found_amp) {
-        error_span(var_name->span, "Expected 'this' over here");
+        Parser__error(this, Error__new(var_name->span, "Expected 'this' over here"));
       }  else {
         is_static = true;
       } 
@@ -3410,7 +3560,8 @@ Function *Parser__parse_function(Parser *this) {
     func->is_arrow = true;
     AST *expr = Parser__parse_expression(this, TokenType__Newline);
     if ((!Parser__token(this)->seen_newline)) {
-      error_loc(expr->span.end, "Expected newline after arrow function");
+      Span end_loc = (Span){expr->span.end, expr->span.end};
+      Parser__error(this, Error__new(end_loc, "Expected newline after arrow function"));
     } 
     AST *ret_stmt = AST__new_unop(ASTType__Return, expr->span, expr);
     func->body = ret_stmt;
@@ -3515,7 +3666,14 @@ AST *Parser__parse_global_value(Parser *this, bool is_constant) {
   } 
 ;__yield_0; });
   AST *node = AST__new(ASTType__VarDeclaration, Parser__token(this)->span);
-  Token *name = Parser__consume(this, TokenType__Identifier);
+  Token *name = ({ Token *__yield_0;
+  if (Parser__token_is(this, TokenType__Identifier)) {
+    __yield_0 = Parser__consume(this, TokenType__Identifier);
+  }  else {
+    Parser__error(this, Error__new(Parser__token(this)->span, "Expected identifier"));
+    return node;
+  } 
+;__yield_0; });
   Type *type = ((Type *)NULL);
   if (Parser__consume_if(this, TokenType__Colon)) {
     type = Parser__parse_type(this);
@@ -3532,7 +3690,7 @@ AST *Parser__parse_global_value(Parser *this, bool is_constant) {
       var->extern_name = var->name;
     } 
     if ((!((bool)type))) {
-      error_span(name->span, "Extern values must have a type specified");
+      Parser__error(this, Error__new(name->span, "Extern values must have a type specified"));
     } 
   }  else {
     var->is_extern = false;
@@ -3572,7 +3730,8 @@ char *Parser__find_file_path(Parser *this, char *filename) {
     exit(1);
   } 
   this->curr -= 1;
-  error_span(Parser__token(this)->span, format_string("Could not find file: %s", filename));
+  Parser__error(this, Error__new(Parser__token(this)->span, format_string("Could not find file: %s", filename)));
+  exit(1);
 }
 
 char *Parser__include_file(Parser *this, Program *program, char *filename) {
@@ -3585,6 +3744,10 @@ char *Parser__include_file(Parser *this, Program *program, char *filename) {
   char *contents = File__slurp(file);
   Lexer lexer = Lexer__make(contents, filename);
   Vector *tokens = Lexer__lex((&lexer));
+  for (i32 i = 0; (i < lexer.errors->size); i += 1) {
+    Parser__error(this, Vector__at(lexer.errors, i));
+  } 
+  Vector__free(lexer.errors);
   Parser__push_context(this, tokens);
   Parser__parse_into_program(this, program);
   Parser__pop_context(this);
@@ -3602,7 +3765,7 @@ void Parser__parse_compiler_option(Parser *this, Program *program) {
   Parser__consume(this, TokenType__AtSign);
   Token *compiler = Parser__consume(this, TokenType__Identifier);
   if ((!string__eq(compiler->text, "compiler"))) {
-    error_span(compiler->span, "Expected 'compiler'");
+    Parser__error(this, Error__new(compiler->span, "Expected 'compiler'"));
   } 
   Token *name = Parser__consume(this, TokenType__Identifier);
   {
@@ -3617,7 +3780,9 @@ void Parser__parse_compiler_option(Parser *this, Program *program) {
       Token *filename = Parser__consume(this, TokenType__StringLiteral);
       char *resolved = Parser__find_file_path(this, filename->text);
       Vector__push(program->c_embed_headers, resolved);
-    } else  error_span(name->span, "Unknown compiler option");
+    } else  {
+      Parser__error(this, Error__new(name->span, "Unknown compiler option"));
+    }
   }
 }
 
@@ -3659,7 +3824,12 @@ void Parser__parse_into_program(Parser *this, Program *program) {
 }
 
 void Parser__include_prelude(Parser *this, Program *program) {
+  this->program = program;
   Parser__include_file(this, program, "lib/prelude.ae");
+}
+
+void TypeChecker__error(TypeChecker *this, Error *err) {
+  Vector__push(this->program->errors, err);
 }
 
 TypeChecker *TypeChecker__new(void) {
@@ -3695,11 +3865,12 @@ void TypeChecker__push_var(TypeChecker *this, Variable *var) {
   Map *scope = TypeChecker__scope(this);
   Variable *existing = ((Variable *)Map__get(scope, var->name));
   if (((bool)existing)) {
-    error_span_note_span(var->span, "Variable is already defined in scope", existing->span, "Previous definition here");
+    TypeChecker__error(this, Error__new_hint(var->span, "Variable is already defined in scope", existing->span, "Previous definition here"));
+    return;
   } 
   AST *constant = ((AST *)TypeChecker__find_constant(this, var->name));
   if (((bool)constant)) {
-    error_span_note_span(var->span, "Variable is already defined as a constant", constant->span, "Previous definition here");
+    TypeChecker__error(this, Error__new_hint(var->span, "Variable is already defined as a constant", constant->span, "Previous definition here"));
   } 
   Map__insert(TypeChecker__scope(this), var->name, var);
 }
@@ -3721,6 +3892,9 @@ Variable *TypeChecker__get_struct_member(TypeChecker *this, char *lhs, char *rhs
 }
 
 bool TypeChecker__type_is_valid(TypeChecker *this, Type *type) {
+  if ((!((bool)type))) 
+  return false;
+  
   switch (type->base) {
     case BaseType__Pointer: {
       return TypeChecker__type_is_valid(this, type->ptr);
@@ -3756,7 +3930,8 @@ bool TypeChecker__type_is_valid(TypeChecker *this, Type *type) {
 void TypeChecker__check_method_call(TypeChecker *this, Type *method_type, AST *node) {
   AST *callee = node->u.call.callee;
   if (((callee->type != ASTType__Member) && (callee->type != ASTType__ScopeLookup))) {
-    error_span(callee->span, "Method call is not to a member, internal compiler error");
+    TypeChecker__error(this, Error__new(callee->span, "Method call is not to a member, internal compiler error"));
+    return;
   } 
   Map *s_methods = ((Map *)Map__get(this->methods, method_type->name));
   AST *rhs = callee->u.member.rhs;
@@ -3770,7 +3945,8 @@ void TypeChecker__check_method_call(TypeChecker *this, Type *method_type, AST *n
   return;
   
   if (method->params->size == 0) {
-    error_span(callee->span, "Instance method should have `this` argument, internal error");
+    TypeChecker__error(this, Error__new(callee->span, "Instance method should have `this` argument, internal error"));
+    return;
   } 
   Type *method_param = ((Variable *)Vector__at(method->params, 0))->type;
   Member member = callee->u.member;
@@ -3786,7 +3962,8 @@ void TypeChecker__check_method_call(TypeChecker *this, Type *method_type, AST *n
 
 Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *node) {
   if ((struc->is_enum || struc->is_union)) {
-    error_span(node->span, "Cannot use constructor for enum or union");
+    TypeChecker__error(this, Error__new(node->span, "Cannot use constructor for enum or union"));
+    return NULL;
   } 
   Vector *args = node->u.call.args;
   AST *callee = node->u.call.callee;
@@ -3796,7 +3973,8 @@ Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *n
   node->u.constructor.callee = callee;
   Vector *fields = struc->fields;
   if ((fields->size != args->size)) {
-    error_span_note_span(node->span, "Constructor has wrong number of arguments", struc->span, format_string("Struct has %d fields, but got %d arguments", fields->size, args->size));
+    TypeChecker__error(this, Error__new_hint(node->span, "Constructor has wrong number of arguments", struc->span, format_string("Struct has %d fields, but got %d arguments", fields->size, args->size)));
+    return struc->type;
   } 
   for (i32 i = 0; (i < fields->size); i += 1) {
     Variable *field = ((Variable *)Vector__at(fields, i));
@@ -3805,11 +3983,11 @@ Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *n
     if (((bool)arg->label)) {
       char *label = arg->label->u.ident.name;
       if ((!string__eq(label, field->name))) {
-        error_span_note_span(arg->label->span, "Label on parameter does not match struct field", field->span, format_string("Expected '%s', got '%s'", field->name, label));
+        TypeChecker__error(this, Error__new_hint(arg->label->span, "Label on parameter does not match struct field", field->span, format_string("Expected '%s', got '%s'", field->name, label)));
       } 
     } 
     if ((!Type__eq(field->type, arg_type))) {
-      error_span_note_span(arg->expr->span, "Argument type does not match struct field", field->span, format_string("Expected '%s', got '%s'", Type__str(field->type), Type__str(arg_type)));
+      TypeChecker__error(this, Error__new_hint(arg->expr->span, "Argument type does not match struct field", field->span, format_string("Expected '%s', got '%s'", Type__str(field->type), Type__str(arg_type))));
     } 
   } 
   return struc->type;
@@ -3854,37 +4032,42 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
     } 
   } 
   Type *func_type = TypeChecker__check_expression(this, callee);
+  if ((!((bool)func_type))) 
+  return NULL;
+  
   Function *func_def = func_type->func_def;
   node->u.call.func = func_def;
   if ((((bool)func_def) && func_def->exits)) {
     node->returns = true;
   } 
   if (((func_type->base != BaseType__Function) && (func_type->base != BaseType__Method))) {
-    error_span_note(callee->span, "Cannot call a non-function type", format_string("Type for expression is '%s'", Type__str(func_type)));
+    TypeChecker__error(this, Error__new_note(callee->span, "Cannot call a non-function type", format_string("Type for expression is '%s'", Type__str(func_type))));
+    return NULL;
   } 
   if (func_type->base == BaseType__Method) {
     TypeChecker__check_method_call(this, func_type, node);
   } 
   Vector *params = func_type->params;
   if ((params->size != node->u.call.args->size)) {
-    error_span_note_span(node->span, "Number of arguments does not match function signature", func_type->span, format_string("This function expects %d arguments, got %d", params->size, node->u.call.args->size));
+    TypeChecker__error(this, Error__new_hint(node->span, "Number of arguments does not match function signature", func_type->span, format_string("This function expects %d arguments, got %d", params->size, node->u.call.args->size)));
+    return func_type->return_type;
   } 
   for (i32 i = 0; (i < params->size); i += 1) {
     Variable *param = ((Variable *)Vector__at(params, i));
     Argument *arg = ((Argument *)Vector__at(node->u.call.args, i));
     Type *arg_type = TypeChecker__check_expression(this, arg->expr);
-    if ((!Type__eq(param->type, arg_type))) {
-      error_span_note_span(arg->expr->span, "Argument type does not match function parameter type", param->span, format_string("Expected '%s', got '%s'", Type__str(param->type), Type__str(arg_type)));
+    if ((((bool)arg_type) && (!Type__eq(param->type, arg_type)))) {
+      TypeChecker__error(this, Error__new_hint(arg->expr->span, "Argument type does not match function parameter type", param->span, format_string("Expected '%s', got '%s'", Type__str(param->type), Type__str(arg_type))));
     } 
     if ((!((bool)arg->label))) 
     continue;
     
     if (string__eq(param->name, "")) {
-      error_span_note_span(arg->label->span, "Label on non-labeled parameter", param->span, "This parameter does not have a name");
+      TypeChecker__error(this, Error__new_hint(arg->label->span, "Label on non-labeled parameter", param->span, "This parameter does not have a name"));
     } 
     char *label = arg->label->u.ident.name;
     if ((!string__eq(label, param->name))) {
-      error_span_note_span(arg->label->span, "Label on parameter does not match parameter name", param->span, format_string("Expected '%s', got '%s'", param->name, label));
+      TypeChecker__error(this, Error__new_hint(arg->label->span, "Label on parameter does not match parameter name", param->span, format_string("Expected '%s', got '%s'", param->name, label)));
     } 
   } 
   return func_type->return_type;
@@ -3894,7 +4077,7 @@ Type *TypeChecker__check_format_string(TypeChecker *this, AST *node) {
   Vector *parts = node->u.fmt_str.parts;
   Vector *exprs = node->u.fmt_str.exprs;
   if ((parts->size != (exprs->size + 1))) {
-    error_span(node->span, "Number of format string parts does not match number of expressions");
+    TypeChecker__error(this, Error__new(node->span, "Number of format string parts does not match number of expressions"));
   } 
   for (i32 i = 0; (i < exprs->size); i += 1) {
     AST *expr = ((AST *)Vector__at(exprs, i));
@@ -3918,8 +4101,8 @@ Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, 
       } 
     } 
   } 
-  error_span(node->span, "Invalid pointer arithmetic");
-  return ((Type *)NULL);
+  TypeChecker__error(this, Error__new(node->span, "Invalid pointer arithmetic"));
+  return NULL;
 }
 
 Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST *_rhs) {
@@ -3936,9 +4119,11 @@ Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST 
       if ((lhs->base == BaseType__Pointer || rhs->base == BaseType__Pointer)) {
         return TypeChecker__check_pointer_arith(this, node, lhs, rhs);
       }  else       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
-        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
+        return NULL;
       }  else       if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
+        return NULL;
       }  else {
         return lhs;
       } 
@@ -3950,22 +4135,22 @@ Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST 
     case ASTType__GreaterThan:
     case ASTType__GreaterThanEquals: {
       if (((!Type__is_numeric_or_char(lhs)) || (!Type__is_numeric_or_char(rhs)))) {
-        error_span_note(node->span, "Operator requires numeric or char types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operator requires numeric or char types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       return Type__new(BaseType__Bool, node->span);
     } break;
     case ASTType__Equals:
     case ASTType__NotEquals: {
       if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       if (lhs->base == BaseType__Structure) {
         Structure *struc = ((Structure *)Map__get(this->structures, lhs->name));
         if ((!struc->is_enum)) {
-          error_span(node->span, "Cannot compare structs directly");
+          TypeChecker__error(this, Error__new(node->span, "Cannot compare structs directly"));
         } 
       } 
       return Type__new(BaseType__Bool, node->span);
@@ -3973,7 +4158,7 @@ Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST 
     case ASTType__And:
     case ASTType__Or: {
       if (((!Type__eq(lhs, rhs)) || (lhs->base != BaseType__Bool))) {
-        error_span_note(node->span, "Operands must be boolean", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operands must be boolean", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       return Type__new(BaseType__Bool, node->span);
     } break;
@@ -3984,10 +4169,10 @@ Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST 
     case ASTType__LeftShift:
     case ASTType__RightShift: {
       if (((!Type__is_integer(lhs)) || (!Type__is_integer(rhs)))) {
-        error_span_note(node->span, "Operator requires integer types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operator requires integer types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       return lhs;
     } break;
@@ -3995,7 +4180,7 @@ Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST 
   }
 }
 
-__attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker *this, Span span, char *name) {
+void TypeChecker__error_unknown_identifier(TypeChecker *this, Span span, char *name) {
   Vector *options = Vector__new();
   for (i32 i = 0; (i < this->scopes->size); i += 1) {
     Map *scope = ((Map *)Vector__at(this->scopes, i));
@@ -4009,9 +4194,9 @@ __attribute__((noreturn)) void TypeChecker__error_unknown_identifier(TypeChecker
   } 
   char *suggestion = find_word_suggestion(name, options);
   if (((bool)suggestion)) {
-    error_span_note(span, "Unknown Identifier", format_string("Possible alternative: \x1b[32m%s\x1b[0m", suggestion));
+    TypeChecker__error(this, Error__new_note(span, "Unknown Identifier", format_string("Possible alternative: \x1b[32m%s\x1b[0m", suggestion)));
   }  else {
-    error_span(span, "Unknown Identifier");
+    TypeChecker__error(this, Error__new(span, "Unknown Identifier"));
   } 
 }
 
@@ -4038,9 +4223,9 @@ void TypeChecker__error_unknown_member(TypeChecker *this, AST *node, Type *struc
     suggestion = find_word_suggestion(field_name, options);
   } 
   if (((bool)suggestion)) {
-    error_span_note(node->u.member.rhs->span, format_string("Type '%s' has no member with this name", Type__str(struct_type)), format_string("Possible alternative: \x1b[32m%s\x1b[0m", suggestion));
+    TypeChecker__error(this, Error__new_note(node->u.member.rhs->span, format_string("Type '%s' has no member with this name", Type__str(struct_type)), format_string("Possible alternative: \x1b[32m%s\x1b[0m", suggestion)));
   }  else {
-    error_span(node->u.member.rhs->span, format_string("Type '%s' has no member with this name", Type__str(struct_type)));
+    TypeChecker__error(this, Error__new(node->u.member.rhs->span, format_string("Type '%s' has no member with this name", Type__str(struct_type))));
   } 
 }
 
@@ -4071,7 +4256,7 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       if (((bool)num_lit->suffix)) {
         etype = num_lit->suffix;
         if ((!TypeChecker__type_is_valid(this, etype))) {
-          error_span(etype->span, "Invalid type");
+          TypeChecker__error(this, Error__new(etype->span, "Invalid type"));
         } 
       }  else       if (node->type == ASTType__IntLiteral) {
         etype = Type__new(BaseType__I32, node->span);
@@ -4080,12 +4265,15 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       } 
       
     } break;
+    case ASTType__Error: {
+      return NULL;
+    } break;
     case ASTType__Constructor: {
       etype = node->etype;
     } break;
     case ASTType__SizeOf: {
       if ((!TypeChecker__type_is_valid(this, node->u.size_of_type))) {
-        error_span(node->u.size_of_type->span, "Invalid type");
+        TypeChecker__error(this, Error__new(node->u.size_of_type->span, "Invalid type"));
       } 
       etype = Type__new(BaseType__I32, node->span);
     } break;
@@ -4105,6 +4293,7 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
         etype = func->type;
       }  else {
         TypeChecker__error_unknown_identifier(this, node->span, ident->name);
+        return NULL;
       } 
       
       
@@ -4127,48 +4316,63 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__BitwiseXor:
     case ASTType__LeftShift:
     case ASTType__RightShift: {
-      TypeChecker__check_expression(this, node->u.binary.lhs);
-      TypeChecker__check_expression(this, node->u.binary.rhs);
+      Type *lhs_type = TypeChecker__check_expression(this, node->u.binary.lhs);
+      Type *rhs_type = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if (((!((bool)lhs_type)) || (!((bool)rhs_type)))) 
+      return NULL;
+      
       etype = TypeChecker__check_binary_op(this, node, node->u.binary.lhs, node->u.binary.rhs);
     } break;
     case ASTType__Not: {
       Type *rhs = TypeChecker__check_expression(this, node->u.unary);
-      if ((rhs->base != BaseType__Bool)) {
-        error_span_note(node->u.unary->span, "Expression must be boolean", format_string("Got type '%s'", Type__str(rhs)));
+      if ((((bool)rhs) && (rhs->base != BaseType__Bool))) {
+        TypeChecker__error(this, Error__new_note(node->u.unary->span, "Expression must be boolean", format_string("Got type '%s'", Type__str(rhs))));
       } 
       etype = Type__new(BaseType__Bool, node->span);
     } break;
     case ASTType__BitwiseNot: {
       etype = TypeChecker__check_expression(this, node->u.unary);
-      if ((!Type__is_integer(etype))) {
-        error_span_note(node->u.unary->span, "Expression must be an integer", format_string("Got type '%s'", Type__str(etype)));
+      if ((((bool)etype) && (!Type__is_integer(etype)))) {
+        TypeChecker__error(this, Error__new_note(node->u.unary->span, "Expression must be an integer", format_string("Got type '%s'", Type__str(etype))));
       } 
     } break;
     case ASTType__UnaryMinus: {
       etype = TypeChecker__check_expression(this, node->u.unary);
+      if ((!((bool)etype))) 
+      return NULL;
+      
       if ((!Type__is_numeric(etype))) {
-        error_span_note(node->u.unary->span, "Expression must be a number", format_string("Got type '%s'", Type__str(etype)));
+        TypeChecker__error(this, Error__new_note(node->u.unary->span, "Expression must be a number", format_string("Got type '%s'", Type__str(etype))));
       } 
     } break;
     case ASTType__Address: {
       etype = TypeChecker__check_expression(this, node->u.unary);
+      if ((!((bool)etype))) 
+      return NULL;
+      
       etype = Type__new_link(BaseType__Pointer, etype, node->span);
     } break;
     case ASTType__Dereference: {
       Type *expr_type = TypeChecker__check_expression(this, node->u.unary);
+      if ((!((bool)expr_type))) 
+      return NULL;
+      
       if ((expr_type->base != BaseType__Pointer)) {
-        error_span_note(node->u.unary->span, "Expression must be a pointer-type", format_string("Got type '%s'", Type__str(expr_type)));
+        TypeChecker__error(this, Error__new_note(node->u.unary->span, "Expression must be a pointer-type", format_string("Got type '%s'", Type__str(expr_type))));
       } 
       etype = expr_type->ptr;
     } break;
     case ASTType__Index: {
       Type *expr_type = TypeChecker__check_expression(this, node->u.binary.lhs);
+      if ((!((bool)expr_type))) 
+      return NULL;
+      
       if ((expr_type->base != BaseType__Pointer)) {
-        error_span_note(node->u.binary.lhs->span, "Expression must be a pointer-type", format_string("Got type '%s'", Type__str(expr_type)));
+        TypeChecker__error(this, Error__new_note(node->u.binary.lhs->span, "Expression must be a pointer-type", format_string("Got type '%s'", Type__str(expr_type))));
       } 
       Type *index_type = TypeChecker__check_expression(this, node->u.binary.rhs);
-      if ((!Type__is_integer(index_type))) {
-        error_span_note(node->u.binary.rhs->span, "Index must be an integer", format_string("Got type '%s'", Type__str(index_type)));
+      if ((((bool)index_type) && (!Type__is_integer(index_type)))) {
+        TypeChecker__error(this, Error__new_note(node->u.binary.rhs->span, "Index must be an integer", format_string("Got type '%s'", Type__str(index_type))));
       } 
       etype = expr_type->ptr;
     } break;
@@ -4178,36 +4382,44 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__MultiplyEquals: {
       Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if (((!((bool)lhs)) || (!((bool)rhs)))) 
+      return NULL;
+      
       if ((!AST__is_lvalue(node->u.binary.lhs))) {
-        error_span(node->u.binary.lhs->span, "Must be an l-value");
+        TypeChecker__error(this, Error__new(node->u.binary.lhs->span, "Must be an l-value"));
       } 
       if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
-        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       etype = lhs;
     } break;
     case ASTType__Assignment: {
       Type *lhs = TypeChecker__check_expression(this, node->u.binary.lhs);
       Type *rhs = TypeChecker__check_expression(this, node->u.binary.rhs);
+      if (((!((bool)lhs)) || (!((bool)rhs)))) 
+      return NULL;
+      
       if ((!AST__is_lvalue(node->u.binary.lhs))) {
-        error_span(node->u.binary.lhs->span, "Must be an l-value");
+        TypeChecker__error(this, Error__new(node->u.binary.lhs->span, "Must be an l-value"));
       } 
       if ((!Type__eq(lhs, rhs))) {
-        error_span_note(node->span, "Variable type does not match assignment type", format_string("Expected type '%s', got '%s'", Type__str(lhs), Type__str(rhs)));
+        TypeChecker__error(this, Error__new_note(node->span, "Variable type does not match assignment type", format_string("Expected type '%s', got '%s'", Type__str(lhs), Type__str(rhs))));
       } 
       etype = lhs;
     } break;
     case ASTType__ScopeLookup: {
       if ((node->u.member.lhs->type != ASTType__Identifier)) {
-        error_span(node->u.member.lhs->span, "Left hand side of `::` must be a struct name");
+        TypeChecker__error(this, Error__new(node->u.member.lhs->span, "Left hand side of `::` must be a struct name"));
+        return NULL;
       } 
       char *struct_name = node->u.member.lhs->u.ident.name;
       Structure *struc = ((Structure *)Map__get(this->structures, struct_name));
       if ((!((bool)struc))) {
-        error_span(node->u.member.lhs->span, "Unknown struct with this name");
+        TypeChecker__error(this, Error__new(node->u.member.lhs->span, "Unknown struct with this name"));
+        return NULL;
       } 
       AST *lhs = node->u.member.lhs;
       lhs->etype = struc->type;
@@ -4230,17 +4442,25 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
         etype = method->type;
       }  else {
         TypeChecker__error_unknown_member(this, node, struc->type, field_name, true);
+        return NULL;
       } 
       
     } break;
     case ASTType__Member: {
       Type *lhs_type = TypeChecker__check_expression(this, node->u.member.lhs);
+      if ((!((bool)lhs_type))) 
+      return NULL;
+      
       if (((!Type__is_struct_or_ptr(lhs_type)) && (!Type__is_string(lhs_type)))) {
-        error_span_note(node->u.member.lhs->span, "LHS of member access must be a struct / string", format_string("Got type '%s'", Type__str(lhs_type)));
+        TypeChecker__error(this, Error__new_note(node->u.member.lhs->span, "LHS of member access must be a struct / string", format_string("Got type '%s'", Type__str(lhs_type))));
+        return NULL;
       } 
       node->u.member.is_pointer = lhs_type->name == NULL;
       Type *struct_type = (((bool)lhs_type->name) ? lhs_type : lhs_type->ptr);
       AST *rhs = node->u.member.rhs;
+      if ((rhs->type != ASTType__Identifier)) 
+      return NULL;
+      
       char *struct_name = struct_type->name;
       char *field_name = rhs->u.ident.name;
       Structure *struc = ((Structure *)Map__get(this->structures, struct_name));
@@ -4252,27 +4472,32 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
         rhs->u.ident.var = field;
       }  else       if (((bool)method)) {
         if (method->is_static) {
-          error_span_note_span(node->span, "Member access requires a non-static method", method->span, "This is a static method");
+          TypeChecker__error(this, Error__new_hint(node->span, "Member access requires a non-static method", method->span, "This is a static method"));
         } 
         rhs->u.ident.is_function = true;
         rhs->u.ident.func = method;
         etype = method->type;
       }  else {
         TypeChecker__error_unknown_member(this, node, struct_type, field_name, false);
+        return NULL;
       } 
       
     } break;
     case ASTType__Cast: {
       Type *lhs_type = TypeChecker__check_expression(this, node->u.cast.lhs);
       if ((!TypeChecker__type_is_valid(this, node->u.cast.to))) {
-        error_span(node->u.cast.to->span, "Type does not exist");
+        TypeChecker__error(this, Error__new(node->u.cast.to->span, "Type does not exist"));
+        return NULL;
       } 
       etype = node->u.cast.to;
     } break;
     case ASTType__IsNotNull: {
       Type *lhs_type = TypeChecker__check_expression(this, node->u.unary);
+      if ((!((bool)lhs_type))) 
+      return NULL;
+      
       if ((lhs_type->base != BaseType__Pointer)) {
-        error_span_note(node->span, "Can only use ? on pointer types", format_string("Type of expression is '%s'", Type__str(lhs_type)));
+        TypeChecker__error(this, Error__new_note(node->span, "Can only use ? on pointer types", format_string("Type of expression is '%s'", Type__str(lhs_type))));
       } 
       etype = Type__new(BaseType__Bool, node->span);
     } break;
@@ -4288,6 +4513,9 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
       panic(format_string("Unhandled type in check_expression: %s", ASTType__dbg(node->type)));
     } break;
   }
+  if ((!((bool)etype))) 
+  return NULL;
+  
   etype = Type__decay_array(etype);
   node->etype = etype;
   return etype;
@@ -4315,11 +4543,11 @@ void TypeChecker__check_expression_statement(TypeChecker *this, AST *node, AST *
   Type *ret = body->etype;
   if (body->returns) {
   }  else   if ((!((bool)ret))) {
-    error_span(body->span, "Must yield a value in this branch");
+    TypeChecker__error(this, Error__new(body->span, "Must yield a value in this branch"));
   }  else   if ((!((bool)node->etype))) {
     node->etype = ret;
   }  else   if ((!Type__eq(node->etype, ret))) {
-    error_span_note(body->span, "Yield type doesn't match previous branches", format_string("Expected type '%s', got '%s'", Type__str(node->etype), Type__str(ret)));
+    TypeChecker__error(this, Error__new_note(body->span, "Yield type doesn't match previous branches", format_string("Expected type '%s', got '%s'", Type__str(node->etype), Type__str(ret))));
   } 
   
   
@@ -4339,7 +4567,7 @@ void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST 
       name = cond->u.ident.name;
       Variable *var = Structure__find_field(struc, name);
       if ((!((bool)var))) {
-        error_span(cond->span, "Enum has no field with this name");
+        TypeChecker__error(this, Error__new(cond->span, "Enum has no field with this name"));
       } 
       AST *rhs = AST__new(ASTType__Identifier, cond->span);
       (*rhs) = (*cond);
@@ -4352,13 +4580,13 @@ void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST 
     }  else {
       Type *cond_type = TypeChecker__check_expression(this, cond);
       if ((!Type__eq(cond_type, struc->type))) {
-        error_span_note_span(cond->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(struc->type)));
+        TypeChecker__error(this, Error__new_hint(cond->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(struc->type))));
       } 
       name = cond->u.enum_val.var->name;
     } 
     MatchCase *prev = ((MatchCase *)Map__get(mapping, name));
     if (((bool)prev)) {
-      error_span_note_span(cond->span, "Duplicate condition name in match", prev->cond->span, "This condition was previously used here");
+      TypeChecker__error(this, Error__new_hint(cond->span, "Duplicate condition name in match", prev->cond->span, "This condition was previously used here"));
     } 
     Map__insert(mapping, name, _case);
     if (((bool)_case->body)) {
@@ -4368,16 +4596,17 @@ void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST 
   AST *defolt = node->u.match_stmt.defolt;
   if ((mapping->num_items != struc->fields->size)) {
     if ((!((bool)defolt))) {
-      error_span_note(node->span, "Match does not cover all cases", format_string("Only %d of %d cases are covered", mapping->num_items, struc->fields->size));
+      TypeChecker__error(this, Error__new_note(node->span, "Match does not cover all cases", format_string("Only %d of %d cases are covered", mapping->num_items, struc->fields->size)));
+    }  else {
+      TypeChecker__check_expression_statement(this, node, defolt, is_expr);
     } 
-    TypeChecker__check_expression_statement(this, node, defolt, is_expr);
   }  else {
     if (((bool)defolt)) {
-      error_span(node->u.match_stmt.defolt_span, "`else` case is not needed for this match");
+      TypeChecker__error(this, Error__new(node->u.match_stmt.defolt_span, "`else` case is not needed for this match"));
     } 
   } 
   if (((is_expr && (!((bool)node->etype))) && (!node->returns))) {
-    error_span(node->span, "Expression-match must yield a value");
+    TypeChecker__error(this, Error__new(node->span, "Expression-match must yield a value"));
   } 
 
   /* defers */
@@ -4387,6 +4616,10 @@ void TypeChecker__check_match_for_enum(TypeChecker *this, Structure *struc, AST 
 void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr) {
   AST *expr = node->u.match_stmt.expr;
   Type *expr_type = TypeChecker__check_expression(this, expr);
+  if ((!((bool)expr_type))) {
+    TypeChecker__error(this, Error__new(node->span, "Match statement must have a valid expression"));
+    return;
+  } 
   Structure *struc;
   if (expr_type->base == BaseType__Structure) {
     struc = ((Structure *)Map__get(this->structures, expr_type->name));
@@ -4396,7 +4629,7 @@ void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr) {
     } 
   } 
   if ((((!Type__is_integer(expr_type)) && (expr_type->base != BaseType__Char)) && (!Type__is_string(expr_type)))) {
-    error_span_note(expr->span, "This type cannot be matched on", format_string("Expression type is '%s'", Type__str(expr_type)));
+    TypeChecker__error(this, Error__new_note(expr->span, "This type cannot be matched on", format_string("Expression type is '%s'", Type__str(expr_type))));
   } 
   Vector *cases = node->u.match_stmt.cases;
   node->returns = (cases->size > 0);
@@ -4404,10 +4637,10 @@ void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr) {
     MatchCase *_case = ((MatchCase *)Vector__at(cases, i));
     Type *cond_type = TypeChecker__check_expression(this, _case->cond);
     if ((!Type__eq(cond_type, expr_type))) {
-      error_span_note_span(cond_type->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(cond_type)));
+      TypeChecker__error(this, Error__new_hint(cond_type->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(cond_type))));
     } 
     if ((((_case->cond->type != ASTType__IntLiteral) && (_case->cond->type != ASTType__CharLiteral)) && (_case->cond->type != ASTType__StringLiteral))) {
-      error_span(_case->cond->span, "Match condition must use only literals");
+      TypeChecker__error(this, Error__new(_case->cond->span, "Match condition must use only literals"));
     } 
     if (((bool)_case->body)) {
       TypeChecker__check_expression_statement(this, node, _case->body, is_expr);
@@ -4415,18 +4648,19 @@ void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr) {
   } 
   AST *defolt = node->u.match_stmt.defolt;
   if ((!((bool)defolt))) {
-    error_span(node->span, "`else` case is missing");
+    TypeChecker__error(this, Error__new(node->span, "`else` case is missing"));
+  }  else {
+    TypeChecker__check_expression_statement(this, node, defolt, is_expr);
   } 
-  TypeChecker__check_expression_statement(this, node, defolt, is_expr);
   if (((is_expr && (!((bool)node->etype))) && (!node->returns))) {
-    error_span(node->span, "Expression-match must yield a value");
+    TypeChecker__error(this, Error__new(node->span, "Expression-match must yield a value"));
   } 
 }
 
 void TypeChecker__check_if(TypeChecker *this, AST *node, bool is_expr) {
   Type *cond_type = TypeChecker__check_expression(this, node->u.if_stmt.cond);
-  if ((cond_type->base != BaseType__Bool)) {
-    error_span_note(node->u.if_stmt.cond->span, "Condition must be a boolean", format_string("Got type '%s'", Type__str(cond_type)));
+  if ((((bool)cond_type) && (cond_type->base != BaseType__Bool))) {
+    TypeChecker__error(this, Error__new_note(node->u.if_stmt.cond->span, "Condition must be a boolean", format_string("Got type '%s'", Type__str(cond_type))));
   } 
   TypeChecker__check_expression_statement(this, node, node->u.if_stmt.body, is_expr);
   if (((bool)node->u.if_stmt.els)) {
@@ -4436,11 +4670,11 @@ void TypeChecker__check_if(TypeChecker *this, AST *node, bool is_expr) {
       node->returns = true;
     } 
   }  else   if (is_expr) {
-    error_span(node->span, "Expression-if must have an 'else' branch");
+    TypeChecker__error(this, Error__new(node->span, "Expression-if must have an 'else' branch"));
   } 
   
   if (((is_expr && (!((bool)node->etype))) && (!node->returns))) {
-    error_span(node->span, "Expression-if must yield a value");
+    TypeChecker__error(this, Error__new(node->span, "Expression-if must yield a value"));
   } 
 }
 
@@ -4450,7 +4684,8 @@ Type *TypeChecker__check_constant_expression(TypeChecker *this, AST *node) {
     case ASTType__Identifier: {
       Variable *constant = TypeChecker__find_constant(this, node->u.ident.name);
       if ((!((bool)constant))) {
-        error_span(node->span, "No constant value found with this name");
+        TypeChecker__error(this, Error__new(node->span, "No constant value found with this name"));
+        return NULL;
       } 
       node->u.ident.var = constant;
       __yield_0 = constant->type;
@@ -4491,13 +4726,17 @@ Type *TypeChecker__check_constant_expression(TypeChecker *this, AST *node) {
     case ASTType__RightShift: {
       Type *lhs = TypeChecker__check_constant_expression(this, node->u.binary.lhs);
       Type *rhs = TypeChecker__check_constant_expression(this, node->u.binary.rhs);
+      if (((!((bool)lhs)) || (!((bool)rhs)))) 
+      return NULL;
+      
       if ((lhs->base == BaseType__Pointer || rhs->base == BaseType__Pointer)) {
-        error_span(node->span, "Cannot do pointer arithmetic in constant expressions");
+        TypeChecker__error(this, Error__new(node->span, "Cannot do pointer arithmetic in constant expressions"));
       } 
       __yield_0 = TypeChecker__check_binary_op(this, node, node->u.binary.lhs, node->u.binary.rhs);
     } break;
     default: {
-      error_span(node->span, "Unsupported operator in constant expression");
+      TypeChecker__error(this, Error__new(node->span, "Unsupported operator in constant expression"));
+      return NULL;
     } break;
   }
 ;__yield_0; });
@@ -4515,25 +4754,30 @@ void TypeChecker__check_var_declaration(TypeChecker *this, AST *node, bool is_co
     __yield_0 = TypeChecker__check_expression(this, var_decl->init);
   } 
 ;__yield_0; });
+    if ((!((bool)init_type))) 
+    return;
+    
     if (init_type->base == BaseType__Method) {
-      error_span(var_decl->init->span, "Cannot assign methods to variables");
+      TypeChecker__error(this, Error__new(var_decl->init->span, "Cannot assign methods to variables"));
     } 
     if ((!((bool)var_decl->var->type))) {
       var_decl->var->type = init_type;
     }  else {
       if ((!TypeChecker__type_is_valid(this, var_decl->var->type))) {
-        error_span(var_decl->var->span, "Invalid type");
+        TypeChecker__error(this, Error__new(var_decl->var->span, "Invalid type"));
       } 
       if ((!Type__eq(var_decl->var->type, init_type))) {
-        error_span_note(var_decl->init->span, "Variable type does not match initializer type", format_string("Expected '%s' but got '%s'", Type__str(var_decl->var->type), Type__str(init_type)));
+        TypeChecker__error(this, Error__new_note(var_decl->init->span, "Variable type does not match initializer type", format_string("Expected '%s' but got '%s'", Type__str(var_decl->var->type), Type__str(init_type))));
       } 
     } 
   }  else {
     if ((!((bool)var_decl->var->type))) {
-      error_span(var_decl->var->span, "Variable type cannot be inferred, specify explicitly");
+      TypeChecker__error(this, Error__new(var_decl->var->span, "Variable type cannot be inferred, specify explicitly"));
+      return;
     } 
     if ((!TypeChecker__type_is_valid(this, var_decl->var->type))) {
-      error_span(var_decl->var->type->span, "Invalid variable type");
+      TypeChecker__error(this, Error__new(var_decl->var->type->span, "Invalid variable type"));
+      return;
     } 
   } 
   Variable *var = var_decl->var;
@@ -4557,25 +4801,25 @@ void TypeChecker__check_statement(TypeChecker *this, AST *node) {
     } break;
     case ASTType__Yield: {
       if ((!this->can_yield)) {
-        error_span(node->span, "Cannot yield in this context");
+        TypeChecker__error(this, Error__new(node->span, "Cannot yield in this context"));
       } 
       node->etype = TypeChecker__check_expression(this, node->u.unary);
     } break;
     case ASTType__Return: {
       if ((!((bool)this->cur_func))) {
-        error_span(node->span, "Return statement outside of function");
+        TypeChecker__error(this, Error__new(node->span, "Return statement outside of function"));
       } 
       if ((!((bool)node->u.unary))) {
         if ((this->cur_func->return_type->base != BaseType__Void)) {
-          error_span_note_span(node->span, "Cannot have empty return in non-void function", this->cur_func->return_type->span, format_string("This function returns '%s'", Type__str(this->cur_func->return_type)));
+          TypeChecker__error(this, Error__new_hint(node->span, "Cannot have empty return in non-void function", this->cur_func->return_type->span, format_string("This function returns '%s'", Type__str(this->cur_func->return_type))));
         } 
       }  else {
         Type *ret_type = TypeChecker__check_expression(this, node->u.unary);
-        if (this->cur_func->return_type->base == BaseType__Void) {
-          error_span_note_span(node->u.unary->span, format_string("Cannot return '%s' in void function", Type__str(ret_type)), this->cur_func->span, "This function does not return a value");
+        if ((((bool)ret_type) && this->cur_func->return_type->base == BaseType__Void)) {
+          TypeChecker__error(this, Error__new_hint(node->u.unary->span, format_string("Cannot return '%s' in void function", Type__str(ret_type)), this->cur_func->span, "This function does not return a value"));
         } 
-        if ((!Type__eq(ret_type, this->cur_func->return_type))) {
-          error_span_note_span(node->u.unary->span, format_string("Return type '%s' is incorrect", Type__str(ret_type)), this->cur_func->return_type->span, format_string("This function returns '%s'", Type__str(this->cur_func->return_type)));
+        if ((((bool)ret_type) && (!Type__eq(ret_type, this->cur_func->return_type)))) {
+          TypeChecker__error(this, Error__new_hint(node->u.unary->span, format_string("Return type '%s' is incorrect", Type__str(ret_type)), this->cur_func->return_type->span, format_string("This function returns '%s'", Type__str(this->cur_func->return_type))));
         } 
       } 
       node->returns = true;
@@ -4583,7 +4827,7 @@ void TypeChecker__check_statement(TypeChecker *this, AST *node) {
     case ASTType__Break:
     case ASTType__Continue: {
       if ((!this->in_loop)) {
-        error_span(node->span, format_string("%s statement outside of loop", ASTType__dbg(node->type)));
+        TypeChecker__error(this, Error__new(node->span, format_string("%s statement outside of loop", ASTType__dbg(node->type))));
       } 
     } break;
     case ASTType__VarDeclaration: {
@@ -4593,8 +4837,8 @@ void TypeChecker__check_statement(TypeChecker *this, AST *node) {
       bool was_in_loop = this->in_loop;
       this->in_loop = true;
       Type *cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
-      if ((cond_type->base != BaseType__Bool)) {
-        error_span_note(node->u.loop.cond->span, "Condition must be boolean", format_string("Got type '%s'", Type__str(cond_type)));
+      if ((((bool)cond_type) && (cond_type->base != BaseType__Bool))) {
+        TypeChecker__error(this, Error__new_note(node->u.loop.cond->span, "Condition must be boolean", format_string("Got type '%s'", Type__str(cond_type))));
       } 
       TypeChecker__check_statement(this, node->u.loop.body);
       this->in_loop = was_in_loop;
@@ -4608,8 +4852,8 @@ void TypeChecker__check_statement(TypeChecker *this, AST *node) {
       } 
       if (((bool)node->u.loop.cond)) {
         Type *cond_type = TypeChecker__check_expression(this, node->u.loop.cond);
-        if ((cond_type->base != BaseType__Bool)) {
-          error_span_note(node->u.loop.cond->span, "Condition must be boolean", format_string("Got type '%s'", Type__str(cond_type)));
+        if ((((bool)cond_type) && (cond_type->base != BaseType__Bool))) {
+          TypeChecker__error(this, Error__new_note(node->u.loop.cond->span, "Condition must be boolean", format_string("Got type '%s'", Type__str(cond_type))));
         } 
       } 
       if (((bool)node->u.loop.incr)) {
@@ -4644,7 +4888,7 @@ void TypeChecker__check_block(TypeChecker *this, AST *node, bool can_yield) {
     continue;
     
     if (((bool)node->etype)) {
-      error_span_note_span(statement->span, "Cannot yield multiple times in a block", yield_span, "Previously yield here is here");
+      TypeChecker__error(this, Error__new_hint(statement->span, "Cannot yield multiple times in a block", yield_span, "Previously yield here is here"));
     } 
     node->etype = statement->etype;
     yield_span = statement->span;
@@ -4669,7 +4913,7 @@ void TypeChecker__check_function(TypeChecker *this, Function *func) {
     } 
     if (((!func->body->returns) && (func->return_type->base != BaseType__Void))) {
       if ((!string__eq(func->name, "main"))) {
-        error_span(func->span, "Function does not always return");
+        TypeChecker__error(this, Error__new(func->span, "Function does not always return"));
       } 
     } 
   } 
@@ -4686,15 +4930,15 @@ void TypeChecker__check_all_functions(TypeChecker *this, Program *program) {
     if (func->is_method) {
       Map *s_methods = ((Map *)Map__get(this->methods, struct_name));
       if ((!((bool)s_methods))) {
-        error_span(func->span, "Type for method does not exist");
+        TypeChecker__error(this, Error__new(func->span, "Type for method does not exist"));
       } 
-      if (Map__exists(s_methods, name)) {
+      if ((((bool)s_methods) && Map__exists(s_methods, name))) {
         Function *method = ((Function *)Map__get(s_methods, name));
-        error_span_note_span(func->span, "Method is already defined for this type", method->span, "Previous definition here");
+        TypeChecker__error(this, Error__new_hint(func->span, "Method is already defined for this type", method->span, "Previous definition here"));
       } 
       Variable *var = TypeChecker__get_struct_member(this, struct_name, name);
       if (((bool)var)) {
-        error_span_note_span(func->span, "Type already has a field with this name", var->span, "Previous definition here");
+        TypeChecker__error(this, Error__new_hint(func->span, "Type already has a field with this name", var->span, "Previous definition here"));
       } 
       func_type = Type__new(BaseType__Method, func->span);
       func_type->name = struct_name;
@@ -4702,25 +4946,27 @@ void TypeChecker__check_all_functions(TypeChecker *this, Program *program) {
       func_type = Type__new(BaseType__Function, func->span);
       if (Map__exists(this->functions, name)) {
         Function *prev = ((Function *)Map__get(this->functions, name));
-        error_span_note_span(func->span, "Function is already defined", prev->span, "Previous definition here");
+        TypeChecker__error(this, Error__new_hint(func->span, "Function is already defined", prev->span, "Previous definition here"));
       } 
     } 
     func_type->func_def = func;
     for (i32 j = 0; (j < func->params->size); j += 1) {
       Variable *param = ((Variable *)Vector__at(func->params, j));
       if ((!TypeChecker__type_is_valid(this, param->type))) {
-        error_span(param->type->span, "Invalid parameter type");
+        TypeChecker__error(this, Error__new(param->type->span, "Invalid parameter type"));
       } 
     } 
     func_type->params = func->params;
     if ((!TypeChecker__type_is_valid(this, func->return_type))) {
-      error_span(func->return_type->span, "Invalid return type");
+      TypeChecker__error(this, Error__new(func->return_type->span, "Invalid return type"));
     } 
     func_type->return_type = func->return_type;
     func->type = func_type;
     if (func->is_method) {
       Map *s_methods = ((Map *)Map__get(this->methods, struct_name));
+      if (((bool)s_methods)) 
       Map__insert(s_methods, name, func);
+      
     }  else {
       Map__insert(this->functions, name, func);
     } 
@@ -4735,12 +4981,13 @@ void TypeChecker__dfs_structs(TypeChecker *this, Structure *struc, Vector *resul
   for (i32 i = 0; (i < struc->fields->size); i += 1) {
     Variable *field = ((Variable *)Vector__at(struc->fields, i));
     if ((!TypeChecker__type_is_valid(this, field->type))) {
-      error_span(field->type->span, "Type of field is undefined");
+      TypeChecker__error(this, Error__new(field->type->span, "Type of field is undefined"));
+      continue;
     } 
     if (((!struc->is_extern) && field->type->base == BaseType__Structure)) {
       char *neib_name = field->type->name;
       Structure *neib_struc = ((Structure *)Map__get(this->structures, neib_name));
-      if ((!Map__exists(done, neib_name))) {
+      if ((((bool)neib_struc) && (!Map__exists(done, neib_name)))) {
         TypeChecker__dfs_structs(this, neib_struc, results, done);
       } 
     } 
@@ -4754,7 +5001,7 @@ void TypeChecker__check_all_structs(TypeChecker *this, Program *program) {
     char *name = struc->name;
     if (Map__exists(this->structures, name)) {
       Structure *prev = ((Structure *)Map__get(this->structures, name));
-      error_span_note_span(struc->span, "Struct has already been defined", prev->span, "Previous definition here");
+      TypeChecker__error(this, Error__new_hint(struc->span, "Struct has already been defined", prev->span, "Previous definition here"));
     } 
     Map__insert(this->structures, name, struc);
     Map *s_methods = Map__new();
@@ -4789,6 +5036,7 @@ void TypeChecker__check_all_structs(TypeChecker *this, Program *program) {
 }
 
 void TypeChecker__check_program(TypeChecker *this, Program *program) {
+  this->program = program;
   for (i32 i = 0; (i < program->constants->size); i += 1) {
     AST *node = ((AST *)Vector__at(program->constants, i));
     TypeChecker__check_var_declaration(this, node, true);
@@ -4845,6 +5093,10 @@ char *StringBuilder__new_str(StringBuilder *this) {
 
 CodeGenerator CodeGenerator__make(bool debug) {
   return (CodeGenerator){.program = NULL, .out = StringBuilder__make(), .scopes = Vector__new(), .yield_vars = Vector__new(), .yield_count = 0, .debug = debug};
+}
+
+void CodeGenerator__error(CodeGenerator *this, Error *err) {
+  Vector__push(this->program->errors, err);
 }
 
 void CodeGenerator__gen_debug_info(CodeGenerator *this, Span span) {
@@ -5027,7 +5279,10 @@ void CodeGenerator__gen_format_string_variadic(CodeGenerator *this, AST *node, b
           } break;
         }
       } break;
-      default: error_span(expr->span, "Invalid type for format string"); break;
+      default: {
+        panic("Unsupported format string expression type");
+        StringBuilder__puts((&this->out), "%s");
+      } break;
     }
   } 
   char *part = ((char *)Vector__back(parts));
@@ -5162,7 +5417,7 @@ void CodeGenerator__gen_internal_print(CodeGenerator *this, AST *node) {
   StringBuilder__puts((&this->out), "printf(");
   Vector *args = node->u.call.args;
   if ((args->size < 1)) {
-    error_span(node->span, "Function requires at least one argument");
+    CodeGenerator__error(this, Error__new(node->span, "Function requires at least one argument"));
   } 
   Argument *first = ((Argument *)Vector__at(args, 0));
   if ((args->size == 1 && first->expr->type == ASTType__FormatStringLiteral)) {
@@ -5678,6 +5933,7 @@ char *CodeGenerator__get_type_name_string(CodeGenerator *this, Type *type, char 
         free(acc.data);
         string__replace((&final), CodeGenerator__get_type_name_string(this, cur->return_type, final, false));
       } break;
+      case BaseType__Error: panic("Internal error: Error type in codegen"); break;
     }
   } 
   string__strip_trailing_whitespace(final);
@@ -5820,6 +6076,7 @@ void usage(i32 code) {
   printf("Options:""\n");
   printf("    -o path   Output executable (default: ./out)""\n");
   printf("    -c path   Output C code (default: {out}.c)""\n");
+  printf("    -m        Minimal one-line errors (default: false)""\n");
   printf("    -s        Silent mode (no debug output)""\n");
   printf("    -n        Don't compile C code (default: false)""\n");
   printf("    -d        Emit debug information (default: false)""\n");
@@ -5837,6 +6094,7 @@ i32 main(i32 argc, char **argv) {
   bool silent = false;
   char *lib_path = ((char *)NULL);
   bool debug = false;
+  bool condensed_errors = false;
   for (i32 i = 1; (i < argc); i += 1) {
     {
       char *__match_str = argv[i];
@@ -5857,6 +6115,8 @@ i32 main(i32 argc, char **argv) {
       } else if (!strcmp(__match_str, "-c")) {
         i += 1;
         c_path = argv[i];
+      } else if (!strcmp(__match_str, "-m")) {
+        condensed_errors = true;
       } else  {
         if (argv[i][0] == '-') {
           printf("Unknown option: %s""\n", argv[i]);
@@ -5887,8 +6147,16 @@ i32 main(i32 argc, char **argv) {
   Parser__include_file(parser, program, filename);
   TypeChecker *checker = TypeChecker__new();
   TypeChecker__check_program(checker, program);
+  if ((program->errors->size > 0)) {
+    display_error_messages(program->errors, condensed_errors);
+    exit(1);
+  } 
   CodeGenerator generator = CodeGenerator__make(debug);
   char *c_code = CodeGenerator__gen_program((&generator), program);
+  if ((program->errors->size > 0)) {
+    display_error_messages(program->errors, condensed_errors);
+    exit(1);
+  } 
   FILE *out_file = File__open(c_path, "w");
   File__puts(out_file, c_code);
   fclose(out_file);

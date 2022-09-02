@@ -57,7 +57,9 @@ def Vector::back(&this): untyped_ptr {
 }
 
 def Vector::at(&this, i: i32): untyped_ptr {
-    if i < 0 or i >= .size then panic("at out of bounds in vector")
+    if i < 0 or i >= .size {
+        panic("at out of bounds in vector")
+    }
     return .data[i]
 }
 

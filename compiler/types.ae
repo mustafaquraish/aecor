@@ -21,6 +21,8 @@ enum BaseType {
     Function
     Method
     Array
+
+    Error
 }
 
 def BaseType::str(this): string => match this {
@@ -105,7 +107,7 @@ def Type::eq(&this, other: &Type): bool {
 
     match .base {
         // Not _technically_ right, but we shouldn't really ever be comparing methods
-        Method => return false
+        Method | Error => return false
         // FIXME: have some way of checking the size...
         Array => return .ptr.eq(other.ptr)
         Function => {

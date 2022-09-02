@@ -2,6 +2,7 @@ use "lib/vector.ae"
 use "lib/map.ae"
 use "compiler/types.ae"
 use "compiler/tokens.ae"
+use "compiler/errors.ae"
 
 enum ASTType {
     Assignment
@@ -26,6 +27,7 @@ enum ASTType {
     DivideEquals
     EnumValue
     Equals
+    Error
     FloatLiteral
     FormatStringLiteral
     For
@@ -173,6 +175,7 @@ struct Program {
     span: Span
 
     included_files: &Map  // Map<string, string>
+    errors: &Vector       // Vector<&Error>
 
     c_flags: &Vector           // Vector<string>
     c_includes: &Vector        // Vector<string>
@@ -189,6 +192,7 @@ def Program::new(): &Program {
     prog.constants = Vector::new()
 
     prog.included_files = Map::new()
+    prog.errors = Vector::new()
 
     prog.c_flags = Vector::new()
     prog.c_includes = Vector::new()

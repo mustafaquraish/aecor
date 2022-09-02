@@ -77,19 +77,13 @@ def handle_test(compiler: str, num: int, path: Path, expected: Expected) -> Tupl
         error = process.stdout.decode("utf-8").strip()
         expected_error = expected.value
 
-        # The error message from the compiler should be on the second line
-        try:
-            error_line = error.splitlines()[1]
-        except IndexError:
-            error_line = error
-
-        if expected_error in error_line:
+        if expected_error in error:
             return True, "(Success)", path
         else:
             try:
-                remaining = error_line.split("Error: ")[1]
+                remaining = error.split("Error: ")[1]
             except IndexError:
-                remaining = error_line
+                remaining = error
             return False, f"Did not find expected error message\n  expected: {expected_error}\n  got: '{remaining}'", path
 
     elif process.returncode != 0:

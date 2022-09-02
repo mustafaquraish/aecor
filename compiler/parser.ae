@@ -26,6 +26,8 @@ struct Parser {
     context_stack: &Vector
     project_root: string
     include_dirs: &Vector
+
+    program: &Program
 }
 
 // We take in the filename to figure out the project root
@@ -69,12 +71,18 @@ def Parser::add_include_dir(&this, dir: string) {
     .include_dirs.push(dir)
 }
 
-def Parser::error(&this, msg: string) {
-    error_span(.token().span, msg)
+def Parser::error_msg(&this, msg: string): &Error {
+    let err = Error::new(.token().span, msg)
+    .program.errors.push(err)
+    return err
+}
+
+def Parser::error(&this, err: &Error) {
+    .program.errors.push(err)
 }
 
 def Parser::unhandled_type(&this, func: string) {
-    .error(`Unexpected token in {func}: {.token().type.str()}`)
+    .error_msg(`Unexpected token in {func}: {.token().type.str()}`)
 }
 
 def Parser::token(&this): &Token => .tokens.at(.curr)
@@ -101,14 +109,14 @@ def Parser::consume_newline_or(&this, type: TokenType) {
     if .token_is(type) {
         .curr += 1
     } else if not .token().seen_newline {
-        .error(`Expected {type.str()} or newline`)
+        .error_msg(`Expected {type.str()} or newline`).panic()
     }
 }
 
 def Parser::consume(&this, type: TokenType): &Token {
     let tok = .token()
     if not .consume_if(type) {
-        .error(`Expected TokenType::{type.str()}`)
+        .error_msg(`Expected TokenType::{type.str()}`).panic()
     }
     return tok
 }
@@ -182,7 +190,10 @@ def Parser::parse_type_with_parent(&this, parent: &Type): &Type {
             type.span = type.span.join(.token().span)
             .consume(TokenType::CloseSquare)
         }
-        else => .unhandled_type("parse_type")
+        else => {
+            .unhandled_type("parse_type")
+            type = Type::new(BaseType::Error, .token().span)
+        }
     }
 
     if parent? {
@@ -233,7 +244,8 @@ def Parser::parse_format_string(&this): &AST {
                         let loc = fstr.span.start;
                         loc.col += specifier_loc + 1
                         let span = Span(loc, loc)
-                        error_span(span, "Expected format specifier")
+                        .error(Error::new(span, "Expected format specifier"))
+                        return null
                     }
 
                     let spec = fstr.text.substring(specifier_loc, i - specifier_loc)
@@ -248,7 +260,8 @@ def Parser::parse_format_string(&this): &AST {
                 specifier_loc = -1
 
             } else if count < 0 {
-                error_span(fstr.span, "Unmatched '}' in format string")
+                .error(Error::new(fstr.span, "Unmatched '}' in format string"))
+                return null
             }
 
         // FIXME: Should this use semicolons?
@@ -260,7 +273,8 @@ def Parser::parse_format_string(&this): &AST {
         }
     }
     if count != 0 {
-        error_span(fstr.span, "Unmatched '{' in format string")
+        .error(Error::new(fstr.span, "Unmatched '{' in format string"))
+        return null
     }
     let part = fstr.text.substring(cur_start, fstr_len - cur_start)
     format_parts.push(part)
@@ -279,11 +293,15 @@ def Parser::parse_format_string(&this): &AST {
         lexer.loc.col += start + 1
 
         let tokens = lexer.lex()
+        for let i = 0; i < lexer.errors.size; i += 1 {
+            .error(lexer.errors.at(i))
+        }
+        lexer.errors.free()
 
         .push_context(tokens)
         let expr = .parse_expression(end_type: TokenType::CloseCurly)
         if not .token_is(TokenType::EOF) {
-            error_loc(.token().span.start, "Invalid expression in format string")
+            .error(Error::new(expr.span, "Invalid expression in format string"))
         }
         .pop_context()
 
@@ -309,7 +327,9 @@ def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
     let type = .parse_type()
 
     if not .token_is(TokenType::EOF) {
-        error_loc(.token().span.start, "Invalid type suffix")
+        let loc = .token().span.start
+        let span = Span(loc, loc)
+        .error(Error::new(span, "Invalid type suffix"))
     }
 
     .pop_context()
@@ -360,18 +380,24 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
         }
         TokenType::Dot => {
             let op = .consume(TokenType::Dot)
-            let rhs = .consume(TokenType::Identifier)
 
             let lhs = AST::new(ASTType::Identifier, op.span)
             lhs.u.ident.name = "this"
             lhs.u.ident.is_function = false
 
+            let rhs = if .token_is(TokenType::Identifier) {
+                let name = .consume(TokenType::Identifier)
+                let tmp = AST::new(ASTType::Identifier, name.span)
+                tmp.u.ident.name = name.text
+                yield tmp
+            } else {
+                .error(Error::new(op.span, "Expected identifier after '.'"))
+                yield AST::new(ASTType::Error, op.span)
+            }
+
             node = AST::new(ASTType::Member, lhs.span.join(rhs.span))
             node.u.member.lhs = lhs
-
-            let rhs_node = AST::new(ASTType::Identifier, rhs.span)
-            rhs_node.u.ident.name = rhs.text
-            node.u.member.rhs = rhs_node
+            node.u.member.rhs = rhs
         }
         TokenType::Minus => {
             let op = .consume(TokenType::Minus)
@@ -422,7 +448,11 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
         TokenType::Match => node = .parse_match()
         TokenType::If => node = .parse_if()
 
-        else => .unhandled_type("parse_expression")
+        else => {
+            .unhandled_type("parse_expression")
+            node = AST::new(ASTType::Error, .token().span)
+            .curr += 1
+        }
     }
 
     let running = true
@@ -462,13 +492,18 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
                 node = AST::new_binop(ASTType::Index, node, index)
             }
             TokenType::Dot => {
-                .consume(TokenType::Dot)
-                let name = .consume(TokenType::Identifier)
-                let member = AST::new(ASTType::Member, node.span.join(name.span))
+                let dot = .consume(TokenType::Dot)
+                let rhs = if .token_is(TokenType::Identifier) {
+                    let name = .consume(TokenType::Identifier)
+                    let tmp = AST::new(ASTType::Identifier, name.span)
+                    tmp.u.ident.name = name.text
+                    yield tmp
+                } else {
+                    .error(Error::new(.token().span, "Expected identifier after '.'"))
+                    yield AST::new(ASTType::Error, dot.span)
+                }
 
-                let rhs = AST::new(ASTType::Identifier, name.span)
-                rhs.u.ident.name = name.text
-
+                let member = AST::new(ASTType::Member, node.span.join(rhs.span))
                 member.u.member.lhs = node
                 member.u.member.rhs = rhs
                 node = member
@@ -775,7 +810,7 @@ def Parser::parse_statement(&this): &AST {
                 // FIXME: This doesn't seem very robust...
                 if init.type != ASTType::Assignment and
                     init.type != ASTType::VarDeclaration {
-                    error_span(init.span, "Invalid for loop initializer")
+                    .error(Error::new(init.span, "Invalid for loop initializer"))
                 }
                 node.u.loop.init = init
 
@@ -817,7 +852,7 @@ def Parser::parse_statement(&this): &AST {
             node.u.var_decl.init = init
         }
         TokenType::Const => {
-            error_span(.token().span, "Const declarations are only allowed in the global scope")
+            .error(Error::new(.token().span, "Const declarations are only allowed in the global scope"))
         }
         else => {
             node = .parse_expression(end_type: TokenType::Newline)
@@ -856,7 +891,7 @@ def Parser::parse_function(&this): &Function {
     if next_token.type == TokenType::ColonColon {
         struct_type = .parse_type()
         if not struct_type.name? {
-            error_span(struct_type.span, "Invalid type in method declaration")
+            .error(Error::new(struct_type.span, "Invalid type in method declaration"))
         }
         struct_name = struct_type.name
         is_method = true
@@ -882,7 +917,7 @@ def Parser::parse_function(&this): &Function {
                     type = Type::new_link(BaseType::Pointer, type, name.span)
                 }
             } else if found_amp {
-                error_span(var_name.span, "Expected 'this' over here")
+                .error(Error::new(var_name.span, "Expected 'this' over here"))
             } else {
                 is_static = true
             }
@@ -928,7 +963,8 @@ def Parser::parse_function(&this): &Function {
         func.is_arrow = true
         let expr = .parse_expression(TokenType::Newline)
         if not .token().seen_newline {
-            error_loc(expr.span.end, "Expected newline after arrow function");
+            let end_loc = Span(expr.span.end, expr.span.end)
+            .error(Error::new(end_loc, "Expected newline after arrow function"))
         }
         let ret_stmt = AST::new_unop(ASTType::Return, expr.span, expr)
         func.body = ret_stmt
@@ -1050,7 +1086,12 @@ def Parser::parse_global_value(&this, is_constant: bool): &AST {
     }
 
     let node = AST::new(ASTType::VarDeclaration, .token().span)
-    let name = .consume(TokenType::Identifier)
+    let name = if .token_is(TokenType::Identifier) {
+        yield .consume(TokenType::Identifier)
+    } else {
+        .error(Error::new(.token().span, "Expected identifier"))
+        return node
+    }
 
     let type = null as &Type
     if .consume_if(TokenType::Colon) { type = .parse_type(); }
@@ -1069,7 +1110,7 @@ def Parser::parse_global_value(&this, is_constant: bool): &AST {
         }
 
         if not type? {
-            error_span(name.span, "Extern values must have a type specified")
+            .error(Error::new(name.span, "Extern values must have a type specified"))
         }
     } else {
         var.is_extern = false
@@ -1114,7 +1155,8 @@ def Parser::find_file_path(&this, filename: string): string {
     }
 
     .curr -= 1
-    error_span(.token().span, `Could not find file: {filename}`)
+    .error(Error::new(.token().span, `Could not find file: {filename}`))
+    exit(1)
 }
 
 def Parser::include_file(&this, program: &Program, filename: string): string {
@@ -1128,6 +1170,11 @@ def Parser::include_file(&this, program: &Program, filename: string): string {
 
     let lexer = Lexer::make(contents, filename)
     let tokens = lexer.lex()
+
+    for let i = 0; i < lexer.errors.size; i += 1 {
+        .error(lexer.errors.at(i))
+    }
+    lexer.errors.free()
 
     .push_context(tokens)
     .parse_into_program(program)
@@ -1147,7 +1194,7 @@ def Parser::parse_compiler_option(&this, program: &Program) {
     .consume(TokenType::AtSign)
     let compiler = .consume(TokenType::Identifier)
     if not compiler.text.eq("compiler") {
-        error_span(compiler.span, "Expected 'compiler'")
+        .error(Error::new(compiler.span, "Expected 'compiler'"))
     }
 
     let name = .consume(TokenType::Identifier)
@@ -1165,7 +1212,7 @@ def Parser::parse_compiler_option(&this, program: &Program) {
             let resolved = .find_file_path(filename.text)
             program.c_embed_headers.push(resolved)
         }
-        else => error_span(name.span, "Unknown compiler option")
+        else => .error(Error::new(name.span, "Unknown compiler option"))
     }
 }
 
@@ -1200,6 +1247,7 @@ def Parser::parse_into_program(&this, program: &Program) {
 }
 
 def Parser::include_prelude(&this, program: &Program) {
+    .program = program
     .include_file(program, "lib/prelude.ae")
 }
 

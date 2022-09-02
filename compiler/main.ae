@@ -2,6 +2,7 @@ use "compiler/lexer.ae"
 use "compiler/parser.ae"
 use "compiler/typecheck.ae"
 use "compiler/codegen.ae"
+use "compiler/errors.ae"
 
 def usage(code: i32) {
     println("--------------------------------------------------------")
@@ -9,6 +10,7 @@ def usage(code: i32) {
     println("Options:")
     println("    -o path   Output executable (default: ./out)")
     println("    -c path   Output C code (default: {out}.c)")
+    println("    -m        Minimal one-line errors (default: false)")
     println("    -s        Silent mode (no debug output)")
     println("    -n        Don't compile C code (default: false)")
     println("    -d        Emit debug information (default: false)")
@@ -26,6 +28,7 @@ def main(argc: i32, argv: &string) {
     let silent = false
     let lib_path = null as string
     let debug = false
+    let condensed_errors = false
 
     for let i = 1; i < argc; i += 1 {
         match argv[i] {
@@ -45,6 +48,7 @@ def main(argc: i32, argv: &string) {
                 i += 1
                 c_path = argv[i]
             }
+            "-m" => condensed_errors = true
             else => {
                 if argv[i][0] == '-' {
                     println("Unknown option: %s", argv[i])
@@ -80,8 +84,18 @@ def main(argc: i32, argv: &string) {
     let checker = TypeChecker::new()
     checker.check_program(program)
 
+    if program.errors.size > 0 {
+        display_error_messages(program.errors, condensed: condensed_errors)
+        exit(1)
+    }
+
     let generator = CodeGenerator::make(debug)
     let c_code = generator.gen_program(program)
+
+    if program.errors.size > 0 {
+        display_error_messages(program.errors, condensed: condensed_errors)
+        exit(1)
+    }
 
     let out_file = File::open(c_path, "w")
     out_file.puts(c_code)

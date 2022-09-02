@@ -22,6 +22,11 @@ def CodeGenerator::make(debug: bool): CodeGenerator {
     )
 }
 
+
+def CodeGenerator::error(&this, err: &Error) {
+    .program.errors.push(err)
+}
+
 def CodeGenerator::gen_debug_info(&this, span: Span) {
     if not .debug return
     let loc = span.start
@@ -182,7 +187,11 @@ def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: 
                 Char => .out.puts("%s")
                 else => .out.puts("%p")
             }
-            else => error_span(expr.span, "Invalid type for format string")
+            else => {
+                // FIXME: Move this check to `typecheck.ae`
+                panic("Unsupported format string expression type")
+                .out.puts("%s")
+            }
         }
     }
     // Put the last part:
@@ -268,7 +277,9 @@ def CodeGenerator::gen_internal_print(&this, node: &AST) {
 
     let args = node.u.call.args
     if args.size < 1 {
-        error_span(node.span, "Function requires at least one argument")
+        .error(Error::new(
+            node.span, "Function requires at least one argument"
+        ))
     }
     let first = args.at(0) as &Argument
     if args.size == 1 and first.expr.type == ASTType::FormatStringLiteral {
@@ -774,6 +785,7 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
                     is_func_def: false
                 ))
             }
+            Error => panic("Internal error: Error type in codegen")
         }
     }
     final.strip_trailing_whitespace()

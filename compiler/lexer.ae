@@ -1,5 +1,6 @@
 use "lib/vector.ae"
 use "compiler/tokens.ae"
+use "compiler/errors.ae"
 use "compiler/utils.ae"
 
 @compiler c_include "ctype.h"
@@ -21,6 +22,8 @@ struct Lexer {
     loc: Location
     seen_newline: bool
     tokens: &Vector
+
+    errors: &Vector
 }
 
 def Lexer::make(source: string, filename: string): Lexer {
@@ -30,7 +33,8 @@ def Lexer::make(source: string, filename: string): Lexer {
         i: 0,
         loc: Location(filename, 1, 1),
         seen_newline: false,
-        tokens: Vector::new()
+        tokens: Vector::new(),
+        errors: Vector::new()
     )
 }
 
@@ -66,7 +70,7 @@ def Lexer::lex_char_literal(&this) {
     }
     if .source[.i] != '\'' {
         .loc.col += .i - start + 1
-        error_loc(.loc, "Expected ' after character literal")
+        .errors.push(Error::new(Span(.loc, .loc), "Expected ' after character literal"))
     }
 
     let len = .i - start
@@ -275,7 +279,8 @@ def Lexer::lex(&this): &Vector {
                     .push(Token::from_ident(text, Span(start_loc, .loc)))
 
                 } else {
-                    panic(`{.loc.str()}: Unrecognized char in lexer: '{c}'`)
+                    .errors.push(Error::new(Span(.loc, .loc), `Unrecognized char in lexer: '{c}'`))
+                    .i += 1
                 }
             }
         }
