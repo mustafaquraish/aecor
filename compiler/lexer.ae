@@ -86,7 +86,7 @@ def Lexer::lex_string_literal(&this) {
     let end_char = .source[.i]
     let start = .i + 1
     .i += 1
-    while .source[.i] != end_char {
+    while .i < .source_len and .source[.i] != end_char {
         if .source[.i] == '\\' {
             .i += 1
         }
@@ -97,6 +97,11 @@ def Lexer::lex_string_literal(&this) {
     let text = .source.substring(start, len)
     .loc.col += len + 2
     .i += 1
+
+    if .i >= .source_len {
+        .errors.push(Error::new(Span(.loc, .loc), "Unterminated string literal"))
+    }
+
     if end_char == '`' {
         .push(Token::new(TokenType::FormatStringLiteral, Span(start_loc, .loc), text))
     } else {

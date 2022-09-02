@@ -1,5 +1,6 @@
 use "lib/vector.ae"
 use "compiler/tokens.ae"
+use "compiler/utils.ae"
 
 enum ErrorType {
     Standard

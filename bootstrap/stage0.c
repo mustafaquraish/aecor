@@ -795,6 +795,14 @@ Token *Token__from_ident(char *text, Span span);
 char *Token__str(Token *this);
 TokenType TokenType__from_text(char *text);
 char *TokenType__str(TokenType this);
+f32 minf(f32 a, f32 b);
+f32 maxf(f32 a, f32 b);
+f32 clampf(f32 x, f32 min, f32 max);
+f32 clamp01(f32 x);
+f32 degrees(f32 radians);
+f32 radians(f32 degrees);
+i32 edit_distance(char *str1, char *str2);
+char *find_word_suggestion(char *s, Vector *options);
 char *ErrorType__str(ErrorType this);
 char *MessageType__to_color(MessageType this);
 char *MessageType__str(MessageType this);
@@ -807,14 +815,6 @@ Error *Error__new(Span span, char *msg);
 Error *Error__new_note(Span span, char *msg, char *note);
 Error *Error__new_hint(Span span, char *msg, Span span2, char *hint);
 void display_error_messages(Vector *errors, bool condensed);
-f32 minf(f32 a, f32 b);
-f32 maxf(f32 a, f32 b);
-f32 clampf(f32 x, f32 min, f32 max);
-f32 clamp01(f32 x);
-f32 degrees(f32 radians);
-f32 radians(f32 degrees);
-i32 edit_distance(char *str1, char *str2);
-char *find_word_suggestion(char *s, Vector *options);
 bool is_hex_digit(char c);
 Lexer Lexer__make(char *source, char *filename);
 void Lexer__push(Lexer *this, Token *token);
@@ -1433,6 +1433,87 @@ char *TokenType__str(TokenType this) {
 ;__yield_0; });
 }
 
+f32 minf(f32 a, f32 b) {
+  if ((a < b)) 
+  return a;
+   else 
+  return b;
+  
+}
+
+f32 maxf(f32 a, f32 b) {
+  if ((a > b)) 
+  return a;
+   else 
+  return b;
+  
+}
+
+f32 clampf(f32 x, f32 min, f32 max) {
+  return maxf(minf(x, max), min);
+}
+
+f32 clamp01(f32 x) {
+  return clampf(x, 0.0, 1.0);
+}
+
+f32 degrees(f32 radians) {
+  return ((radians * 180.0) / M_PI);
+}
+
+f32 radians(f32 degrees) {
+  return ((degrees * M_PI) / 180.0);
+}
+
+i32 edit_distance(char *str1, char *str2) {
+  i32 n = strlen(str1);
+  i32 m = strlen(str2);
+  i32 stride = (m + 1);
+  i32 d[(n + 1)][(m + 1)];
+  for (i32 i = 0; (i <= n); i += 1) {
+    d[i][0] = i;
+  } 
+  for (i32 j = 0; (j <= m); j += 1) {
+    d[0][j] = j;
+  } 
+  for (i32 i = 1; (i <= n); i += 1) {
+    for (i32 j = 1; (j <= m); j += 1) {
+      i32 x = (d[(i - 1)][j] + 1);
+      i32 y = (d[i][(j - 1)] + 1);
+      i32 z;
+      if (str1[(i - 1)] == str2[(j - 1)]) {
+        z = d[(i - 1)][(j - 1)];
+      }  else {
+        z = (d[(i - 1)][(j - 1)] + 1);
+      } 
+      d[i][j] = min(x, min(y, z));
+    } 
+  } 
+  i32 result = d[n][m];
+  return result;
+}
+
+char *find_word_suggestion(char *s, Vector *options) {
+  i32 threshold = 5;
+  if (options->size == 0) 
+  return NULL;
+  
+  char *closest = ((char *)Vector__at(options, 0));
+  i32 closest_distance = edit_distance(s, closest);
+  for (i32 i = 1; (i < options->size); i += 1) {
+    char *option = ((char *)Vector__at(options, i));
+    i32 distance = edit_distance(s, option);
+    if ((distance < closest_distance)) {
+      closest = option;
+      closest_distance = distance;
+    } 
+  } 
+  if ((closest_distance > threshold)) 
+  return NULL;
+  
+  return closest;
+}
+
 char *ErrorType__str(ErrorType this) {
   return ({ char *__yield_0;
   switch (this) {
@@ -1603,87 +1684,6 @@ void display_error_messages(Vector *errors, bool condensed) {
   } 
 }
 
-f32 minf(f32 a, f32 b) {
-  if ((a < b)) 
-  return a;
-   else 
-  return b;
-  
-}
-
-f32 maxf(f32 a, f32 b) {
-  if ((a > b)) 
-  return a;
-   else 
-  return b;
-  
-}
-
-f32 clampf(f32 x, f32 min, f32 max) {
-  return maxf(minf(x, max), min);
-}
-
-f32 clamp01(f32 x) {
-  return clampf(x, 0.0, 1.0);
-}
-
-f32 degrees(f32 radians) {
-  return ((radians * 180.0) / M_PI);
-}
-
-f32 radians(f32 degrees) {
-  return ((degrees * M_PI) / 180.0);
-}
-
-i32 edit_distance(char *str1, char *str2) {
-  i32 n = strlen(str1);
-  i32 m = strlen(str2);
-  i32 stride = (m + 1);
-  i32 d[(n + 1)][(m + 1)];
-  for (i32 i = 0; (i <= n); i += 1) {
-    d[i][0] = i;
-  } 
-  for (i32 j = 0; (j <= m); j += 1) {
-    d[0][j] = j;
-  } 
-  for (i32 i = 1; (i <= n); i += 1) {
-    for (i32 j = 1; (j <= m); j += 1) {
-      i32 x = (d[(i - 1)][j] + 1);
-      i32 y = (d[i][(j - 1)] + 1);
-      i32 z;
-      if (str1[(i - 1)] == str2[(j - 1)]) {
-        z = d[(i - 1)][(j - 1)];
-      }  else {
-        z = (d[(i - 1)][(j - 1)] + 1);
-      } 
-      d[i][j] = min(x, min(y, z));
-    } 
-  } 
-  i32 result = d[n][m];
-  return result;
-}
-
-char *find_word_suggestion(char *s, Vector *options) {
-  i32 threshold = 5;
-  if (options->size == 0) 
-  return NULL;
-  
-  char *closest = ((char *)Vector__at(options, 0));
-  i32 closest_distance = edit_distance(s, closest);
-  for (i32 i = 1; (i < options->size); i += 1) {
-    char *option = ((char *)Vector__at(options, i));
-    i32 distance = edit_distance(s, option);
-    if ((distance < closest_distance)) {
-      closest = option;
-      closest_distance = distance;
-    } 
-  } 
-  if ((closest_distance > threshold)) 
-  return NULL;
-  
-  return closest;
-}
-
 bool is_hex_digit(char c) {
   if (isdigit(c)) 
   return true;
@@ -1746,7 +1746,7 @@ void Lexer__lex_string_literal(Lexer *this) {
   char end_char = this->source[this->i];
   i32 start = (this->i + 1);
   this->i += 1;
-  while ((this->source[this->i] != end_char)) {
+  while (((this->i < this->source_len) && (this->source[this->i] != end_char))) {
     if (this->source[this->i] == '\\') {
       this->i += 1;
     } 
@@ -1756,6 +1756,9 @@ void Lexer__lex_string_literal(Lexer *this) {
   char *text = string__substring(this->source, start, len);
   this->loc.col += (len + 2);
   this->i += 1;
+  if ((this->i >= this->source_len)) {
+    Vector__push(this->errors, Error__new((Span){this->loc, this->loc}, "Unterminated string literal"));
+  } 
   if (end_char == '`') {
     Lexer__push(this, Token__new(TokenType__FormatStringLiteral, (Span){start_loc, this->loc}, text));
   }  else {
