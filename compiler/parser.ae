@@ -1049,10 +1049,10 @@ def Parser::find_file_path(&this, filename: string): string {
     error_span(.token().span, `Could not find file: {filename}`)
 }
 
-def Parser::include_file(&this, program: &Program, filename: string) {
+def Parser::include_file(&this, program: &Program, filename: string): string {
     filename = .find_file_path(filename)
     if program.is_file_included(filename)
-        return
+        return filename
     program.add_included_file(filename)
 
     let file = File::open(filename, "r")
@@ -1064,6 +1064,7 @@ def Parser::include_file(&this, program: &Program, filename: string) {
     .push_context(tokens)
     .parse_into_program(program)
     .pop_context()
+    return filename
 }
 
 def Parser::parse_use(&this, program: &Program) {

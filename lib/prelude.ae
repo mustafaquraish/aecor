@@ -109,6 +109,9 @@ def string::strip_trailing_whitespace(this) {
     }
 }
 
+def string::to_i32(this): i32 extern("atoi")
+
+
 def strerror(errno: i32): string extern
 
 def puts(str: string) extern

@@ -192,8 +192,6 @@ def JSONParser::parse_array(&this): &JSON {
     return json
 }
 
-def string::to_i32(this): i32 extern("atoi")
-
 def JSONParser::parse_value(&this): &JSON => match .token().type {
     Null => {
         .consume(TokenType::Null)
