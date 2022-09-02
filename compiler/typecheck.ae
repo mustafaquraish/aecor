@@ -1,4 +1,5 @@
 use "compiler/ast.ae"
+use "compiler/utils.ae"
 use "lib/map.ae"
 
 struct TypeChecker {

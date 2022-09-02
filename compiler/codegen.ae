@@ -1,5 +1,6 @@
 use "lib/stringbuilder.ae"
 use "compiler/ast.ae"
+use "compiler/utils.ae"
 
 struct CodeGenerator {
     out: StringBuilder

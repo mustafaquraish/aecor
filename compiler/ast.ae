@@ -1,6 +1,7 @@
 use "lib/vector.ae"
 use "lib/map.ae"
 use "compiler/types.ae"
+use "compiler/tokens.ae"
 
 enum ASTType {
     Assignment

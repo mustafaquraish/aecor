@@ -1,3 +1,4 @@
+use "lib/vector.ae"
 use "lib/math.ae"
 use "compiler/tokens.ae"
 

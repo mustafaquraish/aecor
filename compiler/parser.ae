@@ -1,4 +1,5 @@
 use "compiler/ast.ae"
+use "compiler/lexer.ae"
 use "compiler/utils.ae"
 
 // Don't think this is used enough to include in the prelude.

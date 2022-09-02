@@ -1,3 +1,5 @@
+use "compiler/ast.ae"
+use "compiler/tokens.ae"
 
 enum BaseType {
     Char
