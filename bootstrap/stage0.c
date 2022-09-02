@@ -528,6 +528,7 @@ struct CodeGenerator {
 /* function declarations */
 FILE *File__open(char *path, char *mode);
 bool File__exists(char *path);
+i32 File__size(FILE *this);
 char *File__slurp(FILE *this);
 void File__puts(FILE *this, char *str);
 __attribute__((noreturn)) void panic(char *msg);
@@ -631,7 +632,7 @@ AST *AST__new_binop(ASTType type, AST *lhs, AST *rhs);
 bool AST__callee_is(AST *this, char *expected);
 bool AST__is_lvalue(AST *this);
 ParserContext *ParserContext__new(Vector *tokens, i32 offset);
-Parser *Parser__new(Vector *tokens, char *filename);
+Parser *Parser__new(char *filename);
 void Parser__push_context(Parser *this, Vector *tokens);
 void Parser__pop_context(Parser *this);
 void Parser__add_include_dir(Parser *this, char *dir);
@@ -670,7 +671,7 @@ void Parser__include_file(Parser *this, Program *program, char *filename);
 void Parser__parse_use(Parser *this, Program *program);
 void Parser__parse_compiler_option(Parser *this, Program *program);
 void Parser__parse_into_program(Parser *this, Program *program);
-Program *Parser__parse_program(Parser *this);
+void Parser__include_prelude(Parser *this, Program *program);
 TypeChecker *TypeChecker__new(void);
 void TypeChecker__push_scope(TypeChecker *this);
 Map *TypeChecker__scope(TypeChecker *this);
@@ -765,6 +766,14 @@ bool File__exists(char *path) {
   } 
   fclose(file);
   return true;
+}
+
+i32 File__size(FILE *this) {
+  i32 pos = ftell(this);
+  fseek(this, 0, SEEK_END);
+  i32 size = ftell(this);
+  fseek(this, pos, SEEK_SET);
+  return size;
 }
 
 char *File__slurp(FILE *this) {
@@ -2613,10 +2622,8 @@ ParserContext *ParserContext__new(Vector *tokens, i32 offset) {
   return context;
 }
 
-Parser *Parser__new(Vector *tokens, char *filename) {
+Parser *Parser__new(char *filename) {
   Parser *parser = ((Parser *)calloc(1, sizeof(Parser)));
-  parser->tokens = tokens;
-  parser->curr = 0;
   parser->include_dirs = Vector__new();
   Parser__add_include_dir(parser, ".");
   char *tmp_filename = strdup(filename);
@@ -3692,11 +3699,8 @@ void Parser__parse_into_program(Parser *this, Program *program) {
   } 
 }
 
-Program *Parser__parse_program(Parser *this) {
-  Program *program = Program__new();
+void Parser__include_prelude(Parser *this, Program *program) {
   Parser__include_file(this, program, "lib/prelude.ae");
-  Parser__parse_into_program(this, program);
-  return program;
 }
 
 TypeChecker *TypeChecker__new(void) {
@@ -5815,15 +5819,13 @@ i32 main(i32 argc, char **argv) {
   if ((!((bool)c_path))) {
     c_path = format_string("%s.c", exec_path);
   } 
-  FILE *file = File__open(filename, "r");
-  char *contents = File__slurp(file);
-  Lexer lexer = Lexer__make(contents, filename);
-  Vector *tokens = Lexer__lex((&lexer));
-  Parser *parser = Parser__new(tokens, filename);
+  Parser *parser = Parser__new(filename);
   if (((bool)lib_path)) {
     Parser__add_include_dir(parser, lib_path);
   } 
-  Program *program = Parser__parse_program(parser);
+  Program *program = Program__new();
+  Parser__include_prelude(parser, program);
+  Parser__include_file(parser, program, filename);
   TypeChecker *checker = TypeChecker__new();
   TypeChecker__check_program(checker, program);
   CodeGenerator generator = CodeGenerator__make(debug);

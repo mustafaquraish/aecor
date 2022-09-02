@@ -27,10 +27,9 @@ struct Parser {
     include_dirs: &Vector
 }
 
-def Parser::new(tokens: &Vector, filename: string): &Parser {
+// We take in the filename to figure out the project root
+def Parser::new(filename: string): &Parser {
     let parser = calloc(1, sizeof(Parser)) as &Parser
-    parser.tokens = tokens
-    parser.curr = 0
 
     parser.include_dirs = Vector::new()
     parser.add_include_dir(".")
@@ -1130,9 +1129,7 @@ def Parser::parse_into_program(&this, program: &Program) {
     }
 }
 
-def Parser::parse_program(&this): &Program {
-    let program = Program::new()
+def Parser::include_prelude(&this, program: &Program) {
     .include_file(program, "lib/prelude.ae")
-    .parse_into_program(program)
-    return program
 }
+

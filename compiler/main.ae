@@ -68,18 +68,14 @@ def main(argc: i32, argv: &string) {
         c_path = `{exec_path}.c`
     }
 
-    let file = File::open(filename, "r")
-    let contents = file.slurp()
-
-    let lexer = Lexer::make(contents, filename)
-    let tokens = lexer.lex()
-
-    let parser = Parser::new(tokens, filename)
+    let parser = Parser::new(filename)
     if lib_path? {
         parser.add_include_dir(lib_path)
     }
 
-    let program = parser.parse_program()
+    let program = Program::new()
+    parser.include_prelude(program)
+    parser.include_file(program, filename)
 
     let checker = TypeChecker::new()
     checker.check_program(program)
