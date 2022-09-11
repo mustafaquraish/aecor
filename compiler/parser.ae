@@ -320,6 +320,11 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
             let expr = .parse_factor(end_type)
             node = AST::new_unop(ASTType::Not, op.span.join(expr.span), expr)
         }
+        TokenType::Tilde => {
+            let op = .consume(TokenType::Tilde)
+            let expr = .parse_factor(end_type)
+            node = AST::new_unop(ASTType::BitwiseNot, op.span.join(expr.span), expr)
+        }
         TokenType::Ampersand => {
             let op = .consume(TokenType::Ampersand)
             let expr = .parse_factor(end_type)

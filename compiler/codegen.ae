@@ -170,6 +170,7 @@ def CodeGenerator::get_op(type: ASTType): string => match type {
     And => " && "
     Assignment => " = "
     BitwiseAnd => " & "
+    BitwiseNot => "~"
     BitwiseOr => " | "
     BitwiseXor => " ^ "
     Dereference => "*"
@@ -329,7 +330,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .gen_expression(node.u.binary.rhs)
             .out.puts(")")
         }
-        Address | Dereference | Not | UnaryMinus => {
+        Address | Dereference | Not | UnaryMinus | BitwiseNot => {
             .out.puts("(")
             .out.puts(CodeGenerator::get_op(node.type))
             .gen_expression(node.u.unary)

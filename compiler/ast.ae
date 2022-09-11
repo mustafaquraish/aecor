@@ -10,6 +10,7 @@ enum ASTType {
     Block
     BoolLiteral
     BitwiseAnd
+    BitwiseNot
     BitwiseOr
     BitwiseXor
     Break
@@ -69,6 +70,7 @@ def ASTType::str(this): string => match this {
     Block => "Block"
     BoolLiteral => "BoolLiteral"
     BitwiseAnd => "BitwiseAnd"
+    BitwiseNot => "BitwiseNot"
     BitwiseOr => "BitwiseOr"
     BitwiseXor => "BitwiseXor"
     Break => "Break"
@@ -145,6 +147,7 @@ def ASTType::from_token(type: TokenType): ASTType => match type {
     SlashEquals => ASTType::DivideEquals
     Star => ASTType::Multiply
     StarEquals => ASTType::MultiplyEquals
+    Tilde => ASTType::BitwiseNot
     else => {
         panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
     }

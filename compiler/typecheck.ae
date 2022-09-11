@@ -379,16 +379,6 @@ def TypeChecker::check_binary_op(&this, node: &AST, _lhs: &AST, _rhs: &AST): &Ty
             }
             return lhs
         }
-        UnaryMinus => {
-            let etype = .check_expression(node.u.unary)
-            if not etype.is_numeric() {
-                error_span_note(
-                    node.u.unary.span, "Expression must be a number",
-                    `Got type '{etype.str()}'`
-                )
-            }
-            return etype
-        }
         else => {
             panic(`Internal error: unhandled op in check_binary_op: {node.type.str()}`)
         }
@@ -528,6 +518,15 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 )
             }
             etype = Type::new(BaseType::Bool, node.span)
+        }
+        BitwiseNot => {
+            etype = .check_expression(node.u.unary)
+            if not etype.is_integer() {
+                error_span_note(
+                    node.u.unary.span, "Expression must be an integer",
+                    `Got type '{etype.str()}'`
+                )
+            }
         }
         UnaryMinus => {
             etype = .check_expression(node.u.unary)

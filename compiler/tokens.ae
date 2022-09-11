@@ -106,6 +106,7 @@ enum TokenType {
     Ampersand
     Backtick
     Caret
+    CharLiteral
     CloseCurly
     CloseParen
     CloseSquare
@@ -146,7 +147,7 @@ enum TokenType {
     Star
     StarEquals
     StringLiteral
-    CharLiteral
+    Tilde
 }
 
 def TokenType::from_text(text: string): TokenType => match text {
@@ -247,6 +248,7 @@ def TokenType::str(this): string => match this {
     Ampersand => "Ampersand"
     Backtick => "Backtick"
     Caret => "Caret"
+    CharLiteral => "CharLiteral"
     CloseCurly => "CloseCurly"
     CloseParen => "CloseParen"
     CloseSquare => "CloseSquare"
@@ -287,5 +289,5 @@ def TokenType::str(this): string => match this {
     Star => "Star"
     StarEquals => "StarEquals"
     StringLiteral => "StringLiteral"
-    CharLiteral => "CharLiteral"
+    Tilde => "Tilde"
 }
