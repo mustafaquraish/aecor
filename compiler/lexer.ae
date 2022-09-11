@@ -7,6 +7,13 @@ def is_alpha(c: char): bool extern("isalpha")
 def is_digit(c: char): bool extern("isdigit")
 def is_alnum(c: char): bool extern("isalnum")
 
+def is_hex_digit(c: char): bool {
+    if is_digit(c) return true
+    if 'a' <= c <= 'f' return true
+    if 'A' <= c <= 'F' return true
+    return false
+}
+
 struct Lexer {
     source: string
     source_len: i32
@@ -100,8 +107,7 @@ def Lexer::lex_int_literal_different_base(&this): &Token {
     match .source[.i] {
         'x' => {
             .i += 1
-            // FIXME: check for invalid hex digits
-            while .i < .source_len and is_alnum(.source[.i]) {
+            while .i < .source_len and is_hex_digit(.source[.i]) {
                 .i += 1
             }
         }

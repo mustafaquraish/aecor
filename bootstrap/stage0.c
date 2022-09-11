@@ -585,6 +585,7 @@ __attribute__((noreturn)) void error_loc(Location loc, char *msg);
 __attribute__((noreturn)) void error_span(Span span, char *msg);
 __attribute__((noreturn)) void error_span_note(Span span, char *msg, char *note);
 __attribute__((noreturn)) void error_span_note_span(Span msg_span, char *msg, Span note_span, char *note);
+bool is_hex_digit(char c);
 Lexer Lexer__make(char *source, char *filename);
 void Lexer__push(Lexer *this, Token *token);
 void Lexer__push_type(Lexer *this, TokenType type, i32 len);
@@ -619,6 +620,7 @@ Type *Type__ptr_to(BaseType base, Span span);
 bool Type__is_struct_or_ptr(Type *this);
 bool Type__is_integer(Type *this);
 bool Type__is_numeric(Type *this);
+bool Type__is_numeric_or_char(Type *this);
 bool Type__eq(Type *this, Type *other);
 char *Type__str(Type *this);
 bool Type__is_string(Type *this);
@@ -1523,6 +1525,19 @@ __attribute__((noreturn)) void error_span_note_span(Span msg_span, char *msg, Sp
   exit(1);
 }
 
+bool is_hex_digit(char c) {
+  if (isdigit(c)) 
+  return true;
+  
+  if ((('a' <= c) && (c <= 'f'))) 
+  return true;
+  
+  if ((('A' <= c) && (c <= 'F'))) 
+  return true;
+  
+  return false;
+}
+
 Lexer Lexer__make(char *source, char *filename) {
   return (Lexer){source, .source_len = strlen(source), .i = 0, .loc = (Location){filename, 1, 1}, .seen_newline = false, .tokens = Vector__new()};
 }
@@ -1596,7 +1611,7 @@ Token *Lexer__lex_int_literal_different_base(Lexer *this) {
   switch (this->source[this->i]) {
     case 'x': {
       this->i += 1;
-      while (((this->i < this->source_len) && isalnum(this->source[this->i]))) {
+      while (((this->i < this->source_len) && is_hex_digit(this->source[this->i]))) {
         this->i += 1;
       } 
     } break;
@@ -2170,6 +2185,10 @@ bool Type__is_numeric(Type *this) {
 } break;
   }
 ;__yield_0; });
+}
+
+bool Type__is_numeric_or_char(Type *this) {
+  return (Type__is_numeric(this) || this->base == BaseType__Char);
 }
 
 bool Type__eq(Type *this, Type *other) {
@@ -4029,8 +4048,8 @@ Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST 
     case ASTType__LessThanEquals:
     case ASTType__GreaterThan:
     case ASTType__GreaterThanEquals: {
-      if (((!Type__is_numeric(lhs)) || (!Type__is_numeric(rhs)))) {
-        error_span_note(node->span, "Operator requires numeric types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
+      if (((!Type__is_numeric_or_char(lhs)) || (!Type__is_numeric_or_char(rhs)))) {
+        error_span_note(node->span, "Operator requires numeric or char types", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       if ((!Type__eq(lhs, rhs))) {
         error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
@@ -4070,20 +4089,6 @@ Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST 
         error_span_note(node->span, "Operands must be of the same type", format_string("Got types '%s' and '%s'", Type__str(lhs), Type__str(rhs)));
       } 
       return lhs;
-    } break;
-    case ASTType__BitwiseNot: {
-      Type *etype = TypeChecker__check_expression(this, node->u.unary);
-      if ((!Type__is_integer(etype))) {
-        error_span_note(node->span, "Operator requires integer type", format_string("Got type '%s'", Type__str(etype)));
-      } 
-      return etype;
-    } break;
-    case ASTType__UnaryMinus: {
-      Type *etype = TypeChecker__check_expression(this, node->u.unary);
-      if ((!Type__is_numeric(etype))) {
-        error_span_note(node->u.unary->span, "Expression must be a number", format_string("Got type '%s'", Type__str(etype)));
-      } 
-      return etype;
     } break;
     default: {
       panic(format_string("Internal error: unhandled op in check_binary_op: %s", ASTType__str(node->type)));
@@ -4233,6 +4238,12 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
         error_span_note(node->u.unary->span, "Expression must be boolean", format_string("Got type '%s'", Type__str(rhs)));
       } 
       etype = Type__new(BaseType__Bool, node->span);
+    } break;
+    case ASTType__BitwiseNot: {
+      etype = TypeChecker__check_expression(this, node->u.unary);
+      if ((!Type__is_integer(etype))) {
+        error_span_note(node->u.unary->span, "Expression must be an integer", format_string("Got type '%s'", Type__str(etype)));
+      } 
     } break;
     case ASTType__UnaryMinus: {
       etype = TypeChecker__check_expression(this, node->u.unary);

@@ -100,6 +100,8 @@ def Type::is_numeric(&this): bool => match .base {
     else => false
 }
 
+def Type::is_numeric_or_char(&this): bool => .is_numeric() or .base == BaseType::Char
+
 def Type::eq(&this, other: &Type): bool {
     if (this == null and other == null) return true
     if (this == null or other == null) return false

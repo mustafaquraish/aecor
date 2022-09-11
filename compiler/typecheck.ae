@@ -326,9 +326,9 @@ def TypeChecker::check_binary_op(&this, node: &AST, _lhs: &AST, _rhs: &AST): &Ty
             }
         }
         LessThan | LessThanEquals | GreaterThan | GreaterThanEquals => {
-            if not lhs.is_numeric() or not rhs.is_numeric() {
+            if not lhs.is_numeric_or_char() or not rhs.is_numeric_or_char() {
                 error_span_note(
-                    node.span, "Operator requires numeric types",
+                    node.span, "Operator requires numeric or char types",
                     `Got types '{lhs.str()}' and '{rhs.str()}'`
                 )
             }
@@ -515,6 +515,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         Or |
         Modulus |
         BitwiseOr |
+        BitwiseNot |
         BitwiseAnd |
         BitwiseXor |
         LeftShift |
@@ -941,6 +942,7 @@ def TypeChecker::check_constant_expression(&this, node: &AST): &Type {
         And |
         Or |
         Modulus |
+        BitwiseNot |
         BitwiseOr |
         BitwiseAnd |
         BitwiseXor |
