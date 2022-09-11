@@ -451,13 +451,27 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
     let etype = null as &Type
     match node.type {
         Call            => etype = .check_call(node)
-        IntLiteral      => etype = Type::new(BaseType::I32, node.span)
-        FloatLiteral    => etype = Type::new(BaseType::F32, node.span)
         BoolLiteral     => etype = Type::new(BaseType::Bool, node.span)
         CharLiteral     => etype = Type::new(BaseType::Char, node.span)
         StringLiteral   => etype = Type::ptr_to(BaseType::Char, node.span)
         Null            => etype = Type::ptr_to(BaseType::Void, node.span)
         FormatStringLiteral => etype = .check_format_string(node)
+
+        // For ints and floats, if we already have `node.etype` set, this means
+        // we have a literal with an explicit type suffix
+        IntLiteral | FloatLiteral => {
+            let num_lit = &node.u.num_literal
+            if num_lit.suffix? {
+                etype = num_lit.suffix
+                if not .type_is_valid(etype) {
+                    error_span(etype.span, "Invalid type")
+                }
+            } else if node.type == ASTType::IntLiteral {
+                etype = Type::new(BaseType::I32, node.span)
+            } else {
+                etype = Type::new(BaseType::F32, node.span)
+            }
+        }
 
         // If we have a Constructor node, we've already checked it.
         Constructor => etype = node.etype

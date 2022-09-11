@@ -261,6 +261,28 @@ def Parser::parse_format_string(&this): &AST {
     return node
 }
 
+def Parser::parse_literal_suffix_type(&this, suffix: &Token): &Type {
+    if not suffix? return null
+
+    // FIXME: This feels like a hack, there much be a better way to do this.
+
+    let tokens = Vector::new()
+    tokens.push(suffix)
+    tokens.push(.tokens.back()) // EOF from current file
+
+    .push_context(tokens)
+    let type = .parse_type()
+
+    if not .token_is(TokenType::EOF) {
+        error_loc(.token().span.start, "Invalid type suffix")
+    }
+
+    .pop_context()
+    tokens.free()
+
+    return type
+}
+
 def Parser::parse_factor(&this, end_type: TokenType): &AST {
     let node = null as &AST
 
@@ -269,12 +291,18 @@ def Parser::parse_factor(&this, end_type: TokenType): &AST {
         TokenType::IntLiteral => {
             node = AST::new(ASTType::IntLiteral, .token().span)
             let tok = .consume(TokenType::IntLiteral)
-            node.u.num_literal = tok.text
+            node.u.num_literal = NumLiteral(
+                text: tok.text,
+                suffix: .parse_literal_suffix_type(tok.suffix)
+            )
         }
         TokenType::FloatLiteral => {
             node = AST::new(ASTType::FloatLiteral, .token().span)
             let tok = .consume(TokenType::FloatLiteral)
-            node.u.num_literal = tok.text
+            node.u.num_literal = NumLiteral(
+                text: tok.text,
+                suffix: .parse_literal_suffix_type(tok.suffix)
+            )
         }
         TokenType::StringLiteral => {
             node = AST::new(ASTType::StringLiteral, .token().span)

@@ -374,6 +374,11 @@ struct Match {
     defolt_span: Span
 }
 
+struct NumLiteral {
+    text: string
+    suffix: &Type
+}
+
 union ASTUnion {
     block: Block
     binary: Binary
@@ -388,7 +393,7 @@ union ASTUnion {
     cast: Cast
     unary: &AST
     match_stmt: Match
-    num_literal: string
+    num_literal: NumLiteral
     bool_literal: bool
     string_literal: string
     char_literal: string

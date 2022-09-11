@@ -226,8 +226,12 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
 
 def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
-        IntLiteral => .out.puts(node.u.num_literal)
-        FloatLiteral => .out.puts(node.u.num_literal)
+        IntLiteral | FloatLiteral => {
+            // FIXME: Should there be a cast for literals with explicit suffixes? Currently this would
+            // break for `let x: u8 = -128u8` since we it would generate `-((u8)128)`, which would be 0.
+            let num_lit = &node.u.num_literal
+            .out.puts(num_lit.text)
+        }
         StringLiteral => .out.putsf(`"{node.u.string_literal}"`)
         CharLiteral => .out.putsf(`'{node.u.char_literal}'`)
         Null => .out.puts("NULL")

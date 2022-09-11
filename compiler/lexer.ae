@@ -93,7 +93,7 @@ def Lexer::lex_string_literal(&this) {
     }
 }
 
-def Lexer::lex_int_literal_different_base(&this) {
+def Lexer::lex_int_literal_different_base(&this): &Token {
     let start_loc = .loc
     let start = .i
     .i += 1
@@ -118,16 +118,15 @@ def Lexer::lex_int_literal_different_base(&this) {
     let len = .i - start
     let text = .source.substring(start, len)
     .loc.col += len
-    .push(Token::new(TokenType::IntLiteral, Span(start_loc, .loc), text))
+    return Token::new(TokenType::IntLiteral, Span(start_loc, .loc), text)
 }
 
-def Lexer::lex_numeric_literal(&this) {
+def Lexer::lex_numeric_literal_helper(&this): &Token {
     let start_loc = .loc
     if .source[.i] == '0' {
         match .peek(1) {
             'x' | 'b' => {
-                .lex_int_literal_different_base()
-                return
+                return .lex_int_literal_different_base()
             }
             // Do nothing, fall through
             else => {}
@@ -152,7 +151,27 @@ def Lexer::lex_numeric_literal(&this) {
     let text = .source.substring(start, len)
 
     .loc.col += len
-    .push(Token::new(token_type, Span(start_loc, .loc), text))
+    return Token::new(token_type, Span(start_loc, .loc), text)
+}
+
+def Lexer::lex_numeric_literal(&this) {
+    let token = .lex_numeric_literal_helper()
+
+    // TODO: check for invalid suffixes
+    if .source[.i] == 'u' or .source[.i] == 'i' or .source[.i] == 'f' {
+        let start_loc = .loc
+        let start = .i
+        .i += 1
+        while .i < .source_len and is_digit(.source[.i]) {
+            .i += 1
+        }
+        let len = .i - start
+        let suffix = .source.substring(start, len)
+        .loc.col += len
+        token.suffix = Token::from_ident(suffix, Span(start_loc, .loc))
+    }
+
+    .push(token)
 }
 
 def Lexer::lex(&this): &Vector {

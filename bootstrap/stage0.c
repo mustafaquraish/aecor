@@ -73,6 +73,7 @@ typedef struct Loop Loop;
 typedef struct Cast Cast;
 typedef struct MatchCase MatchCase;
 typedef struct Match Match;
+typedef struct NumLiteral NumLiteral;
 typedef union ASTUnion ASTUnion;
 typedef struct AST AST;
 typedef struct ParserContext ParserContext;
@@ -146,6 +147,7 @@ enum TokenType {
   TokenType__Ampersand,
   TokenType__Backtick,
   TokenType__Caret,
+  TokenType__CharLiteral,
   TokenType__CloseCurly,
   TokenType__CloseParen,
   TokenType__CloseSquare,
@@ -186,13 +188,14 @@ enum TokenType {
   TokenType__Star,
   TokenType__StarEquals,
   TokenType__StringLiteral,
-  TokenType__CharLiteral,
+  TokenType__Tilde,
 };
 
 struct Token {
   TokenType type;
   Span span;
   char *text;
+  Token *suffix;
   bool seen_newline;
 };
 
@@ -270,6 +273,7 @@ enum ASTType {
   ASTType__Block,
   ASTType__BoolLiteral,
   ASTType__BitwiseAnd,
+  ASTType__BitwiseNot,
   ASTType__BitwiseOr,
   ASTType__BitwiseXor,
   ASTType__Break,
@@ -457,6 +461,11 @@ struct Match {
   Span defolt_span;
 };
 
+struct NumLiteral {
+  char *text;
+  Type *suffix;
+};
+
 union ASTUnion {
   Block block;
   Binary binary;
@@ -471,7 +480,7 @@ union ASTUnion {
   Cast cast;
   AST *unary;
   Match match_stmt;
-  char *num_literal;
+  NumLiteral num_literal;
   bool bool_literal;
   char *string_literal;
   char *char_literal;
@@ -582,7 +591,8 @@ void Lexer__push_type(Lexer *this, TokenType type, i32 len);
 char Lexer__peek(Lexer *this, i32 offset);
 void Lexer__lex_char_literal(Lexer *this);
 void Lexer__lex_string_literal(Lexer *this);
-void Lexer__lex_int_literal_different_base(Lexer *this);
+Token *Lexer__lex_int_literal_different_base(Lexer *this);
+Token *Lexer__lex_numeric_literal_helper(Lexer *this);
 void Lexer__lex_numeric_literal(Lexer *this);
 Vector *Lexer__lex(Lexer *this);
 MapNode *MapNode__new(char *key, void *value, MapNode *next);
@@ -646,6 +656,7 @@ Token *Parser__consume(Parser *this, TokenType type);
 Type *Parser__parse_type_with_parent(Parser *this, Type *parent);
 Type *Parser__parse_type(Parser *this);
 AST *Parser__parse_format_string(Parser *this);
+Type *Parser__parse_literal_suffix_type(Parser *this, Token *suffix);
 AST *Parser__parse_factor(Parser *this, TokenType end_type);
 AST *Parser__parse_term(Parser *this, TokenType end_type);
 AST *Parser__parse_additive(Parser *this, TokenType end_type);
@@ -667,7 +678,7 @@ Structure *Parser__parse_enum(Parser *this);
 Structure *Parser__parse_struct(Parser *this);
 AST *Parser__parse_global_value(Parser *this, bool is_constant);
 char *Parser__find_file_path(Parser *this, char *filename);
-void Parser__include_file(Parser *this, Program *program, char *filename);
+char *Parser__include_file(Parser *this, Program *program, char *filename);
 void Parser__parse_use(Parser *this, Program *program);
 void Parser__parse_compiler_option(Parser *this, Program *program);
 void Parser__parse_into_program(Parser *this, Program *program);
@@ -932,7 +943,7 @@ bool Span__contains_loc(Span this, Location loc) {
 
 Token *Token__new(TokenType type, Span span, char *text) {
   Token *tok = ((Token *)calloc(1, sizeof(Token)));
-  (*tok) = (Token){type, span, text, .seen_newline = false};
+  (*tok) = (Token){type, span, text, .suffix = NULL, .seen_newline = false};
   return tok;
 }
 
@@ -1190,6 +1201,9 @@ char *TokenType__str(TokenType this) {
     case TokenType__Caret: {
       __yield_0 = "Caret";
 } break;
+    case TokenType__CharLiteral: {
+      __yield_0 = "CharLiteral";
+} break;
     case TokenType__CloseCurly: {
       __yield_0 = "CloseCurly";
 } break;
@@ -1310,8 +1324,8 @@ char *TokenType__str(TokenType this) {
     case TokenType__StringLiteral: {
       __yield_0 = "StringLiteral";
 } break;
-    case TokenType__CharLiteral: {
-      __yield_0 = "CharLiteral";
+    case TokenType__Tilde: {
+      __yield_0 = "Tilde";
 } break;
   }
 ;__yield_0; });
@@ -1575,7 +1589,7 @@ void Lexer__lex_string_literal(Lexer *this) {
   } 
 }
 
-void Lexer__lex_int_literal_different_base(Lexer *this) {
+Token *Lexer__lex_int_literal_different_base(Lexer *this) {
   Location start_loc = this->loc;
   i32 start = this->i;
   this->i += 1;
@@ -1598,17 +1612,16 @@ void Lexer__lex_int_literal_different_base(Lexer *this) {
   i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
   this->loc.col += len;
-  Lexer__push(this, Token__new(TokenType__IntLiteral, (Span){start_loc, this->loc}, text));
+  return Token__new(TokenType__IntLiteral, (Span){start_loc, this->loc}, text);
 }
 
-void Lexer__lex_numeric_literal(Lexer *this) {
+Token *Lexer__lex_numeric_literal_helper(Lexer *this) {
   Location start_loc = this->loc;
   if (this->source[this->i] == '0') {
     switch (Lexer__peek(this, 1)) {
       case 'x':
       case 'b': {
-        Lexer__lex_int_literal_different_base(this);
-        return;
+        return Lexer__lex_int_literal_different_base(this);
       } break;
       default: {
       } break;
@@ -1631,7 +1644,24 @@ void Lexer__lex_numeric_literal(Lexer *this) {
   i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
   this->loc.col += len;
-  Lexer__push(this, Token__new(token_type, (Span){start_loc, this->loc}, text));
+  return Token__new(token_type, (Span){start_loc, this->loc}, text);
+}
+
+void Lexer__lex_numeric_literal(Lexer *this) {
+  Token *token = Lexer__lex_numeric_literal_helper(this);
+  if (((this->source[this->i] == 'u' || this->source[this->i] == 'i') || this->source[this->i] == 'f')) {
+    Location start_loc = this->loc;
+    i32 start = this->i;
+    this->i += 1;
+    while (((this->i < this->source_len) && isdigit(this->source[this->i]))) {
+      this->i += 1;
+    } 
+    i32 len = (this->i - start);
+    char *suffix = string__substring(this->source, start, len);
+    this->loc.col += len;
+    token->suffix = Token__from_ident(suffix, (Span){start_loc, this->loc});
+  } 
+  Lexer__push(this, token);
 }
 
 Vector *Lexer__lex(Lexer *this) {
@@ -1696,6 +1726,9 @@ Vector *Lexer__lex(Lexer *this) {
       } break;
       case '?': {
         Lexer__push_type(this, TokenType__Question, 1);
+      } break;
+      case '~': {
+        Lexer__push_type(this, TokenType__Tilde, 1);
       } break;
       case '!': {
         switch (Lexer__peek(this, 1)) {
@@ -2252,6 +2285,9 @@ char *ASTType__str(ASTType this) {
     case ASTType__BitwiseAnd: {
       __yield_0 = "BitwiseAnd";
 } break;
+    case ASTType__BitwiseNot: {
+      __yield_0 = "BitwiseNot";
+} break;
     case ASTType__BitwiseOr: {
       __yield_0 = "BitwiseOr";
 } break;
@@ -2477,6 +2513,9 @@ ASTType ASTType__from_token(TokenType type) {
 } break;
     case TokenType__StarEquals: {
       __yield_0 = ASTType__MultiplyEquals;
+} break;
+    case TokenType__Tilde: {
+      __yield_0 = ASTType__BitwiseNot;
 } break;
     default: {
       panic(format_string("Unhandled token type in ASTType::from_token: %s", TokenType__str(type)));
@@ -2862,6 +2901,23 @@ AST *Parser__parse_format_string(Parser *this) {
   return node;
 }
 
+Type *Parser__parse_literal_suffix_type(Parser *this, Token *suffix) {
+  if ((!((bool)suffix))) 
+  return NULL;
+  
+  Vector *tokens = Vector__new();
+  Vector__push(tokens, suffix);
+  Vector__push(tokens, Vector__back(this->tokens));
+  Parser__push_context(this, tokens);
+  Type *type = Parser__parse_type(this);
+  if ((!Parser__token_is(this, TokenType__EOF))) {
+    error_loc(Parser__token(this)->span.start, "Invalid type suffix");
+  } 
+  Parser__pop_context(this);
+  Vector__free(tokens);
+  return type;
+}
+
 AST *Parser__parse_factor(Parser *this, TokenType end_type) {
   AST *node = ((AST *)NULL);
   switch (Parser__token(this)->type) {
@@ -2871,12 +2927,12 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
     case TokenType__IntLiteral: {
       node = AST__new(ASTType__IntLiteral, Parser__token(this)->span);
       Token *tok = Parser__consume(this, TokenType__IntLiteral);
-      node->u.num_literal = tok->text;
+      node->u.num_literal = (NumLiteral){.text = tok->text, .suffix = Parser__parse_literal_suffix_type(this, tok->suffix)};
     } break;
     case TokenType__FloatLiteral: {
       node = AST__new(ASTType__FloatLiteral, Parser__token(this)->span);
       Token *tok = Parser__consume(this, TokenType__FloatLiteral);
-      node->u.num_literal = tok->text;
+      node->u.num_literal = (NumLiteral){.text = tok->text, .suffix = Parser__parse_literal_suffix_type(this, tok->suffix)};
     } break;
     case TokenType__StringLiteral: {
       node = AST__new(ASTType__StringLiteral, Parser__token(this)->span);
@@ -2919,6 +2975,11 @@ AST *Parser__parse_factor(Parser *this, TokenType end_type) {
       Token *op = Parser__consume(this, TokenType__Not);
       AST *expr = Parser__parse_factor(this, end_type);
       node = AST__new_unop(ASTType__Not, Span__join(op->span, expr->span), expr);
+    } break;
+    case TokenType__Tilde: {
+      Token *op = Parser__consume(this, TokenType__Tilde);
+      AST *expr = Parser__parse_factor(this, end_type);
+      node = AST__new_unop(ASTType__BitwiseNot, Span__join(op->span, expr->span), expr);
     } break;
     case TokenType__Ampersand: {
       Token *op = Parser__consume(this, TokenType__Ampersand);
@@ -3615,10 +3676,10 @@ char *Parser__find_file_path(Parser *this, char *filename) {
   error_span(Parser__token(this)->span, format_string("Could not find file: %s", filename));
 }
 
-void Parser__include_file(Parser *this, Program *program, char *filename) {
+char *Parser__include_file(Parser *this, Program *program, char *filename) {
   filename = Parser__find_file_path(this, filename);
   if (Program__is_file_included(program, filename)) 
-  return;
+  return filename;
   
   Program__add_included_file(program, filename);
   FILE *file = File__open(filename, "r");
@@ -3628,6 +3689,7 @@ void Parser__include_file(Parser *this, Program *program, char *filename) {
   Parser__push_context(this, tokens);
   Parser__parse_into_program(this, program);
   Parser__pop_context(this);
+  return filename;
 }
 
 void Parser__parse_use(Parser *this, Program *program) {
@@ -4009,6 +4071,13 @@ Type *TypeChecker__check_binary_op(TypeChecker *this, AST *node, AST *_lhs, AST 
       } 
       return lhs;
     } break;
+    case ASTType__BitwiseNot: {
+      Type *etype = TypeChecker__check_expression(this, node->u.unary);
+      if ((!Type__is_integer(etype))) {
+        error_span_note(node->span, "Operator requires integer type", format_string("Got type '%s'", Type__str(etype)));
+      } 
+      return etype;
+    } break;
     case ASTType__UnaryMinus: {
       Type *etype = TypeChecker__check_expression(this, node->u.unary);
       if ((!Type__is_numeric(etype))) {
@@ -4077,12 +4146,6 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     case ASTType__Call: {
       etype = TypeChecker__check_call(this, node);
     } break;
-    case ASTType__IntLiteral: {
-      etype = Type__new(BaseType__I32, node->span);
-    } break;
-    case ASTType__FloatLiteral: {
-      etype = Type__new(BaseType__F32, node->span);
-    } break;
     case ASTType__BoolLiteral: {
       etype = Type__new(BaseType__Bool, node->span);
     } break;
@@ -4097,6 +4160,21 @@ Type *TypeChecker__check_expression(TypeChecker *this, AST *node) {
     } break;
     case ASTType__FormatStringLiteral: {
       etype = TypeChecker__check_format_string(this, node);
+    } break;
+    case ASTType__IntLiteral:
+    case ASTType__FloatLiteral: {
+      NumLiteral *num_lit = (&node->u.num_literal);
+      if (((bool)num_lit->suffix)) {
+        etype = num_lit->suffix;
+        if ((!TypeChecker__type_is_valid(this, etype))) {
+          error_span(etype->span, "Invalid type");
+        } 
+      }  else       if (node->type == ASTType__IntLiteral) {
+        etype = Type__new(BaseType__I32, node->span);
+      }  else {
+        etype = Type__new(BaseType__F32, node->span);
+      } 
+      
     } break;
     case ASTType__Constructor: {
       etype = node->etype;
@@ -5028,6 +5106,9 @@ char *CodeGenerator__get_op(ASTType type) {
     case ASTType__BitwiseAnd: {
       __yield_0 = " & ";
 } break;
+    case ASTType__BitwiseNot: {
+      __yield_0 = "~";
+} break;
     case ASTType__BitwiseOr: {
       __yield_0 = " | ";
 } break;
@@ -5122,11 +5203,10 @@ void CodeGenerator__gen_in_yield_context(CodeGenerator *this, AST *node) {
 
 void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
   switch (node->type) {
-    case ASTType__IntLiteral: {
-      StringBuilder__puts((&this->out), node->u.num_literal);
-    } break;
+    case ASTType__IntLiteral:
     case ASTType__FloatLiteral: {
-      StringBuilder__puts((&this->out), node->u.num_literal);
+      NumLiteral *num_lit = (&node->u.num_literal);
+      StringBuilder__puts((&this->out), num_lit->text);
     } break;
     case ASTType__StringLiteral: {
       StringBuilder__putsf((&this->out), format_string("\"%s\"", node->u.string_literal));
@@ -5245,7 +5325,8 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
     case ASTType__Address:
     case ASTType__Dereference:
     case ASTType__Not:
-    case ASTType__UnaryMinus: {
+    case ASTType__UnaryMinus:
+    case ASTType__BitwiseNot: {
       StringBuilder__puts((&this->out), "(");
       StringBuilder__puts((&this->out), CodeGenerator__get_op(node->type));
       CodeGenerator__gen_expression(this, node->u.unary);

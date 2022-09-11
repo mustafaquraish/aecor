@@ -37,12 +37,13 @@ struct Token {
     type: TokenType
     span: Span
     text: string
+    suffix: &Token
     seen_newline: bool
 }
 
 def Token::new(type: TokenType, span: Span, text: string): &Token {
     let tok = calloc(1, sizeof(Token)) as &Token
-    *tok = Token (type, span, text, seen_newline: false)
+    *tok = Token(type, span, text, suffix: null, seen_newline: false)
     return tok
 }
 
