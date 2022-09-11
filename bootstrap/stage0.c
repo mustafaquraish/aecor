@@ -4496,7 +4496,7 @@ void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr) {
       return;
     } 
   } 
-  if ((((expr_type->base != BaseType__I32) && (expr_type->base != BaseType__Char)) && (!Type__is_string(expr_type)))) {
+  if ((((!Type__is_integer(expr_type)) && (expr_type->base != BaseType__Char)) && (!Type__is_string(expr_type)))) {
     error_span_note(expr->span, "This type cannot be matched on", format_string("Expression type is '%s'", Type__str(expr_type)));
   } 
   Vector *cases = node->u.match_stmt.cases;
@@ -4584,6 +4584,7 @@ Type *TypeChecker__check_constant_expression(TypeChecker *this, AST *node) {
     case ASTType__And:
     case ASTType__Or:
     case ASTType__Modulus:
+    case ASTType__BitwiseNot:
     case ASTType__BitwiseOr:
     case ASTType__BitwiseAnd:
     case ASTType__BitwiseXor:

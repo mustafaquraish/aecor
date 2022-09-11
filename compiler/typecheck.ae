@@ -515,7 +515,6 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         Or |
         Modulus |
         BitwiseOr |
-        BitwiseNot |
         BitwiseAnd |
         BitwiseXor |
         LeftShift |
@@ -846,8 +845,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
             return
         }
     }
-    // FIXME: Allow all integer types once we have literals for them
-    if expr_type.base != BaseType::I32 and
+    if not expr_type.is_integer() and
         expr_type.base != BaseType::Char and
         not expr_type.is_string() {
         error_span_note(
