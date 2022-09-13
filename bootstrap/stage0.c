@@ -4505,7 +4505,7 @@ void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr) {
     MatchCase *_case = ((MatchCase *)Vector__at(cases, i));
     Type *cond_type = TypeChecker__check_expression(this, _case->cond);
     if ((!Type__eq(cond_type, expr_type))) {
-      error_span_note_span(cond_type->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(struc->type)));
+      error_span_note_span(cond_type->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(cond_type)));
     } 
     if ((((_case->cond->type != ASTType__IntLiteral) && (_case->cond->type != ASTType__CharLiteral)) && (_case->cond->type != ASTType__StringLiteral))) {
       error_span(_case->cond->span, "Match condition must use only literals");

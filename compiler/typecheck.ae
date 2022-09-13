@@ -863,7 +863,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
         if not cond_type.eq(expr_type) {
             error_span_note_span(
                 cond_type.span, "Condition does not match expression type",
-                node.u.match_stmt.expr.span, `Match expression is of type '{struc.type.str()}'`
+                node.u.match_stmt.expr.span, `Match expression is of type '{cond_type.str()}'`
             )
         }
         if _case.cond.type != ASTType::IntLiteral and
