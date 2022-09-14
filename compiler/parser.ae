@@ -237,7 +237,6 @@ def Parser::parse_format_string(&this): &AST {
                     }
 
                     let spec = fstr.text.substring(specifier_loc, i - specifier_loc)
-                    println("specifier is %s", spec)
                     specifiers.push(spec)
                 } else {
                     let part = fstr.text.substring(cur_start, i - cur_start)

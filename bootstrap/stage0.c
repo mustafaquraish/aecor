@@ -735,9 +735,11 @@ void CodeGenerator__gen_enum_value(CodeGenerator *this, char *enum_name, Variabl
 void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc);
 void CodeGenerator__gen_struct(CodeGenerator *this, Structure *struc);
 void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part);
+void CodeGenerator__gen_format_string_variadic(CodeGenerator *this, AST *node, bool newline_after);
 void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node);
 char *CodeGenerator__get_op(ASTType type);
 void CodeGenerator__gen_in_yield_context(CodeGenerator *this, AST *node);
+void CodeGenerator__gen_internal_print(CodeGenerator *this, AST *node);
 void CodeGenerator__gen_expression(CodeGenerator *this, AST *node);
 void CodeGenerator__gen_var_decl(CodeGenerator *this, AST *node, bool is_constant);
 void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *body, i32 indent);
@@ -767,7 +769,7 @@ i32 main(i32 argc, char **argv);
 FILE *File__open(char *path, char *mode) {
   FILE *file = fopen(path, mode);
   if ((!((bool)file))) {
-    printf("Error opening file '%s': %s" "\n", path, strerror(errno));
+    printf("Error opening file '%s': %s""\n", path, strerror(errno));
     exit(1);
   } 
   return file;
@@ -806,7 +808,7 @@ void File__puts(FILE *this, char *str) {
 }
 
 __attribute__((noreturn)) void panic(char *msg) {
-  printf("%s" "\n", msg);
+  printf("%s""\n", msg);
   exit(1);
 }
 
@@ -1448,12 +1450,12 @@ char *MessageType__str(MessageType this) {
 }
 
 void display_line(void) {
-  printf("--------------------------------------------------------------------------------" "\n");
+  printf("--------------------------------------------------------------------------------""\n");
 }
 
 void display_message(MessageType type, Span span, char *msg) {
   display_line();
-  printf("%s: %s: %s" "\n", Location__str(span.start), MessageType__str(type), msg);
+  printf("%s: %s: %s""\n", Location__str(span.start), MessageType__str(type), msg);
   display_line();
 }
 
@@ -1488,10 +1490,10 @@ void display_message_with_span(MessageType type, Span span, char *msg) {
         for (i32 i = start_col; (i < end_col); i += 1) {
           printf("%c", cur[i]);
         } 
-        printf("%s%s" "\n", reset, (cur + end_col));
-        printf("%*s%s^ %s%s" "\n", (start_col + 7), "", color, msg, reset);
+        printf("%s%s""\n", reset, (cur + end_col));
+        printf("%*s%s^ %s%s""\n", (start_col + 7), "", color, msg, reset);
       }  else {
-        printf("%s" "\n", cur);
+        printf("%s""\n", cur);
       } 
     } 
     line_no += 1;
@@ -1991,7 +1993,7 @@ void Map__print_keys(Map *this) {
   for (i32 i = 0; (i < this->num_buckets); i += 1) {
     MapNode *node = this->buckets[i];
     while (((bool)node)) {
-      printf("- '%s'\n" "\n", node->key);
+      printf("- '%s'\n""\n", node->key);
       node = node->next;
     } 
   } 
@@ -2897,7 +2899,6 @@ AST *Parser__parse_format_string(Parser *this) {
             error_span(span, "Expected format specifier");
           } 
           char *spec = string__substring(fstr->text, specifier_loc, (i - specifier_loc));
-          printf("specifier is %s" "\n", spec);
           Vector__push(specifiers, spec);
         }  else {
           char *part = string__substring(fstr->text, cur_start, (i - cur_start));
@@ -3715,10 +3716,10 @@ char *Parser__find_file_path(Parser *this, char *filename) {
     } 
   } 
   if (this->curr == 0) {
-    printf("---------------------------------------------------------------" "\n");
-    printf("[-] Error: Could not find file '%s'" "\n", filename);
-    printf("[+] Hint: Specify the aecor root directory with the -l option" "\n");
-    printf("---------------------------------------------------------------" "\n");
+    printf("---------------------------------------------------------------""\n");
+    printf("[-] Error: Could not find file '%s'""\n", filename);
+    printf("[+] Hint: Specify the aecor root directory with the -l option""\n");
+    printf("---------------------------------------------------------------""\n");
     exit(1);
   } 
   this->curr -= 1;
@@ -5071,11 +5072,11 @@ void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part) {
   } 
 }
 
-void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node) {
+void CodeGenerator__gen_format_string_variadic(CodeGenerator *this, AST *node, bool newline_after) {
   Vector *parts = node->u.fmt_str.parts;
   Vector *exprs = node->u.fmt_str.exprs;
   Vector *specs = node->u.fmt_str.specs;
-  StringBuilder__puts((&this->out), "format_string(\"");
+  StringBuilder__putc((&this->out), '"');
   for (i32 i = 0; (i < exprs->size); i += 1) {
     char *part = ((char *)Vector__at(parts, i));
     CodeGenerator__gen_format_string_part(this, part);
@@ -5131,12 +5132,20 @@ void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node) {
   } 
   char *part = ((char *)Vector__back(parts));
   CodeGenerator__gen_format_string_part(this, part);
+  if (newline_after) 
+  StringBuilder__puts((&this->out), "\\n");
+  
   StringBuilder__putc((&this->out), '"');
   for (i32 i = 0; (i < exprs->size); i += 1) {
     StringBuilder__puts((&this->out), ", ");
     AST *expr = ((AST *)Vector__at(exprs, i));
     CodeGenerator__gen_expression(this, expr);
   } 
+}
+
+void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node) {
+  StringBuilder__puts((&this->out), "format_string(");
+  CodeGenerator__gen_format_string_variadic(this, node, false);
   StringBuilder__puts((&this->out), ")");
 }
 
@@ -5250,6 +5259,31 @@ void CodeGenerator__gen_in_yield_context(CodeGenerator *this, AST *node) {
   Vector__pop(this->yield_vars);
 }
 
+void CodeGenerator__gen_internal_print(CodeGenerator *this, AST *node) {
+  bool newline_after = AST__callee_is(node, "println");
+  StringBuilder__puts((&this->out), "printf(");
+  Vector *args = node->u.call.args;
+  if ((args->size < 1)) {
+    error_span(node->span, "Function requires at least one argument");
+  } 
+  Argument *first = ((Argument *)Vector__at(args, 0));
+  if ((args->size == 1 && first->expr->type == ASTType__FormatStringLiteral)) {
+    CodeGenerator__gen_format_string_variadic(this, first->expr, newline_after);
+  }  else {
+    for (i32 i = 0; (i < args->size); i += 1) {
+      if ((i > 0)) 
+      StringBuilder__puts((&this->out), ", ");
+      
+      Argument *arg = ((Argument *)Vector__at(args, i));
+      CodeGenerator__gen_expression(this, arg->expr);
+      if ((i == 0 && newline_after)) 
+      StringBuilder__puts((&this->out), "\"\\n\"");
+      
+    } 
+  } 
+  StringBuilder__puts((&this->out), ")");
+}
+
 void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
   switch (node->type) {
     case ASTType__IntLiteral:
@@ -5302,19 +5336,15 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
       
     } break;
     case ASTType__Call: {
-      bool newline_after_first = false;
-      if (AST__callee_is(node, "print")) {
-        StringBuilder__puts((&this->out), "printf");
-      }  else       if (AST__callee_is(node, "println")) {
-        StringBuilder__puts((&this->out), "printf");
-        newline_after_first = true;
-      }  else       if ((!((bool)node->u.call.func))) {
+      if ((AST__callee_is(node, "print") || AST__callee_is(node, "println"))) {
+        CodeGenerator__gen_internal_print(this, node);
+        return;
+      } 
+      if ((!((bool)node->u.call.func))) {
         CodeGenerator__gen_expression(this, node->u.call.callee);
       }  else {
         StringBuilder__puts((&this->out), CodeGenerator__get_function_name(this, node->u.call.func));
       } 
-      
-      
       StringBuilder__puts((&this->out), "(");
       Vector *args = node->u.call.args;
       for (i32 i = 0; (i < args->size); i += 1) {
@@ -5323,9 +5353,6 @@ void CodeGenerator__gen_expression(CodeGenerator *this, AST *node) {
         } 
         Argument *arg = ((Argument *)Vector__at(args, i));
         CodeGenerator__gen_expression(this, arg->expr);
-        if ((i == 0 && newline_after_first)) {
-          StringBuilder__puts((&this->out), " \"\\n\"");
-        } 
       } 
       StringBuilder__puts((&this->out), ")");
     } break;
@@ -5886,17 +5913,17 @@ char *CodeGenerator__gen_program(CodeGenerator *this, Program *program) {
 }
 
 void usage(i32 code) {
-  printf("--------------------------------------------------------" "\n");
-  printf("Usage: ./aecor [options] <file>" "\n");
-  printf("Options:" "\n");
-  printf("    -o path   Output executable (default: ./out)" "\n");
-  printf("    -c path   Output C code (default: {out}.c)" "\n");
-  printf("    -s        Silent mode (no debug output)" "\n");
-  printf("    -n        Don't compile C code (default: false)" "\n");
-  printf("    -d        Emit debug information (default: false)" "\n");
-  printf("    -l        Library path (root of aecor repo)" "\n");
-  printf("                   (Default: working directory)" "\n");
-  printf("--------------------------------------------------------" "\n");
+  printf("--------------------------------------------------------""\n");
+  printf("Usage: ./aecor [options] <file>""\n");
+  printf("Options:""\n");
+  printf("    -o path   Output executable (default: ./out)""\n");
+  printf("    -c path   Output C code (default: {out}.c)""\n");
+  printf("    -s        Silent mode (no debug output)""\n");
+  printf("    -n        Don't compile C code (default: false)""\n");
+  printf("    -d        Emit debug information (default: false)""\n");
+  printf("    -l        Library path (root of aecor repo)""\n");
+  printf("                   (Default: working directory)""\n");
+  printf("--------------------------------------------------------""\n");
   exit(code);
 }
 
@@ -5930,12 +5957,12 @@ i32 main(i32 argc, char **argv) {
         c_path = argv[i];
       } else  {
         if (argv[i][0] == '-') {
-          printf("Unknown option: %s" "\n", argv[i]);
+          printf("Unknown option: %s""\n", argv[i]);
           usage(1);
         }  else         if ((!((bool)filename))) {
           filename = argv[i];
         }  else {
-          printf("Unknown option/argument: '%s'" "\n", argv[i]);
+          printf("Unknown option/argument: '%s'""\n", argv[i]);
           usage(1);
         } 
         
@@ -5943,7 +5970,7 @@ i32 main(i32 argc, char **argv) {
     }
   } 
   if ((!((bool)filename))) {
-    printf("No file specified" "\n");
+    printf("No file specified""\n");
     usage(1);
   } 
   if ((!((bool)c_path))) {
@@ -5977,11 +6004,11 @@ i32 main(i32 argc, char **argv) {
     strcat(cmdbuf, " -ggdb3");
   } 
   if ((!silent)) {
-    printf("[+] %s" "\n", cmdbuf);
+    printf("[+] %s""\n", cmdbuf);
   } 
   i32 code = system(cmdbuf);
   if ((code != 0)) {
-    printf("[-] Compilation failed" "\n");
+    printf("[-] Compilation failed""\n");
     exit(code);
   } 
 }

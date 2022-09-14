@@ -126,12 +126,12 @@ def CodeGenerator::gen_format_string_part(&this, part: string) {
     }
 }
 
-def CodeGenerator::gen_format_string(&this, node: &AST) {
+def CodeGenerator::gen_format_string_variadic(&this, node: &AST, newline_after: bool) {
     let parts = node.u.fmt_str.parts
     let exprs = node.u.fmt_str.exprs
     let specs = node.u.fmt_str.specs
 
-    .out.puts("format_string(\"")
+    .out.putc('"')
     for let i = 0; i < exprs.size; i += 1 {
         let part = parts.at(i) as string
         .gen_format_string_part(part)
@@ -163,6 +163,7 @@ def CodeGenerator::gen_format_string(&this, node: &AST) {
     // Put the last part:
     let part = parts.back() as string
     .gen_format_string_part(part)
+    if newline_after then .out.puts("\\n")
     .out.putc('"')
 
     for let i = 0; i < exprs.size; i += 1 {
@@ -170,6 +171,11 @@ def CodeGenerator::gen_format_string(&this, node: &AST) {
         let expr = exprs.at(i) as &AST
         .gen_expression(expr)
     }
+}
+
+def CodeGenerator::gen_format_string(&this, node: &AST) {
+    .out.puts("format_string(")
+    .gen_format_string_variadic(node, newline_after: false)
     .out.puts(")")
 }
 
@@ -232,6 +238,30 @@ def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
     .yield_vars.pop()
 }
 
+def CodeGenerator::gen_internal_print(&this, node: &AST) {
+    let newline_after = node.callee_is("println")
+
+    .out.puts("printf(")
+
+    let args = node.u.call.args
+    if args.size < 1 {
+        error_span(node.span, "Function requires at least one argument")
+    }
+    let first = args.at(0) as &Argument
+    if args.size == 1 and first.expr.type == ASTType::FormatStringLiteral {
+        .gen_format_string_variadic(first.expr, newline_after)
+    } else {
+        for let i = 0; i < args.size; i += 1 {
+            if i > 0 then .out.puts(", ")
+            let arg = args.at(i) as &Argument
+            .gen_expression(arg.expr)
+            if i == 0 and newline_after then .out.puts("\"\\n\"")
+        }
+    }
+
+    .out.puts(")")
+}
+
 def CodeGenerator::gen_expression(&this, node: &AST) {
     match node.type {
         IntLiteral | FloatLiteral => {
@@ -280,13 +310,11 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             }
         }
         Call => {
-            let newline_after_first = false
-            if node.callee_is("print") {
-                .out.puts("printf")
-            } else if node.callee_is("println") {
-                .out.puts("printf")
-                newline_after_first = true
-            } else if not node.u.call.func? {
+            if node.callee_is("print") or node.callee_is("println") {
+                .gen_internal_print(node)
+                return
+            }
+            if not node.u.call.func? {
                 .gen_expression(node.u.call.callee)
             } else {
                 .out.puts(.get_function_name(node.u.call.func))
@@ -297,7 +325,6 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
                 if i > 0 { .out.puts(", "); }
                 let arg = args.at(i) as &Argument
                 .gen_expression(arg.expr)
-                if i == 0 and newline_after_first { .out.puts(" \"\\n\""); }
             }
             .out.puts(")")
         }
