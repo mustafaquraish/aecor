@@ -202,8 +202,12 @@ def Parser::parse_format_string(&this): &AST {
     let expr_start = Vector::new()    // Vector<i32>
 
     let format_parts = Vector::new()  // Vector<string>
+    let specifiers = Vector::new()    // Vector<string>
+
     let count = 0
     let cur_start = 0
+    let specifier_loc = -1
+
     for let i = 0; i < fstr_len; i += 1 {
         if fstr.text[i] == '{' and fstr.text[i - 1] != '\\' {
             if count == 0 {
@@ -215,13 +219,44 @@ def Parser::parse_format_string(&this): &AST {
         } else if fstr.text[i] == '}' and fstr.text[i - 1] != '\\' {
             count -= 1
             if count == 0 {
-                let part = fstr.text.substring(cur_start, i - cur_start)
-                expr_parts.push(part)
-                expr_start.push((fstr.text + cur_start))
+                if specifier_loc > 0 {
+                    let part = fstr.text.substring(cur_start, specifier_loc - cur_start)
+                    expr_parts.push(part)
+                    expr_start.push((fstr.text + cur_start))
+
+                    specifier_loc += 1
+                    while specifier_loc < i and fstr.text[specifier_loc] == ' ' {
+                        specifier_loc += 1
+                    }
+
+                    if specifier_loc == i {
+                        let loc = fstr.span.start;
+                        loc.col += specifier_loc + 1
+                        let span = Span(loc, loc)
+                        error_span(span, "Expected format specifier")
+                    }
+
+                    let spec = fstr.text.substring(specifier_loc, i - specifier_loc)
+                    println("specifier is %s", spec)
+                    specifiers.push(spec)
+                } else {
+                    let part = fstr.text.substring(cur_start, i - cur_start)
+                    expr_parts.push(part)
+                    expr_start.push((fstr.text + cur_start))
+                    specifiers.push(null)
+                }
                 cur_start = i + 1
+                specifier_loc = -1
 
             } else if count < 0 {
                 error_span(fstr.span, "Unmatched '}' in format string")
+            }
+
+        // FIXME: Should this use semicolons?
+        } else if fstr.text[i] == ':' and fstr.text[i - 1] != '\\' {
+            // TODO: Handle errors properly
+            if count == 1 and fstr.text[i - 1] != ':' and fstr.text[i + 1] != ':' {
+                specifier_loc = i
             }
         }
     }
@@ -256,6 +291,7 @@ def Parser::parse_format_string(&this): &AST {
         expr_nodes.push(expr)
     }
     node.u.fmt_str.exprs = expr_nodes
+    node.u.fmt_str.specs = specifiers
     expr_parts.free()
     expr_start.free()
     return node

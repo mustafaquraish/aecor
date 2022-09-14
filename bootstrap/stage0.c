@@ -391,6 +391,7 @@ struct Identifier {
 
 struct FormatString {
   Vector *parts;
+  Vector *specs;
   Vector *exprs;
 };
 
@@ -2866,8 +2867,10 @@ AST *Parser__parse_format_string(Parser *this) {
   Vector *expr_parts = Vector__new();
   Vector *expr_start = Vector__new();
   Vector *format_parts = Vector__new();
+  Vector *specifiers = Vector__new();
   i32 count = 0;
   i32 cur_start = 0;
+  i32 specifier_loc = (-1);
   for (i32 i = 0; (i < fstr_len); i += 1) {
     if ((fstr->text[i] == '{' && (fstr->text[(i - 1)] != '\\'))) {
       if (count == 0) {
@@ -2879,15 +2882,41 @@ AST *Parser__parse_format_string(Parser *this) {
     }  else     if ((fstr->text[i] == '}' && (fstr->text[(i - 1)] != '\\'))) {
       count -= 1;
       if (count == 0) {
-        char *part = string__substring(fstr->text, cur_start, (i - cur_start));
-        Vector__push(expr_parts, part);
-        Vector__push(expr_start, (fstr->text + cur_start));
+        if ((specifier_loc > 0)) {
+          char *part = string__substring(fstr->text, cur_start, (specifier_loc - cur_start));
+          Vector__push(expr_parts, part);
+          Vector__push(expr_start, (fstr->text + cur_start));
+          specifier_loc += 1;
+          while (((specifier_loc < i) && fstr->text[specifier_loc] == ' ')) {
+            specifier_loc += 1;
+          } 
+          if (specifier_loc == i) {
+            Location loc = fstr->span.start;
+            loc.col += (specifier_loc + 1);
+            Span span = (Span){loc, loc};
+            error_span(span, "Expected format specifier");
+          } 
+          char *spec = string__substring(fstr->text, specifier_loc, (i - specifier_loc));
+          printf("specifier is %s" "\n", spec);
+          Vector__push(specifiers, spec);
+        }  else {
+          char *part = string__substring(fstr->text, cur_start, (i - cur_start));
+          Vector__push(expr_parts, part);
+          Vector__push(expr_start, (fstr->text + cur_start));
+          Vector__push(specifiers, NULL);
+        } 
         cur_start = (i + 1);
+        specifier_loc = (-1);
       }  else       if ((count < 0)) {
         error_span(fstr->span, "Unmatched '}' in format string");
       } 
       
+    }  else     if ((fstr->text[i] == ':' && (fstr->text[(i - 1)] != '\\'))) {
+      if (((count == 1 && (fstr->text[(i - 1)] != ':')) && (fstr->text[(i + 1)] != ':'))) {
+        specifier_loc = i;
+      } 
     } 
+    
     
   } 
   if ((count != 0)) {
@@ -2915,6 +2944,7 @@ AST *Parser__parse_format_string(Parser *this) {
     Vector__push(expr_nodes, expr);
   } 
   node->u.fmt_str.exprs = expr_nodes;
+  node->u.fmt_str.specs = specifiers;
   Vector__free(expr_parts);
   Vector__free(expr_start);
   return node;
@@ -5044,10 +5074,17 @@ void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part) {
 void CodeGenerator__gen_format_string(CodeGenerator *this, AST *node) {
   Vector *parts = node->u.fmt_str.parts;
   Vector *exprs = node->u.fmt_str.exprs;
+  Vector *specs = node->u.fmt_str.specs;
   StringBuilder__puts((&this->out), "format_string(\"");
   for (i32 i = 0; (i < exprs->size); i += 1) {
     char *part = ((char *)Vector__at(parts, i));
     CodeGenerator__gen_format_string_part(this, part);
+    char *spec = ((char *)Vector__at(specs, i));
+    if (((bool)spec)) {
+      StringBuilder__puts((&this->out), "%");
+      StringBuilder__puts((&this->out), spec);
+      continue;
+    } 
     AST *expr = ((AST *)Vector__at(exprs, i));
     Type *expr_type = expr->etype;
     switch (expr_type->base) {

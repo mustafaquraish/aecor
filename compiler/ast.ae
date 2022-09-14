@@ -290,6 +290,7 @@ struct Identifier {
 
 struct FormatString {
     parts: &Vector    // Vector<string>
+    specs: &Vector    // Vector<string>
     exprs: &Vector    // Vector<&AST>
 }
 

@@ -129,11 +129,19 @@ def CodeGenerator::gen_format_string_part(&this, part: string) {
 def CodeGenerator::gen_format_string(&this, node: &AST) {
     let parts = node.u.fmt_str.parts
     let exprs = node.u.fmt_str.exprs
+    let specs = node.u.fmt_str.specs
 
     .out.puts("format_string(\"")
     for let i = 0; i < exprs.size; i += 1 {
         let part = parts.at(i) as string
         .gen_format_string_part(part)
+
+        let spec = specs.at(i) as string
+        if spec? {
+            .out.puts("%")
+            .out.puts(spec)
+            continue
+        }
 
         let expr = exprs.at(i) as &AST
         let expr_type = expr.etype
