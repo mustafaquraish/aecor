@@ -3,6 +3,7 @@ use "compiler/ast.ae"
 use "compiler/utils.ae"
 
 struct CodeGenerator {
+    program: &Program
     out: StringBuilder
     scopes: &Vector  // Vector<Vector<AST>>
     yield_vars: &Vector // Vector<string>
@@ -12,6 +13,7 @@ struct CodeGenerator {
 
 def CodeGenerator::make(debug: bool): CodeGenerator {
     return CodeGenerator(
+        program: null,
         out: StringBuilder::make(),
         scopes: Vector::new(),
         yield_vars: Vector::new(),
@@ -81,6 +83,24 @@ def CodeGenerator::gen_enum(&this, struc: &Structure) {
         }
         .out.puts("};\n\n")
     }
+
+    // Output debug info for enum
+    let s_methods = .program.methods.get(struc.name) as &Map
+    let dbg = s_methods.get("dbg") as &Function
+    .gen_function_decl(dbg)
+    .out.puts(" {\n")
+    .indent(1)
+    .out.puts("switch (this) {\n")
+    for let i = 0; i < struc.fields.size; i += 1 {
+        let field = struc.fields.at(i) as &Variable
+        .indent(2)
+        .out.puts("case ")
+        .gen_enum_value(struc.name, field)
+        .out.putsf(`: return "{struc.name}::{field.name}";\n`)
+    }
+    .indent(1)
+    .out.puts("}\n")
+    .out.puts("}\n\n")
 }
 
 def CodeGenerator::gen_struct(&this, struc: &Structure) {
@@ -855,6 +875,7 @@ def CodeGenerator::gen_embed_headers(&this, program: &Program) {
 }
 
 def CodeGenerator::gen_program(&this, program: &Program): string {
+    .program = program
     for let i = 0; i < program.c_includes.size; i += 1 {
         let include = program.c_includes.at(i) as string
         .out.putsf(`#include "{include}"\n`)

@@ -239,6 +239,8 @@ struct Program {
     c_flags: &Vector           // Vector<string>
     c_includes: &Vector        // Vector<string>
     c_embed_headers: &Vector   // Vector<string>
+
+    methods: &Map     // &Map<string, &Map<string, &Function>>
 }
 
 def Program::new(): &Program {

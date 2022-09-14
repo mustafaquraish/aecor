@@ -191,6 +191,100 @@ enum TokenType {
   TokenType__Tilde,
 };
 
+char *TokenType__dbg(TokenType this) {
+  switch (this) {
+    case TokenType__And: return "TokenType::And";
+    case TokenType__As: return "TokenType::As";
+    case TokenType__Bool: return "TokenType::Bool";
+    case TokenType__Break: return "TokenType::Break";
+    case TokenType__Char: return "TokenType::Char";
+    case TokenType__Const: return "TokenType::Const";
+    case TokenType__Continue: return "TokenType::Continue";
+    case TokenType__Def: return "TokenType::Def";
+    case TokenType__Defer: return "TokenType::Defer";
+    case TokenType__Else: return "TokenType::Else";
+    case TokenType__Enum: return "TokenType::Enum";
+    case TokenType__Extern: return "TokenType::Extern";
+    case TokenType__False: return "TokenType::False";
+    case TokenType__F32: return "TokenType::F32";
+    case TokenType__F64: return "TokenType::F64";
+    case TokenType__For: return "TokenType::For";
+    case TokenType__Fn: return "TokenType::Fn";
+    case TokenType__I8: return "TokenType::I8";
+    case TokenType__I16: return "TokenType::I16";
+    case TokenType__I32: return "TokenType::I32";
+    case TokenType__I64: return "TokenType::I64";
+    case TokenType__If: return "TokenType::If";
+    case TokenType__Let: return "TokenType::Let";
+    case TokenType__Match: return "TokenType::Match";
+    case TokenType__Null: return "TokenType::Null";
+    case TokenType__Not: return "TokenType::Not";
+    case TokenType__Or: return "TokenType::Or";
+    case TokenType__Return: return "TokenType::Return";
+    case TokenType__SizeOf: return "TokenType::SizeOf";
+    case TokenType__String: return "TokenType::String";
+    case TokenType__Struct: return "TokenType::Struct";
+    case TokenType__True: return "TokenType::True";
+    case TokenType__Then: return "TokenType::Then";
+    case TokenType__U8: return "TokenType::U8";
+    case TokenType__U16: return "TokenType::U16";
+    case TokenType__U32: return "TokenType::U32";
+    case TokenType__U64: return "TokenType::U64";
+    case TokenType__UntypedPtr: return "TokenType::UntypedPtr";
+    case TokenType__Union: return "TokenType::Union";
+    case TokenType__Use: return "TokenType::Use";
+    case TokenType__Void: return "TokenType::Void";
+    case TokenType__Yield: return "TokenType::Yield";
+    case TokenType__While: return "TokenType::While";
+    case TokenType__AtSign: return "TokenType::AtSign";
+    case TokenType__Ampersand: return "TokenType::Ampersand";
+    case TokenType__Backtick: return "TokenType::Backtick";
+    case TokenType__Caret: return "TokenType::Caret";
+    case TokenType__CharLiteral: return "TokenType::CharLiteral";
+    case TokenType__CloseCurly: return "TokenType::CloseCurly";
+    case TokenType__CloseParen: return "TokenType::CloseParen";
+    case TokenType__CloseSquare: return "TokenType::CloseSquare";
+    case TokenType__Colon: return "TokenType::Colon";
+    case TokenType__ColonColon: return "TokenType::ColonColon";
+    case TokenType__Comma: return "TokenType::Comma";
+    case TokenType__Dot: return "TokenType::Dot";
+    case TokenType__EOF: return "TokenType::EOF";
+    case TokenType__Equals: return "TokenType::Equals";
+    case TokenType__EqualEquals: return "TokenType::EqualEquals";
+    case TokenType__Exclamation: return "TokenType::Exclamation";
+    case TokenType__FatArrow: return "TokenType::FatArrow";
+    case TokenType__FloatLiteral: return "TokenType::FloatLiteral";
+    case TokenType__FormatStringLiteral: return "TokenType::FormatStringLiteral";
+    case TokenType__GreaterThan: return "TokenType::GreaterThan";
+    case TokenType__GreaterThanGreaterThan: return "TokenType::GreaterThanGreaterThan";
+    case TokenType__GreaterThanEquals: return "TokenType::GreaterThanEquals";
+    case TokenType__Identifier: return "TokenType::Identifier";
+    case TokenType__IntLiteral: return "TokenType::IntLiteral";
+    case TokenType__LessThan: return "TokenType::LessThan";
+    case TokenType__LessThanLessThan: return "TokenType::LessThanLessThan";
+    case TokenType__LessThanEquals: return "TokenType::LessThanEquals";
+    case TokenType__Line: return "TokenType::Line";
+    case TokenType__Minus: return "TokenType::Minus";
+    case TokenType__MinusEquals: return "TokenType::MinusEquals";
+    case TokenType__NotEquals: return "TokenType::NotEquals";
+    case TokenType__Newline: return "TokenType::Newline";
+    case TokenType__OpenCurly: return "TokenType::OpenCurly";
+    case TokenType__OpenParen: return "TokenType::OpenParen";
+    case TokenType__OpenSquare: return "TokenType::OpenSquare";
+    case TokenType__Percent: return "TokenType::Percent";
+    case TokenType__Plus: return "TokenType::Plus";
+    case TokenType__PlusEquals: return "TokenType::PlusEquals";
+    case TokenType__Question: return "TokenType::Question";
+    case TokenType__Semicolon: return "TokenType::Semicolon";
+    case TokenType__Slash: return "TokenType::Slash";
+    case TokenType__SlashEquals: return "TokenType::SlashEquals";
+    case TokenType__Star: return "TokenType::Star";
+    case TokenType__StarEquals: return "TokenType::StarEquals";
+    case TokenType__StringLiteral: return "TokenType::StringLiteral";
+    case TokenType__Tilde: return "TokenType::Tilde";
+  }
+}
+
 struct Token {
   TokenType type;
   Span span;
@@ -204,6 +298,14 @@ enum MessageType {
   MessageType__Warning,
   MessageType__Note,
 };
+
+char *MessageType__dbg(MessageType this) {
+  switch (this) {
+    case MessageType__Error: return "MessageType::Error";
+    case MessageType__Warning: return "MessageType::Warning";
+    case MessageType__Note: return "MessageType::Note";
+  }
+}
 
 struct Lexer {
   char *source;
@@ -253,6 +355,29 @@ enum BaseType {
   BaseType__Method,
   BaseType__Array,
 };
+
+char *BaseType__dbg(BaseType this) {
+  switch (this) {
+    case BaseType__Char: return "BaseType::Char";
+    case BaseType__Bool: return "BaseType::Bool";
+    case BaseType__Void: return "BaseType::Void";
+    case BaseType__I8: return "BaseType::I8";
+    case BaseType__I16: return "BaseType::I16";
+    case BaseType__I32: return "BaseType::I32";
+    case BaseType__I64: return "BaseType::I64";
+    case BaseType__U8: return "BaseType::U8";
+    case BaseType__U16: return "BaseType::U16";
+    case BaseType__U32: return "BaseType::U32";
+    case BaseType__U64: return "BaseType::U64";
+    case BaseType__F32: return "BaseType::F32";
+    case BaseType__F64: return "BaseType::F64";
+    case BaseType__Pointer: return "BaseType::Pointer";
+    case BaseType__Structure: return "BaseType::Structure";
+    case BaseType__Function: return "BaseType::Function";
+    case BaseType__Method: return "BaseType::Method";
+    case BaseType__Array: return "BaseType::Array";
+  }
+}
 
 struct Type {
   BaseType base;
@@ -326,6 +451,68 @@ enum ASTType {
   ASTType__While,
 };
 
+char *ASTType__dbg(ASTType this) {
+  switch (this) {
+    case ASTType__Assignment: return "ASTType::Assignment";
+    case ASTType__Address: return "ASTType::Address";
+    case ASTType__And: return "ASTType::And";
+    case ASTType__Block: return "ASTType::Block";
+    case ASTType__BoolLiteral: return "ASTType::BoolLiteral";
+    case ASTType__BitwiseAnd: return "ASTType::BitwiseAnd";
+    case ASTType__BitwiseNot: return "ASTType::BitwiseNot";
+    case ASTType__BitwiseOr: return "ASTType::BitwiseOr";
+    case ASTType__BitwiseXor: return "ASTType::BitwiseXor";
+    case ASTType__Break: return "ASTType::Break";
+    case ASTType__Call: return "ASTType::Call";
+    case ASTType__Cast: return "ASTType::Cast";
+    case ASTType__CharLiteral: return "ASTType::CharLiteral";
+    case ASTType__Constant: return "ASTType::Constant";
+    case ASTType__Constructor: return "ASTType::Constructor";
+    case ASTType__Continue: return "ASTType::Continue";
+    case ASTType__Defer: return "ASTType::Defer";
+    case ASTType__Dereference: return "ASTType::Dereference";
+    case ASTType__Divide: return "ASTType::Divide";
+    case ASTType__DivideEquals: return "ASTType::DivideEquals";
+    case ASTType__EnumValue: return "ASTType::EnumValue";
+    case ASTType__Equals: return "ASTType::Equals";
+    case ASTType__FloatLiteral: return "ASTType::FloatLiteral";
+    case ASTType__FormatStringLiteral: return "ASTType::FormatStringLiteral";
+    case ASTType__For: return "ASTType::For";
+    case ASTType__GreaterThan: return "ASTType::GreaterThan";
+    case ASTType__GreaterThanEquals: return "ASTType::GreaterThanEquals";
+    case ASTType__If: return "ASTType::If";
+    case ASTType__Identifier: return "ASTType::Identifier";
+    case ASTType__Index: return "ASTType::Index";
+    case ASTType__IntLiteral: return "ASTType::IntLiteral";
+    case ASTType__IsNotNull: return "ASTType::IsNotNull";
+    case ASTType__LeftShift: return "ASTType::LeftShift";
+    case ASTType__LessThan: return "ASTType::LessThan";
+    case ASTType__LessThanEquals: return "ASTType::LessThanEquals";
+    case ASTType__Match: return "ASTType::Match";
+    case ASTType__Member: return "ASTType::Member";
+    case ASTType__Minus: return "ASTType::Minus";
+    case ASTType__MinusEquals: return "ASTType::MinusEquals";
+    case ASTType__Modulus: return "ASTType::Modulus";
+    case ASTType__Multiply: return "ASTType::Multiply";
+    case ASTType__MultiplyEquals: return "ASTType::MultiplyEquals";
+    case ASTType__Not: return "ASTType::Not";
+    case ASTType__NotEquals: return "ASTType::NotEquals";
+    case ASTType__Null: return "ASTType::Null";
+    case ASTType__Or: return "ASTType::Or";
+    case ASTType__Plus: return "ASTType::Plus";
+    case ASTType__PlusEquals: return "ASTType::PlusEquals";
+    case ASTType__Return: return "ASTType::Return";
+    case ASTType__RightShift: return "ASTType::RightShift";
+    case ASTType__SizeOf: return "ASTType::SizeOf";
+    case ASTType__ScopeLookup: return "ASTType::ScopeLookup";
+    case ASTType__StringLiteral: return "ASTType::StringLiteral";
+    case ASTType__UnaryMinus: return "ASTType::UnaryMinus";
+    case ASTType__VarDeclaration: return "ASTType::VarDeclaration";
+    case ASTType__Yield: return "ASTType::Yield";
+    case ASTType__While: return "ASTType::While";
+  }
+}
+
 struct Variable {
   char *name;
   Type *type;
@@ -371,6 +558,7 @@ struct Program {
   Vector *c_flags;
   Vector *c_includes;
   Vector *c_embed_headers;
+  Map *methods;
 };
 
 struct Block {
@@ -528,6 +716,7 @@ struct StringBuilder {
 };
 
 struct CodeGenerator {
+  Program *program;
   StringBuilder out;
   Vector *scopes;
   Vector *yield_vars;
@@ -4887,7 +5076,23 @@ void TypeChecker__check_all_structs(TypeChecker *this, Program *program) {
       error_span_note_span(struc->span, "Struct has already been defined", prev->span, "Previous definition here");
     } 
     Map__insert(this->structures, name, struc);
-    Map__insert(this->methods, name, Map__new());
+    Map *s_methods = Map__new();
+    if (struc->is_enum) {
+      Function *dbg = Function__new(struc->span);
+      dbg->name = "dbg";
+      dbg->return_type = Type__ptr_to(BaseType__Char, struc->span);
+      dbg->is_method = true;
+      dbg->method_struct_name = name;
+      Variable *dbg_param = Variable__new("this", struc->type, struc->span);
+      Vector__push(dbg->params, dbg_param);
+      Map__insert(s_methods, "dbg", dbg);
+      dbg->type = Type__new(BaseType__Method, dbg->span);
+      dbg->type->name = name;
+      dbg->type->func_def = dbg;
+      dbg->type->params = dbg->params;
+      dbg->type->return_type = dbg->return_type;
+    } 
+    Map__insert(this->methods, name, s_methods);
   } 
   Map *done = Map__new();
   Vector *results = Vector__new();
@@ -4915,6 +5120,7 @@ void TypeChecker__check_program(TypeChecker *this, Program *program) {
   } 
   TypeChecker__check_all_functions(this, program);
   TypeChecker__pop_scope(this);
+  program->methods = this->methods;
 }
 
 StringBuilder StringBuilder__make(void) {
@@ -4957,7 +5163,7 @@ char *StringBuilder__new_str(StringBuilder *this) {
 }
 
 CodeGenerator CodeGenerator__make(bool debug) {
-  return (CodeGenerator){.out = StringBuilder__make(), .scopes = Vector__new(), .yield_vars = Vector__new(), .yield_count = 0, .debug = debug};
+  return (CodeGenerator){.program = NULL, .out = StringBuilder__make(), .scopes = Vector__new(), .yield_vars = Vector__new(), .yield_count = 0, .debug = debug};
 }
 
 void CodeGenerator__gen_debug_info(CodeGenerator *this, Span span) {
@@ -5023,6 +5229,22 @@ void CodeGenerator__gen_enum(CodeGenerator *this, Structure *struc) {
     } 
     StringBuilder__puts((&this->out), "};\n\n");
   } 
+  Map *s_methods = ((Map *)Map__get(this->program->methods, struc->name));
+  Function *dbg = ((Function *)Map__get(s_methods, "dbg"));
+  CodeGenerator__gen_function_decl(this, dbg);
+  StringBuilder__puts((&this->out), " {\n");
+  CodeGenerator__indent(this, 1);
+  StringBuilder__puts((&this->out), "switch (this) {\n");
+  for (i32 i = 0; (i < struc->fields->size); i += 1) {
+    Variable *field = ((Variable *)Vector__at(struc->fields, i));
+    CodeGenerator__indent(this, 2);
+    StringBuilder__puts((&this->out), "case ");
+    CodeGenerator__gen_enum_value(this, struc->name, field);
+    StringBuilder__putsf((&this->out), format_string(": return \"%s::%s\";\n", struc->name, field->name));
+  } 
+  CodeGenerator__indent(this, 1);
+  StringBuilder__puts((&this->out), "}\n");
+  StringBuilder__puts((&this->out), "}\n\n");
 }
 
 void CodeGenerator__gen_struct(CodeGenerator *this, Structure *struc) {
@@ -5888,6 +6110,7 @@ void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program) {
 }
 
 char *CodeGenerator__gen_program(CodeGenerator *this, Program *program) {
+  this->program = program;
   for (i32 i = 0; (i < program->c_includes->size); i += 1) {
     char *include = ((char *)Vector__at(program->c_includes, i));
     StringBuilder__putsf((&this->out), format_string("#include \"%s\"\n", include));

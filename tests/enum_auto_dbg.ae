@@ -1,0 +1,13 @@
+/// out: "Foo::Lmao Foo::Goodbye"
+
+enum Foo {
+    Lmao
+    Hello
+    Goodbye
+}
+
+def main() {
+    let x = Foo::Lmao
+    let y = Foo::Goodbye
+    println("%s %s", x.dbg(), y.dbg())
+}

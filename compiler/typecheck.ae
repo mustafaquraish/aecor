@@ -1251,7 +1251,30 @@ def TypeChecker::check_all_structs(&this, program: &Program) {
         }
 
         .structures.insert(name, struc)
-        .methods.insert(name, Map::new())
+        let s_methods = Map::new()
+
+        // Add `.dbg()` method to all enums for debug printing
+        if struc.is_enum {
+            let dbg = Function::new(struc.span)
+            dbg.name = "dbg"
+            dbg.return_type = Type::ptr_to(BaseType::Char, struc.span)
+            dbg.is_method   = true
+            dbg.method_struct_name = name
+
+            let dbg_param = Variable::new("this", struc.type, struc.span)
+            dbg.params.push(dbg_param)
+            s_methods.insert("dbg", dbg)
+
+            // FIXME: Why do we need to do this again? Move all the data into
+            //        only one place.
+            dbg.type = Type::new(BaseType::Method, dbg.span)
+            dbg.type.name = name
+            dbg.type.func_def = dbg
+            dbg.type.params = dbg.params
+            dbg.type.return_type = dbg.return_type
+        }
+
+        .methods.insert(name, s_methods)
     }
 
     // TODO: Check for loops in the dependency graph, and error
@@ -1285,4 +1308,5 @@ def TypeChecker::check_program(&this, program: &Program) {
 
     .check_all_functions(program)
     .pop_scope()
+    program.methods = .methods
 }
