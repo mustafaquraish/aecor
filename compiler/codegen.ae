@@ -451,6 +451,12 @@ def CodeGenerator::gen_match_case_body(&this, node: &AST, body: &AST, indent: i3
         .out.puts(" ")
         .gen_block(body, indent + 1)
 
+    // The body is a call that exits, we don't need to yield it
+    } else if body.type == ASTType::Call and body.returns {
+        .out.puts(" ")
+        .gen_expression(body)
+        .out.puts(";")
+
     // In this case, we're implicitly yielding the result of the body.
     } else if node.etype? and body.type != ASTType::Yield {
         .out.puts(" {\n")

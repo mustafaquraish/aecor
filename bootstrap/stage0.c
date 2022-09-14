@@ -3768,9 +3768,7 @@ void Parser__parse_compiler_option(Parser *this, Program *program) {
       Token *filename = Parser__consume(this, TokenType__StringLiteral);
       char *resolved = Parser__find_file_path(this, filename->text);
       Vector__push(program->c_embed_headers, resolved);
-    } else  {
-      error_span(name->span, "Unknown compiler option");
-    }
+    } else  error_span(name->span, "Unknown compiler option");
   }
 }
 
@@ -5125,9 +5123,7 @@ void CodeGenerator__gen_format_string_variadic(CodeGenerator *this, AST *node, b
           } break;
         }
       } break;
-      default: {
-        error_span(expr->span, "Invalid type for format string");
-      } break;
+      default: error_span(expr->span, "Invalid type for format string"); break;
     }
   } 
   char *part = ((char *)Vector__back(parts));
@@ -5482,6 +5478,10 @@ void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *bod
   if (body->type == ASTType__Block) {
     StringBuilder__puts((&this->out), " ");
     CodeGenerator__gen_block(this, body, (indent + 1));
+  }  else   if ((body->type == ASTType__Call && body->returns)) {
+    StringBuilder__puts((&this->out), " ");
+    CodeGenerator__gen_expression(this, body);
+    StringBuilder__puts((&this->out), ";");
   }  else   if ((((bool)node->etype) && (body->type != ASTType__Yield))) {
     StringBuilder__puts((&this->out), " {\n");
     CodeGenerator__gen_yield_expression(this, body, (indent + 2));
@@ -5492,6 +5492,7 @@ void CodeGenerator__gen_match_case_body(CodeGenerator *this, AST *node, AST *bod
     CodeGenerator__indent(this, (indent + 1));
     StringBuilder__puts((&this->out), "}");
   } 
+  
   
 }
 
