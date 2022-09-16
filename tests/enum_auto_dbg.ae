@@ -9,5 +9,5 @@ enum Foo {
 def main() {
     let x = Foo::Lmao
     let y = Foo::Goodbye
-    println("%s %s", x.dbg(), y.dbg())
+    println("%s %s", x, y)
 }

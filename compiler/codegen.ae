@@ -232,7 +232,7 @@ def CodeGenerator::get_op(type: ASTType): string => match type {
     PlusEquals => " += "
     RightShift => " >> "
     UnaryMinus => "-"
-    else => panic(`Unknown op type in get_op: {type.dbg()}`)
+    else => panic(`Unknown op type in get_op: {type}`)
 }
 
 def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
@@ -443,7 +443,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(CodeGenerator::get_op(node.type))
             .gen_expression(node.u.binary.rhs)
         }
-        else => panic(`Unhandled expression type: {node.type.dbg()}`)
+        else => panic(`Unhandled expression type: {node.type}`)
     }
 }
 

@@ -888,6 +888,7 @@ Variable *TypeChecker__get_struct_member(TypeChecker *this, char *lhs, char *rhs
 bool TypeChecker__type_is_valid(TypeChecker *this, Type *type);
 void TypeChecker__check_method_call(TypeChecker *this, Type *method_type, AST *node);
 Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *node);
+void TypeChecker__call_dbg_on_enum_value(TypeChecker *this, AST *node);
 Type *TypeChecker__check_call(TypeChecker *this, AST *node);
 Type *TypeChecker__check_format_string(TypeChecker *this, AST *node);
 Type *TypeChecker__check_pointer_arith(TypeChecker *this, AST *node, Type *lhs, Type *rhs);
@@ -3814,6 +3815,26 @@ Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *n
   return struc->type;
 }
 
+void TypeChecker__call_dbg_on_enum_value(TypeChecker *this, AST *node) {
+  if ((!((bool)node->etype))) 
+  return;
+  
+  if ((!Type__is_enum(node->etype))) 
+  return;
+  
+  AST *lhs = ((AST *)calloc(1, sizeof(AST)));
+  (*lhs) = (*node);
+  AST *rhs = AST__new(ASTType__Identifier, node->span);
+  rhs->u.ident.name = "dbg";
+  AST *method = AST__new(ASTType__Member, node->span);
+  method->u.member.lhs = lhs;
+  method->u.member.rhs = rhs;
+  node->type = ASTType__Call;
+  node->u.call.callee = method;
+  node->u.call.args = Vector__new();
+  TypeChecker__check_expression(this, node);
+}
+
 Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
   AST *callee = node->u.call.callee;
   if (callee->type == ASTType__Identifier) {
@@ -3823,6 +3844,7 @@ Type *TypeChecker__check_call(TypeChecker *this, AST *node) {
       for (i32 i = 0; (i < node->u.call.args->size); i += 1) {
         Argument *arg = ((Argument *)Vector__at(node->u.call.args, i));
         TypeChecker__check_expression(this, arg->expr);
+        TypeChecker__call_dbg_on_enum_value(this, arg->expr);
       } 
       return Type__new(BaseType__Void, node->span);
     } 
@@ -3875,7 +3897,9 @@ Type *TypeChecker__check_format_string(TypeChecker *this, AST *node) {
     error_span(node->span, "Number of format string parts does not match number of expressions");
   } 
   for (i32 i = 0; (i < exprs->size); i += 1) {
-    TypeChecker__check_expression(this, Vector__at(exprs, i));
+    AST *expr = ((AST *)Vector__at(exprs, i));
+    TypeChecker__check_expression(this, expr);
+    TypeChecker__call_dbg_on_enum_value(this, expr);
   } 
   return Type__ptr_to(BaseType__Char, node->span);
 }

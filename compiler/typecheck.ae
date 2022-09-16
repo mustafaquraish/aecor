@@ -190,6 +190,28 @@ def TypeChecker::check_constructor(&this, struc: &Structure, node: &AST): &Type 
     return struc.type
 }
 
+def TypeChecker::call_dbg_on_enum_value(&this, node: &AST) {
+    if not node.etype? return
+    if not node.etype.is_enum() return
+
+
+    let lhs = calloc(1, sizeof(AST)) as &AST
+    *lhs = *node
+
+    let rhs = AST::new(ASTType::Identifier, node.span)
+    rhs.u.ident.name = "dbg"
+
+    let method = AST::new(ASTType::Member, node.span)
+    method.u.member.lhs = lhs
+    method.u.member.rhs = rhs
+
+    node.type = ASTType::Call
+    node.u.call.callee = method
+    node.u.call.args = Vector::new()
+
+    .check_expression(node)
+}
+
 def TypeChecker::check_call(&this, node: &AST): &Type {
     // This is a hack to avoid typechecking of `print` and `println`
     let callee = node.u.call.callee
@@ -200,6 +222,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
             for let i = 0; i < node.u.call.args.size; i += 1 {
                 let arg = node.u.call.args.at(i) as &Argument
                 .check_expression(arg.expr)
+                .call_dbg_on_enum_value(arg.expr)
             }
             return Type::new(BaseType::Void, node.span)
         }
@@ -277,7 +300,9 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
     }
 
     for let i = 0; i < exprs.size; i += 1 {
-        .check_expression(exprs.at(i))
+        let expr = exprs.at(i) as &AST
+        .check_expression(expr)
+        .call_dbg_on_enum_value(expr)
     }
 
     return Type::ptr_to(BaseType::Char, node.span)
@@ -379,7 +404,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, _lhs: &AST, _rhs: &AST): &Ty
             }
             return lhs
         }
-        else => panic(`Internal error: unhandled op in check_binary_op: {node.type.dbg()}`)
+        else => panic(`Internal error: unhandled op in check_binary_op: {node.type}`)
     }
 }
 
@@ -718,7 +743,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = node.etype
         }
         else => {
-            panic(`Unhandled type in check_expression: {node.type.dbg()}`)
+            panic(`Unhandled type in check_expression: {node.type}`)
         }
     }
     etype = etype.decay_array()
@@ -1041,7 +1066,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
         }
         ASTType::Break  | ASTType::Continue => {
             if not .in_loop {
-                error_span(node.span, `{node.type.dbg()} statement outside of loop`)
+                error_span(node.span, `{node.type} statement outside of loop`)
             }
         }
         ASTType::VarDeclaration => {

@@ -75,7 +75,7 @@ def display_line() {
 
 def display_message(type: MessageType, span: Span, msg: string) {
     display_line()
-    println("%s: %s: %s", span.start.str(), type.dbg(), msg)
+    println("%s: %s: %s", span.start.str(), type, msg)
     display_line()
 }
 
