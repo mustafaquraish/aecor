@@ -4959,16 +4959,16 @@ void CodeGenerator__gen_format_string_part(CodeGenerator *this, char *part) {
         case '{':
         case '}': {
         } break;
-        case '%': {
-          StringBuilder__putc((&this->out), '%');
-        } break;
         default: {
           StringBuilder__putc((&this->out), '\\');
         } break;
       }
     }  else     if (part[i] == '"') {
       StringBuilder__putc((&this->out), '\\');
+    }  else     if (part[i] == '%') {
+      StringBuilder__putc((&this->out), '%');
     } 
+    
     
     StringBuilder__putc((&this->out), part[i]);
   } 

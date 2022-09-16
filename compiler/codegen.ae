@@ -137,14 +137,15 @@ def CodeGenerator::gen_format_string_part(&this, part: string) {
             match part[i] {
                 // We want to unescape these
                 '`' | '{' | '}' => {}
-                // We need to do "%%" for "%" in C format strings
-                '%' => .out.putc('%')
                 // Anything else should remain escaped
                 else => .out.putc('\\')
             }
-        // If we have double quotes in a string we should escape it
         } else if part[i] == '"' {
+            // If we have double quotes in a string we should escape it
             .out.putc('\\')
+        } else if part[i] == '%' {
+            // Percent signs are special in printf, we need to do "%%"
+            .out.putc('%')
         }
         .out.putc(part[i])
     }
