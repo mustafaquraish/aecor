@@ -46,7 +46,7 @@ def handle_events(end_frame: i32) {
                     mouse.curr.wheel_dirs[MouseWheel::Down as i32] = event.wheel.y > 0
                     mouse.curr.wheel_dirs[MouseWheel::Up as i32] = event.wheel.y < 0
                 }
-                WindowSizeChanged | Window => {
+                Window => {
                     gfx.prev_size = get_window_size()
                 }
                 else => {}

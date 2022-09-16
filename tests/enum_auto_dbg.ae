@@ -1,4 +1,4 @@
-/// out: "Foo::Lmao Foo::Goodbye"
+/// out: "Lmao Goodbye"
 
 enum Foo {
     Lmao

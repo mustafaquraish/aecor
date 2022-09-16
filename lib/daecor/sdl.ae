@@ -93,7 +93,7 @@ struct SDLKeysym extern("SDL_Keysym") {
     mod: i32
 }
 
-enum EventType extern {
+enum EventType extern("SDL_EventType") {
     Quit = extern("SDL_QUIT")
     KeyDown = extern("SDL_KEYDOWN")
     KeyUp = extern("SDL_KEYUP")
@@ -101,7 +101,6 @@ enum EventType extern {
     MouseUp = extern("SDL_MOUSEBUTTONUP")
     Wheel = extern("SDL_MOUSEWHEEL")
     Window = extern("SDL_WINDOWEVENT")
-    WindowSizeChanged = extern("SDL_WINDOWEVENT_SIZE_CHANGED")
     User = extern("SDL_USEREVENT")
 }
 

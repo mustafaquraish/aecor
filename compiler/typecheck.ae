@@ -379,9 +379,7 @@ def TypeChecker::check_binary_op(&this, node: &AST, _lhs: &AST, _rhs: &AST): &Ty
             }
             return lhs
         }
-        else => {
-            panic(`Internal error: unhandled op in check_binary_op: {node.type.str()}`)
-        }
+        else => panic(`Internal error: unhandled op in check_binary_op: {node.type.dbg()}`)
     }
 }
 
@@ -720,7 +718,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = node.etype
         }
         else => {
-            panic(`Unhandled type in check_expression: {node.type.str()}`)
+            panic(`Unhandled type in check_expression: {node.type.dbg()}`)
         }
     }
     etype = etype.decay_array()
@@ -1043,7 +1041,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
         }
         ASTType::Break  | ASTType::Continue => {
             if not .in_loop {
-                error_span(node.span, `{node.type.str()} statement outside of loop`)
+                error_span(node.span, `{node.type.dbg()} statement outside of loop`)
             }
         }
         ASTType::VarDeclaration => {

@@ -63,66 +63,6 @@ enum ASTType {
     While
 }
 
-def ASTType::str(this): string => match this {
-    Assignment => "Assignment"
-    Address => "Address"
-    And => "And"
-    Block => "Block"
-    BoolLiteral => "BoolLiteral"
-    BitwiseAnd => "BitwiseAnd"
-    BitwiseNot => "BitwiseNot"
-    BitwiseOr => "BitwiseOr"
-    BitwiseXor => "BitwiseXor"
-    Break => "Break"
-    Call => "Call"
-    Cast => "Cast"
-    CharLiteral => "CharLiteral"
-    Constructor => "Constructor"
-    Constant => "Constant"
-    Continue => "Continue"
-    Defer => "Defer"
-    Dereference => "Dereference"
-    Divide => "Divide"
-    DivideEquals => "DivideEquals"
-    EnumValue => "EnumValue"
-    Equals => "Equals"
-    FloatLiteral => "FloatLiteral"
-    FormatStringLiteral => "FormatStringLiteral"
-    For => "For"
-    GreaterThan => "GreaterThan"
-    GreaterThanEquals => "GreaterThanEquals"
-    If => "If"
-    Identifier => "Identifier"
-    Index => "Index"
-    IntLiteral => "IntLiteral"
-    IsNotNull => "IsNotNull"
-    LeftShift => "LeftShift"
-    LessThan => "LessThan"
-    LessThanEquals => "LessThanEquals"
-    Match => "Match"
-    Member => "Member"
-    Minus => "Minus"
-    MinusEquals => "MinusEquals"
-    Modulus => "Modulus"
-    Multiply => "Multiply"
-    MultiplyEquals => "MultiplyEquals"
-    Not => "Not"
-    NotEquals => "NotEquals"
-    Null => "Null"
-    Or => "Or"
-    Plus => "Plus"
-    PlusEquals => "PlusEquals"
-    Return => "Return"
-    RightShift => "RightShift"
-    SizeOf => "SizeOf"
-    ScopeLookup => "ScopeLookup"
-    StringLiteral => "StringLiteral"
-    UnaryMinus => "UnaryMinus"
-    VarDeclaration => "VarDeclaration"
-    Yield => "Yield"
-    While => "While"
-}
-
 def ASTType::from_token(type: TokenType): ASTType => match type {
     Ampersand => ASTType::BitwiseAnd
     And => ASTType::And
@@ -148,9 +88,7 @@ def ASTType::from_token(type: TokenType): ASTType => match type {
     Star => ASTType::Multiply
     StarEquals => ASTType::MultiplyEquals
     Tilde => ASTType::BitwiseNot
-    else => {
-        panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
-    }
+    else => panic(`Unhandled token type in ASTType::from_token: {type.str()}`)
 }
 
 struct Variable {

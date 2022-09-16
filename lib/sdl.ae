@@ -68,7 +68,7 @@ struct SDLKeysym extern("SDL_Keysym") {
     mod: i32
 }
 
-enum EventType extern {
+enum EventType extern("SDL_EventType") {
     Quit = extern("SDL_QUIT")
     KeyDown = extern("SDL_KEYDOWN")
     KeyUp = extern("SDL_KEYUP")

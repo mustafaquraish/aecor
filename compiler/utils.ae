@@ -69,19 +69,13 @@ def MessageType::to_color(this): string => match this {
     Note => "\x1b[32m"
 }
 
-def MessageType::str(this): string => match this {
-    Error => "Error"
-    Warning => "Warning"
-    Note => "Note"
-}
-
 def display_line() {
     println("--------------------------------------------------------------------------------")
 }
 
 def display_message(type: MessageType, span: Span, msg: string) {
     display_line()
-    println("%s: %s: %s", span.start.str(), type.str(), msg)
+    println("%s: %s: %s", span.start.str(), type.dbg(), msg)
     display_line()
 }
 

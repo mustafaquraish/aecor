@@ -96,11 +96,15 @@ def CodeGenerator::gen_enum(&this, struc: &Structure) {
         .indent(2)
         .out.puts("case ")
         .gen_enum_value(struc.name, field)
-        .out.putsf(`: return "{struc.name}::{field.name}";\n`)
+        .out.putsf(`: return "{field.name}";\n`)
     }
+    // This is mostly for extern enums, but is also useful for cases
+    // where a perhaps incorrect value was cast to the enum type.
+    .indent(2)
+    .out.putsf(`default: return "<unknown>";\n`)
+
     .indent(1)
-    .out.puts("}\n")
-    .out.puts("}\n\n")
+    .out.puts("}\n}\n\n")
 }
 
 def CodeGenerator::gen_struct(&this, struc: &Structure) {
@@ -228,9 +232,7 @@ def CodeGenerator::get_op(type: ASTType): string => match type {
     PlusEquals => " += "
     RightShift => " >> "
     UnaryMinus => "-"
-    else => {
-        panic(`Unknown op type in get_op: {type.str()}`)
-    }
+    else => panic(`Unknown op type in get_op: {type.dbg()}`)
 }
 
 def CodeGenerator::gen_in_yield_context(&this, node: &AST) {
@@ -441,9 +443,7 @@ def CodeGenerator::gen_expression(&this, node: &AST) {
             .out.puts(CodeGenerator::get_op(node.type))
             .gen_expression(node.u.binary.rhs)
         }
-        else => {
-            panic(`Unhandled expression type: {node.type.str()}`)
-        }
+        else => panic(`Unhandled expression type: {node.type.dbg()}`)
     }
 }
 

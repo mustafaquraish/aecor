@@ -37,11 +37,7 @@ def BaseType::str(this): string => match this {
     U64 => "u64"
     F32 => "f32"
     F64 => "f64"
-    Pointer => "&"
-    Structure => "structure"
-    Function => "function"
-    Method => "method"
-    Array => "[]"
+    else => .dbg()
 }
 
 struct Type {
