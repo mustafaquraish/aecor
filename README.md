@@ -17,6 +17,18 @@ $ ./meta/bootstrap.sh   # Generates ./bootstrap/aecor if successful
 $ ./bootstrap/aecor -h
 ```
 
+### Setting up environment [Optional, recommended]
+
+In order to use `aecor` from outside the repository root, it is recommended to add the following to your `.bashrc`
+(or other way of setting up envionment in your shell)
+
+```bash
+# To find libraries
+export AECOR_ROOT="/path/to/aecor/repo/"
+# To add compiler to path
+export PATH="$PATH:$AECOR_ROOT/bootstrap/"
+```
+
 ### Compiling other programs
 
 For now, the compiler _needs_ to be run from the root of the repository, since it uses relative paths.
