@@ -104,7 +104,7 @@ def TypeChecker::type_is_valid(&this, type: &Type): bool {
             return false
         }
         Array => {
-            let expr_type = .check_expression(type.size_expr)
+            let expr_type = .check_expression(type.size_expr, hint: null)
             return .type_is_valid(type.ptr) and .type_is_valid(expr_type)
         }
         else => return true
@@ -178,7 +178,7 @@ def TypeChecker::check_constructor(&this, struc: &Structure, node: &AST): &Type 
     for let i = 0; i < fields.size; i += 1 {
         let field = fields.at(i) as &Variable
         let arg = args.at(i) as &Argument
-        let arg_type = .check_expression(arg.expr)
+        let arg_type = .check_expression(arg.expr, hint: field.type)
 
         if arg.label? {
             let label = arg.label.u.ident.name
@@ -221,7 +221,7 @@ def TypeChecker::call_dbg_on_enum_value(&this, node: &AST) {
     node.u.call.callee = method
     node.u.call.args = Vector::new()
 
-    .check_expression(node)
+    .check_expression(node, hint: null)
 }
 
 def TypeChecker::check_call(&this, node: &AST): &Type {
@@ -233,7 +233,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         if name.eq("print") or name.eq("println") {
             for let i = 0; i < node.u.call.args.size; i += 1 {
                 let arg = node.u.call.args.at(i) as &Argument
-                .check_expression(arg.expr)
+                .check_expression(arg.expr, hint: null)
                 .call_dbg_on_enum_value(arg.expr)
             }
             return Type::new(BaseType::Void, node.span)
@@ -246,7 +246,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
         }
     }
 
-    let func_type = .check_expression(callee)
+    let func_type = .check_expression(callee, hint: null)
     if not func_type? return null
 
     let func_def = func_type.func_def
@@ -280,7 +280,7 @@ def TypeChecker::check_call(&this, node: &AST): &Type {
     for let i = 0; i < params.size; i += 1 {
         let param = params.at(i) as &Variable
         let arg = node.u.call.args.at(i) as &Argument
-        let arg_type = .check_expression(arg.expr)
+        let arg_type = .check_expression(arg.expr, hint: param.type)
         if arg_type? and not param.type.eq(arg_type) {
             .error(Error::new_hint(
                 arg.expr.span, "Argument type does not match function parameter type",
@@ -317,7 +317,7 @@ def TypeChecker::check_format_string(&this, node: &AST): &Type {
 
     for let i = 0; i < exprs.size; i += 1 {
         let expr = exprs.at(i) as &AST
-        .check_expression(expr)
+        .check_expression(expr, hint: null)
         .call_dbg_on_enum_value(expr)
     }
 
@@ -488,7 +488,33 @@ def TypeChecker::error_unknown_member(&this, node: &AST, struct_type: &Type, fie
     }
 }
 
-def TypeChecker::check_expression(&this, node: &AST): &Type {
+def TypeChecker::try_infer_enum(&this, node: &AST, type: &Type): bool {
+    if node.type != ASTType::Identifier return false
+    let name = node.u.ident.name
+
+    if not type? return false
+    if not type.is_enum() return false
+    let struc = type.struct_def
+    if not struc? return false
+
+    let var = struc.find_field(name)
+    if not var? return false
+
+
+    let rhs = AST::new(ASTType::Identifier, node.span)
+    *rhs = *node
+
+    // FIXME: This is a hack, we're modifying the AST Node type
+    node.type = ASTType::EnumValue
+    node.u.enum_val.struct_def = struc
+    node.u.enum_val.var = var
+    node.u.enum_val.lhs = null
+    node.u.enum_val.rhs = rhs
+    node.etype = struc.type
+    return true
+}
+
+def TypeChecker::check_expression(&this, node: &AST, hint: &Type): &Type {
     let etype = null as &Type
     match node.type {
         Call            => etype = .check_call(node)
@@ -508,9 +534,17 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                     .error(Error::new(etype.span, "Invalid type"))
                 }
             } else if node.type == ASTType::IntLiteral {
-                etype = Type::new(BaseType::I32, node.span)
+                etype = if hint? and hint.is_integer() {
+                    yield hint
+                } else {
+                    yield Type::new(BaseType::I32, node.span)
+                }
             } else {
-                etype = Type::new(BaseType::F32, node.span)
+                etype = if hint? and hint.is_float() {
+                    yield hint
+                } else {
+                    yield Type::new(BaseType::F32, node.span)
+                }
             }
         }
 
@@ -523,14 +557,20 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             if not .type_is_valid(node.u.size_of_type) {
                 .error(Error::new(node.u.size_of_type.span, "Invalid type"))
             }
-            etype = Type::new(BaseType::I32, node.span)
+            etype = if hint? and hint.is_integer() {
+                yield hint
+            } else {
+                yield Type::new(BaseType::I32, node.span)
+            }
         }
         Identifier => {
             let ident = &node.u.ident
             let var = .find_var(ident.name)
             let func = .functions.get(ident.name) as &Function
 
-            if ident.is_function {
+            if hint? and .try_infer_enum(node, type: hint) {
+                etype = node.etype
+            } else if ident.is_function {
                 etype = ident.func.type
             } else if var? {
                 ident.is_function = false
@@ -563,13 +603,13 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
         BitwiseXor |
         LeftShift |
         RightShift => {
-            let lhs_type = .check_expression(node.u.binary.lhs)
-            let rhs_type = .check_expression(node.u.binary.rhs)
+            let lhs_type = .check_expression(node.u.binary.lhs, hint: null)
+            let rhs_type = .check_expression(node.u.binary.rhs, hint: lhs_type)
             if not lhs_type? or not rhs_type? return null
             etype = .check_binary_op(node, node.u.binary.lhs, node.u.binary.rhs)
         }
         Not => {
-            let rhs = .check_expression(node.u.unary)
+            let rhs = .check_expression(node.u.unary, hint: null)
             if rhs? and rhs.base != BaseType::Bool {
                 .error(Error::new_note(
                     node.u.unary.span, "Expression must be boolean",
@@ -579,7 +619,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = Type::new(BaseType::Bool, node.span)
         }
         BitwiseNot => {
-            etype = .check_expression(node.u.unary)
+            etype = .check_expression(node.u.unary, hint)
             if etype? and not etype.is_integer() {
                 .error(Error::new_note(
                     node.u.unary.span, "Expression must be an integer",
@@ -588,7 +628,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             }
         }
         UnaryMinus => {
-            etype = .check_expression(node.u.unary)
+            etype = .check_expression(node.u.unary, hint)
             if not etype? return null
 
             if not etype.is_numeric() {
@@ -599,12 +639,12 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             }
         }
         Address => {
-            etype = .check_expression(node.u.unary)
+            etype = .check_expression(node.u.unary, hint: null)
             if not etype? return null
             etype = Type::new_link(BaseType::Pointer, etype, node.span)
         }
         Dereference => {
-            let expr_type = .check_expression(node.u.unary)
+            let expr_type = .check_expression(node.u.unary, hint: null)
             if not expr_type? return null
 
             if expr_type.base != BaseType::Pointer {
@@ -616,7 +656,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = expr_type.ptr
         }
         Index => {
-            let expr_type = .check_expression(node.u.binary.lhs)
+            let expr_type = .check_expression(node.u.binary.lhs, hint: null)
             if not expr_type? return null
 
             if expr_type.base != BaseType::Pointer {
@@ -625,7 +665,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                     `Got type '{expr_type.str()}'`
                 ))
             }
-            let index_type = .check_expression(node.u.binary.rhs)
+            let index_type = .check_expression(node.u.binary.rhs, hint: null)
             if index_type? and not index_type.is_integer() {
                 .error(Error::new_note(
                     node.u.binary.rhs.span, "Index must be an integer",
@@ -635,8 +675,8 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = expr_type.ptr
         }
         PlusEquals | MinusEquals | DivideEquals | MultiplyEquals => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs)
+            let lhs = .check_expression(node.u.binary.lhs, hint: null)
+            let rhs = .check_expression(node.u.binary.rhs, hint: lhs)
             if not lhs? or not rhs? return null
 
             if not node.u.binary.lhs.is_lvalue() {
@@ -657,8 +697,8 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = lhs
         }
         Assignment => {
-            let lhs = .check_expression(node.u.binary.lhs)
-            let rhs = .check_expression(node.u.binary.rhs)
+            let lhs = .check_expression(node.u.binary.lhs, hint: null)
+            let rhs = .check_expression(node.u.binary.rhs, hint: lhs)
             if not lhs? or not rhs? return null
 
             if not node.u.binary.lhs.is_lvalue() {
@@ -677,6 +717,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
                 .error(Error::new(node.u.member.lhs.span, "Left hand side of `::` must be a struct name"))
                 return null
             }
+
             let struct_name = node.u.member.lhs.u.ident.name
             let struc = .structures.get(struct_name) as &Structure
             if not struc? {
@@ -714,7 +755,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             }
         }
         Member => {
-            let lhs_type = .check_expression(node.u.member.lhs)
+            let lhs_type = .check_expression(node.u.member.lhs, hint: null)
             if not lhs_type? return null
 
             if not lhs_type.is_struct_or_ptr() and not lhs_type.is_string() {
@@ -758,7 +799,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             }
         }
         Cast => {
-            let lhs_type = .check_expression(node.u.cast.lhs)
+            let lhs_type = .check_expression(node.u.cast.lhs, hint: null)
             if not .type_is_valid(node.u.cast.to) {
                 .error(Error::new(node.u.cast.to.span, "Type does not exist"))
                 return null
@@ -766,7 +807,7 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = node.u.cast.to
         }
         IsNotNull => {
-            let lhs_type = .check_expression(node.u.unary)
+            let lhs_type = .check_expression(node.u.unary, hint: null)
             if not lhs_type? return null
             if lhs_type.base != BaseType::Pointer {
                 .error(Error::new_note(
@@ -777,16 +818,14 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
             etype = Type::new(BaseType::Bool, node.span)
         }
         Match => {
-            .check_match(node, is_expr: true)
+            .check_match(node, is_expr: true, hint)
             etype = node.etype
         }
         If => {
-            .check_if(node, is_expr: true)
+            .check_if(node, is_expr: true, hint)
             etype = node.etype
         }
-        else => {
-            panic(`Unhandled type in check_expression: {node.type}`)
-        }
+        else => .error(Error::new(node.span, "Expected an expression statement"))
     }
     if not etype? return null
     etype = etype.decay_array()
@@ -794,15 +833,20 @@ def TypeChecker::check_expression(&this, node: &AST): &Type {
     return etype
 }
 
-
-def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_expr: bool) {
+def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_expr: bool, hint: &Type) {
     match body.type {
         // If this is an expression-statement, a non-block should also be an expression
-        ASTType::Match => .check_match(body, is_expr)
-        ASTType::If => .check_if(body, is_expr)
+        ASTType::Match => .check_match(body, is_expr, hint)
+        ASTType::If => .check_if(body, is_expr, hint)
 
         ASTType::Block => .check_block(body, can_yield: is_expr)
-        else => .check_statement(body)
+        else => {
+            if is_expr {
+                .check_expression(body, hint)
+            } else {
+                .check_statement(body)
+            }
+        }
     }
 
     node.returns = node.returns and body.returns
@@ -825,7 +869,7 @@ def TypeChecker::check_expression_statement(&this, node: &AST, body: &AST, is_ex
     }
 }
 
-def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_expr: bool) {
+def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_expr: bool, hint: &Type) {
     let mapping = Map::new()
     defer mapping.free()
 
@@ -836,34 +880,15 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
         let _case = cases.at(i) as &MatchCase
         let cond = _case.cond
         let name: string
-        if cond.type == ASTType::Identifier {
-            name = cond.u.ident.name
-            let var = struc.find_field(name)
-            if not var? {
-                .error(Error::new(cond.span, "Enum has no field with this name"))
-            }
 
-            let rhs = AST::new(ASTType::Identifier, cond.span)
-            *rhs = *cond
-
-            // FIXME: This is a hack, we're modifying the AST Node type
-            cond.type = ASTType::EnumValue
-            cond.u.enum_val.struct_def = struc
-            cond.u.enum_val.var = var
-            cond.u.enum_val.lhs = null
-            cond.u.enum_val.rhs = rhs
-            cond.etype = struc.type
-
-        } else {
-            let cond_type = .check_expression(cond)
-            if not cond_type.eq(struc.type) {
-                .error(Error::new_hint(
-                    cond.span, "Condition does not match expression type",
-                    node.u.match_stmt.expr.span, `Match expression is of type '{struc.type.str()}'`
-                ))
-            }
-            name = cond.u.enum_val.var.name
+        let cond_type = .check_expression(cond, hint: struc.type)
+        if not cond_type.eq(struc.type) {
+            .error(Error::new_hint(
+                cond.span, "Condition does not match expression type",
+                node.u.match_stmt.expr.span, `Match expression is of type '{struc.type.str()}'`
+            ))
         }
+        name = cond.u.enum_val.var.name
 
         let prev = mapping.get(name) as &MatchCase
         if prev? {
@@ -874,7 +899,7 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
         }
         mapping.insert(name, _case)
         if _case.body? {
-            .check_expression_statement(node, _case.body, is_expr)
+            .check_expression_statement(node, _case.body, is_expr, hint)
         }
     }
 
@@ -886,7 +911,7 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
                 `Only {mapping.num_items} of {struc.fields.size} cases are covered`
             ))
         } else {
-            .check_expression_statement(node, defolt, is_expr)
+            .check_expression_statement(node, defolt, is_expr, hint)
         }
     } else {
         if defolt? {
@@ -900,9 +925,9 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
 }
 
 
-def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
+def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type) {
     let expr = node.u.match_stmt.expr
-    let expr_type = .check_expression(expr)
+    let expr_type = .check_expression(expr, hint: null)
     if not expr_type? {
         .error(Error::new(node.span, "Match statement must have a valid expression"))
         return
@@ -912,7 +937,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
     if expr_type.base == BaseType::Structure {
         struc = .structures.get(expr_type.name) as &Structure
         if struc.is_enum {
-            .check_match_for_enum(struc, node, is_expr)
+            .check_match_for_enum(struc, node, is_expr, hint)
             return
         }
     }
@@ -930,7 +955,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
 
     for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
-        let cond_type = .check_expression(_case.cond)
+        let cond_type = .check_expression(_case.cond, hint: expr_type)
         if not cond_type.eq(expr_type) {
             .error(Error::new_hint(
                 cond_type.span, "Condition does not match expression type",
@@ -943,7 +968,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
             .error(Error::new(_case.cond.span, "Match condition must use only literals"))
         }
         if _case.body? {
-            .check_expression_statement(node, _case.body, is_expr)
+            .check_expression_statement(node, _case.body, is_expr, hint)
         }
     }
 
@@ -952,7 +977,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
     if not defolt? {
         .error(Error::new(node.span, "`else` case is missing"))
     } else {
-        .check_expression_statement(node, defolt, is_expr)
+        .check_expression_statement(node, defolt, is_expr, hint)
     }
 
     if is_expr and not node.etype? and not node.returns {
@@ -960,18 +985,18 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool) {
     }
 }
 
-def TypeChecker::check_if(&this, node: &AST, is_expr: bool) {
-    let cond_type = .check_expression(node.u.if_stmt.cond)
+def TypeChecker::check_if(&this, node: &AST, is_expr: bool, hint: &Type) {
+    let cond_type = .check_expression(node.u.if_stmt.cond, hint: null)
     if cond_type? and cond_type.base != BaseType::Bool {
         .error(Error::new_note(
             node.u.if_stmt.cond.span, "Condition must be a boolean",
             `Got type '{cond_type.str()}'`
         ))
     }
-    .check_expression_statement(node, node.u.if_stmt.body, is_expr)
+    .check_expression_statement(node, node.u.if_stmt.body, is_expr, hint)
     if node.u.if_stmt.els? {
         let else_stmt = node.u.if_stmt.els
-        .check_expression_statement(node, else_stmt, is_expr)
+        .check_expression_statement(node, else_stmt, is_expr, hint)
 
         if node.u.if_stmt.body.returns and else_stmt.returns {
             node.returns = true
@@ -1039,38 +1064,35 @@ def TypeChecker::check_constant_expression(&this, node: &AST): &Type {
 
 def TypeChecker::check_var_declaration(&this, node: &AST, is_constant: bool) {
     let var_decl = &node.u.var_decl
+    let declared_type = var_decl.var.type
+    if declared_type? and not .type_is_valid(declared_type) {
+        .error(Error::new(declared_type.span, "Invalid variable type"))
+    }
     if var_decl.init? {
+
         let init_type = if is_constant {
             yield .check_constant_expression(var_decl.init)
         } else {
-            yield .check_expression(var_decl.init)
+            yield .check_expression(var_decl.init, hint: declared_type)
         }
-        if not init_type? return
 
-        if init_type.base == BaseType::Method {
+        if init_type? and init_type.base == BaseType::Method {
             .error(Error::new(var_decl.init.span, "Cannot assign methods to variables"))
         }
         if not var_decl.var.type? {
             var_decl.var.type = init_type
-        } else {
-            if not .type_is_valid(var_decl.var.type) {
-                .error(Error::new(var_decl.var.span, "Invalid type"))
-            }
-            if not var_decl.var.type.eq(init_type) {
+        } else if init_type? {
+            if not declared_type.eq(init_type) {
                 .error(Error::new_note(
                     var_decl.init.span, "Variable type does not match initializer type",
-                    `Expected '{var_decl.var.type.str()}' but got '{init_type.str()}'`
+                    `Expected '{declared_type.str()}' but got '{init_type.str()}'`
                 ))
             }
         }
     } else {
-        if not var_decl.var.type? {
+        if not declared_type? {
             .error(Error::new(var_decl.var.span, "Variable type cannot be inferred, specify explicitly"))
-            return
-        }
-        if not .type_is_valid(var_decl.var.type) {
-            .error(Error::new(var_decl.var.type.span, "Invalid variable type"))
-            return
+            var_decl.var.type = Type::new(BaseType::Void, node.span)
         }
     }
 
@@ -1085,13 +1107,13 @@ def TypeChecker::check_var_declaration(&this, node: &AST, is_constant: bool) {
 def TypeChecker::check_statement(&this, node: &AST) {
     match node.type {
         ASTType::Block => .check_block(node, can_yield: false)
-        ASTType::Defer => .check_expression(node.u.unary)
-        ASTType::Match => .check_match(node, is_expr: false)
+        ASTType::Defer => .check_expression(node.u.unary, hint: null)
+        ASTType::Match => .check_match(node, is_expr: false, hint: null)
         ASTType::Yield => {
             if not .can_yield {
                 .error(Error::new(node.span, "Cannot yield in this context"))
             }
-            node.etype = .check_expression(node.u.unary)
+            node.etype = .check_expression(node.u.unary, hint: null)
         }
         ASTType::Return => {
             if not .cur_func? {
@@ -1105,7 +1127,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
                     ))
                 }
             } else {
-                let ret_type = .check_expression(node.u.unary)
+                let ret_type = .check_expression(node.u.unary, hint: .cur_func.return_type)
                 if ret_type? and .cur_func.return_type.base == BaseType::Void {
                     .error(Error::new_hint(
                         node.u.unary.span, `Cannot return '{ret_type.str()}' in void function`,
@@ -1132,7 +1154,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
         ASTType::While => {
             let was_in_loop = .in_loop
             .in_loop = true
-            let cond_type = .check_expression(node.u.loop.cond)
+            let cond_type = .check_expression(node.u.loop.cond, hint: null)
             if cond_type? and cond_type.base != BaseType::Bool {
                 .error(Error::new_note(
                     node.u.loop.cond.span, "Condition must be boolean",
@@ -1150,7 +1172,7 @@ def TypeChecker::check_statement(&this, node: &AST) {
                 .check_statement(node.u.loop.init)
             }
             if node.u.loop.cond? {
-                let cond_type = .check_expression(node.u.loop.cond)
+                let cond_type = .check_expression(node.u.loop.cond, hint: null)
                 if cond_type? and cond_type.base != BaseType::Bool {
                     .error(Error::new_note(
                         node.u.loop.cond.span, "Condition must be boolean",
@@ -1165,8 +1187,8 @@ def TypeChecker::check_statement(&this, node: &AST) {
             .pop_scope()
             .in_loop = was_in_loop
         }
-        ASTType::If => .check_if(node, is_expr: false)
-        else => .check_expression(node)
+        ASTType::If => .check_if(node, is_expr: false, hint: null)
+        else => .check_expression(node, hint: null)
     }
 }
 
