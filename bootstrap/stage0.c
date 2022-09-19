@@ -814,7 +814,7 @@ void Error__panic(Error *this);
 Error *Error__new(Span span, char *msg);
 Error *Error__new_note(Span span, char *msg, char *note);
 Error *Error__new_hint(Span span, char *msg, Span span2, char *hint);
-void display_error_messages(Vector *errors, bool condensed);
+void display_error_messages(Vector *errors, i32 detail_level);
 bool is_hex_digit(char c);
 Lexer Lexer__make(char *source, char *filename);
 void Lexer__push(Lexer *this, Token *token);
@@ -1670,19 +1670,26 @@ Error *Error__new_hint(Span span, char *msg, Span span2, char *hint) {
   return err;
 }
 
-void display_error_messages(Vector *errors, bool condensed) {
+void display_error_messages(Vector *errors, i32 detail_level) {
   i32 max_num_errors = 10;
   i32 num_errors = min(errors->size, max_num_errors);
   for (i32 i = 0; (i < num_errors); i += 1) {
     Error *err = ((Error *)Vector__at(errors, i));
-    if (condensed) {
-      printf("%s: %s""\n", Location__str(err->span1.start), err->msg1);
-    }  else {
-      if ((i > 0)) 
-      printf("""\n");
-      
-      Error__display(err);
-    } 
+    switch (detail_level) {
+      case 0: {
+        printf("%s: %s""\n", Location__str(err->span1.start), err->msg1);
+      } break;
+      case 1: {
+        display_message_span(MessageType__Error, err->span1, err->msg1);
+      } break;
+      case 2: {
+        if ((i > 0)) 
+        printf("""\n");
+        
+        Error__display(err);
+      } break;
+      default: panic("invalid detail level"); break;
+    }
   } 
 }
 
@@ -3997,7 +4004,7 @@ Type *TypeChecker__check_constructor(TypeChecker *this, Structure *struc, AST *n
         TypeChecker__error(this, Error__new_hint(arg->label->span, "Label on parameter does not match struct field", field->span, format_string("Expected '%s', got '%s'", field->name, label)));
       } 
     } 
-    if ((!Type__eq(field->type, arg_type))) {
+    if ((((bool)arg_type) && (!Type__eq(field->type, arg_type)))) {
       TypeChecker__error(this, Error__new_hint(arg->expr->span, "Argument type does not match struct field", field->span, format_string("Expected '%s', got '%s'", Type__str(field->type), Type__str(arg_type))));
     } 
   } 
@@ -6121,7 +6128,9 @@ void usage(i32 code) {
   printf("Options:""\n");
   printf("    -o path   Output executable (default: ./out)""\n");
   printf("    -c path   Output C code (default: {out}.c)""\n");
-  printf("    -m        Minimal one-line errors (default: false)""\n");
+  printf("    -e0       Minimal one-line errors""\n");
+  printf("    -e1       Error messages with source code (default)""\n");
+  printf("    -e2       Error messages with source / hints""\n");
   printf("    -s        Silent mode (no debug output)""\n");
   printf("    -n        Don't compile C code (default: false)""\n");
   printf("    -d        Emit debug information (default: false)""\n");
@@ -6139,7 +6148,7 @@ i32 main(i32 argc, char **argv) {
   bool silent = false;
   char *lib_path = ((char *)NULL);
   bool debug = false;
-  bool condensed_errors = false;
+  i32 error_level = 1;
   for (i32 i = 1; (i < argc); i += 1) {
     {
       char *__match_str = argv[i];
@@ -6160,8 +6169,12 @@ i32 main(i32 argc, char **argv) {
       } else if (!strcmp(__match_str, "-c")) {
         i += 1;
         c_path = argv[i];
-      } else if (!strcmp(__match_str, "-m")) {
-        condensed_errors = true;
+      } else if (!strcmp(__match_str, "-e0")) {
+        error_level = 0;
+      } else if (!strcmp(__match_str, "-e1")) {
+        error_level = 1;
+      } else if (!strcmp(__match_str, "-e2")) {
+        error_level = 2;
       } else  {
         if (argv[i][0] == '-') {
           printf("Unknown option: %s""\n", argv[i]);
@@ -6193,13 +6206,13 @@ i32 main(i32 argc, char **argv) {
   TypeChecker *checker = TypeChecker__new();
   TypeChecker__check_program(checker, program);
   if ((program->errors->size > 0)) {
-    display_error_messages(program->errors, condensed_errors);
+    display_error_messages(program->errors, error_level);
     exit(1);
   } 
   CodeGenerator generator = CodeGenerator__make(debug);
   char *c_code = CodeGenerator__gen_program((&generator), program);
   if ((program->errors->size > 0)) {
-    display_error_messages(program->errors, condensed_errors);
+    display_error_messages(program->errors, error_level);
     exit(1);
   } 
   FILE *out_file = File__open(c_path, "w");

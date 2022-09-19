@@ -146,17 +146,21 @@ def Error::new_hint(span: Span, msg: string, span2: Span, hint: string): &Error 
     return err
 }
 
-def display_error_messages(errors: &Vector, condensed: bool) {
+def display_error_messages(errors: &Vector, detail_level: i32) {
     let max_num_errors = 10
 
     let num_errors = min(errors.size, max_num_errors)
     for let i = 0; i < num_errors; i += 1 {
         let err = errors.at(i) as &Error
-        if condensed {
-            println("%s: %s", err.span1.start.str(), err.msg1)
-        } else {
-            if i > 0 then println("")
-            err.display()
+
+        match detail_level {
+            0 => println("%s: %s", err.span1.start.str(), err.msg1)
+            1 => display_message_span(MessageType::Error, err.span1, err.msg1)
+            2 => {
+                if i > 0 then println("")
+                err.display()
+            }
+            else => panic("invalid detail level")
         }
     }
 }

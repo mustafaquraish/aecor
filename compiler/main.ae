@@ -10,7 +10,9 @@ def usage(code: i32) {
     println("Options:")
     println("    -o path   Output executable (default: ./out)")
     println("    -c path   Output C code (default: {out}.c)")
-    println("    -m        Minimal one-line errors (default: false)")
+    println("    -e0       Minimal one-line errors")
+    println("    -e1       Error messages with source code (default)")
+    println("    -e2       Error messages with source / hints")
     println("    -s        Silent mode (no debug output)")
     println("    -n        Don't compile C code (default: false)")
     println("    -d        Emit debug information (default: false)")
@@ -28,7 +30,7 @@ def main(argc: i32, argv: &string) {
     let silent = false
     let lib_path = null as string
     let debug = false
-    let condensed_errors = false
+    let error_level = 1
 
     for let i = 1; i < argc; i += 1 {
         match argv[i] {
@@ -48,7 +50,9 @@ def main(argc: i32, argv: &string) {
                 i += 1
                 c_path = argv[i]
             }
-            "-m" => condensed_errors = true
+            "-e0" => error_level = 0
+            "-e1" => error_level = 1
+            "-e2" => error_level = 2
             else => {
                 if argv[i][0] == '-' {
                     println("Unknown option: %s", argv[i])
@@ -85,7 +89,7 @@ def main(argc: i32, argv: &string) {
     checker.check_program(program)
 
     if program.errors.size > 0 {
-        display_error_messages(program.errors, condensed: condensed_errors)
+        display_error_messages(program.errors, error_level)
         exit(1)
     }
 
@@ -93,7 +97,7 @@ def main(argc: i32, argv: &string) {
     let c_code = generator.gen_program(program)
 
     if program.errors.size > 0 {
-        display_error_messages(program.errors, condensed: condensed_errors)
+        display_error_messages(program.errors, error_level)
         exit(1)
     }
 
