@@ -190,7 +190,7 @@ def TypeChecker::check_constructor(&this, struc: &Structure, node: &AST): &Type 
             }
         }
 
-        if not field.type.eq(arg_type) {
+        if arg_type? and not field.type.eq(arg_type) {
             .error(Error::new_hint(
                 arg.expr.span, "Argument type does not match struct field",
                 field.span, `Expected '{field.type.str()}', got '{arg_type.str()}'`
