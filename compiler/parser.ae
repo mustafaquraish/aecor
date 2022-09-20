@@ -1151,16 +1151,20 @@ def Parser::find_file_path(&this, filename: string): string {
         println("[-] Error: Could not find file '%s'", filename)
         println("[+] Hint: Specify the aecor root directory with the -l option")
         println("---------------------------------------------------------------")
-        exit(1)
+        println("burhhhh0");exit(1)
     }
 
     .curr -= 1
     .error(Error::new(.token().span, `Could not find file: {filename}`))
-    exit(1)
+    .curr += 1
+
+    return null
 }
 
 def Parser::include_file(&this, program: &Program, filename: string): string {
     filename = .find_file_path(filename)
+    if not filename? return null
+
     if program.is_file_included(filename)
         return filename
     program.add_included_file(filename)
