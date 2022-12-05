@@ -4,6 +4,7 @@ enum People {
     LP
     Charlie
     KJ
+    Verboof
     Coffee
 }
 
@@ -14,7 +15,8 @@ def main() {
             println("be right back (not really)")
         }
         Charlie |
-        KJ => {
+        KJ |
+        Verboof => {
             println("lets go invade a country")
         }
         Coffee => {
