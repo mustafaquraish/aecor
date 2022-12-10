@@ -1,0 +1,126 @@
+use "lib/daecor/all.ae"
+
+const NUM_NODES = 20
+const NODE_RADIUS = 10.0
+const NODE_DISTANCE = 30.0
+const LINE_THICKNESS = 3.0
+
+struct Rope {
+    pos: [Vec2f; NUM_NODES]
+    vel: [Vec2f; NUM_NODES]
+    dragging: bool
+    drag_index: i32
+    hover_index: i32
+}
+
+def Rope::update_pair(&this, a: i32, b: i32) {
+    let diff = .pos[a].sub(.pos[b])
+    let dist = diff.length()
+    let dir = diff.normalized()
+    .vel[a] = dir.multf(NODE_DISTANCE - dist)
+
+    for let i = 0; i < NUM_NODES; i += 1 {
+        if i != a {
+            let diff = .pos[a].sub(.pos[i])
+            let dist = diff.length()
+            if dist < NODE_RADIUS * 2.0 {
+                .vel[a] = .vel[a].add(diff.multf((NODE_RADIUS * 2.0 - dist)/dist))
+            }
+        }
+    }
+}
+
+def Rope::update(&this) {
+    .vel[.drag_index] = Vec2f(0.0, 0.0)
+    for let i = .drag_index+1; i < NUM_NODES; i += 1
+        .update_pair(i, i-1)
+    for let i = .drag_index-1; i >= 0; i -= 1
+        .update_pair(i, i+1)
+    for let i = 0; i < NUM_NODES; i += 1
+        .pos[i] = .pos[i].add(.vel[i])
+}
+
+def Rope::draw(&this) {
+    set_color(Color::White())
+    fill_screen()
+
+    set_color(Color::rgb(100, 100, 100))
+    for let x = 1; x < NUM_NODES; x += 1{
+        let dir = .pos[x].sub(.pos[x-1])
+        let a = Vec2f(-dir.y, dir.x).normalized().multf(LINE_THICKNESS)
+        let p1 = .pos[x-1].add(a).to_i()
+        let p2 = .pos[x-1].sub(a).to_i()
+        let p3 = .pos[x].sub(a).to_i()
+        let p4 = .pos[x].add(a).to_i()
+
+        fill_tri(p1, p2, p3)
+        fill_tri(p1, p3, p4)
+    }
+
+    for let x = 0; x < NUM_NODES; x += 1{
+        set_color(
+            if x == .hover_index or (x == .drag_index and .dragging) then
+                Color::Green()
+            else
+                Color::Red()
+        )
+        fill_circle(.pos[x].to_i(), NODE_RADIUS as i32)
+    }
+}
+
+def Rope::hovered_idx(&this): i32 {
+    let mouse_pos = mouse.curr.pos.to_f()
+    for let x = 0; x < NUM_NODES; x += 1{
+        let p = .pos[x]
+        if mouse_pos.sub(p).length_sq() < NODE_RADIUS * NODE_RADIUS {
+            return x
+        }
+    }
+    return -1
+}
+
+def main() {
+	init()
+
+    let rope: Rope
+	for let x = 0; x < NUM_NODES; x += 1{
+        let size = get_window_size()
+        rope.pos[x] = Vec2f(rand01() * size.x as f32, rand01() * size.y as f32)
+        rope.vel[x] = Vec2f(0.0, 0.0)
+	}
+    rope.dragging = false
+    rope.drag_index = 0
+
+	while true {
+        let t = frame_start()
+        if keys.pressed(Key::Escape) or keys.pressed(Key::Q) break
+
+        let idx = rope.hovered_idx()
+        rope.hover_index = idx
+
+        if mouse.pressed(MouseButton::Left) {
+            if not rope.dragging and idx >= 0 {
+                rope.dragging = true
+                rope.drag_index = idx
+            }
+        }
+
+        if mouse.released(MouseButton::Left) {
+            rope.dragging = false
+        }
+
+        if rope.dragging {
+            rope.pos[rope.drag_index] = mouse.curr.pos.to_f()
+        }
+        if rope.hover_index >= 0 or rope.dragging {
+            set_cursor(CursorType::Hand)
+        } else {
+            set_cursor(CursorType::Arrow)
+        }
+
+        rope.update()
+        rope.draw()
+        frame_end(t);
+	}
+	return 0;
+}
