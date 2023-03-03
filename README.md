@@ -1,3 +1,15 @@
+<p align="center">
+  <img src="artwork/svg_transparent/logo-banner-inline-light.svg#gh-light-mode-only" alt="Aecor Logo - Light" width="100%" height="auto" />
+  <img src="artwork/svg_transparent/logo-banner-inline-dark.svg#gh-dark-mode-only" alt="Aecor Logo - Dark" width="100%" height="auto" />
+</p>
+
+<div align="center">
+
+[![Test](https://github.com/mustafaquraish/aecor/actions/workflows/build.yml/badge.svg)](https://github.com/mustafaquraish/aecor/actions/workflows/build.yml)
+[![Discord](https://img.shields.io/discord/1081274303032602766?label=discuss%20aecor&logo=discord&logoColor=%2385c7f2)](https://discord.gg/UWeGgaDFXB)
+
+</div>
+
 # aecor
 
 Statically typed, compiled programming language, transpiled to C. The compiler is self-hosted,
@@ -84,3 +96,7 @@ feature XYZ to the language and immediately use feature XYZ in the compiler (wit
 
 To update the bootstrap, run `./meta/gen_bootstrap.sh`, which performs some sanity checks and then generates the bootstrap.
 The script requires all the tests to pass.
+
+## Aecor in the wild
+
+- [VanScape using Aecor, WASM, and LLVM](https://github.com/mustafaquraish/vanscape-aecor)
