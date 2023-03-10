@@ -32,7 +32,7 @@ $ ./bootstrap/aecor -h
 ### Setting up environment [Optional, recommended]
 
 In order to use `aecor` from outside the repository root, it is recommended to add the following to your `.bashrc`
-(or other way of setting up envionment in your shell)
+(or other way of setting up environment in your shell)
 
 ```bash
 # To find libraries
