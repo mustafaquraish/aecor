@@ -28,7 +28,7 @@ def Node::print_list(&this) {
 }
 
 def main() {
-    let head = null
+    let head = Node::new(0)
     head = head.add_front(1)
     head = head.add_front(2)
     head = head.add_front(4)
