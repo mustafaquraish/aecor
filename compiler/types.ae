@@ -152,3 +152,4 @@ def Type::decay_array(&this): &Type {
 
 def Type::is_enum(&this): bool => .base == BaseType::Structure and .struct_def? and .struct_def.is_enum
 def Type::is_struct(&this): bool => .base == BaseType::Structure and not .is_enum()
+def Type::is_array(&this): bool => .base == BaseType::Array

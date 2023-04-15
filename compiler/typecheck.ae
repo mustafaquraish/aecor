@@ -603,7 +603,7 @@ def TypeChecker::check_expression(&this, node: &AST, hint: &Type): &Type {
         BitwiseXor |
         LeftShift |
         RightShift => {
-            let lhs_type = .check_expression(node.u.binary.lhs, hint: null)
+            let lhs_type = .check_expression(node.u.binary.lhs, hint)
             let rhs_type = .check_expression(node.u.binary.rhs, hint: lhs_type)
             if not lhs_type? or not rhs_type? return null
             etype = .check_binary_op(node, node.u.binary.lhs, node.u.binary.rhs)
@@ -778,6 +778,10 @@ def TypeChecker::check_expression(&this, node: &AST, hint: &Type): &Type {
             let field = .get_struct_member(struct_name, field_name)
 
             let s_methods = .methods.get(struct_name) as &Map
+            if not s_methods? {
+                .error(Error::new(node.span, "Unknown struct with this name"))
+                return null
+            }
             let method = s_methods.get(field_name) as &Function
 
             if struc? and field? and not struc.is_enum {
@@ -888,6 +892,11 @@ def TypeChecker::check_match_for_enum(&this, struc: &Structure, node: &AST, is_e
                 node.u.match_stmt.expr.span, `Match expression is of type '{struc.type.str()}'`
             ))
         }
+        if cond.type != ASTType::EnumValue {
+            .error(Error::new(cond.span, "Expected an enum value"))
+            continue
+        }
+
         name = cond.u.enum_val.var.name
 
         let prev = mapping.get(name) as &MatchCase

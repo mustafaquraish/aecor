@@ -1,10 +1,10 @@
-use "lib/stringbuilder.ae"
+use "lib/buffer.ae"
 use "compiler/ast.ae"
 use "compiler/utils.ae"
 
 struct CodeGenerator {
     program: &Program
-    out: StringBuilder
+    out: Buffer
     scopes: &Vector  // Vector<Vector<AST>>
     yield_vars: &Vector // Vector<string>
     yield_count: i32
@@ -14,14 +14,13 @@ struct CodeGenerator {
 def CodeGenerator::make(debug: bool): CodeGenerator {
     return CodeGenerator(
         program: null,
-        out: StringBuilder::make(),
+        out: Buffer::make(),
         scopes: Vector::new(),
         yield_vars: Vector::new(),
         yield_count: 0,
         debug: debug,
     )
 }
-
 
 def CodeGenerator::error(&this, err: &Error) {
     .program.errors.push(err)
@@ -753,16 +752,16 @@ def CodeGenerator::get_type_name_string(&this, type: &Type, name: string, is_fun
             }
             Array => {
                 // Need to evaluate the expression into a string...
-                let prev_builder: StringBuilder = .out
+                let prev_builder: Buffer = .out
 
-                .out = StringBuilder::make()
+                .out = Buffer::make()
                 .gen_expression(cur.size_expr)
                 final.replace(`{final}[{.out.str()}]`)
                 free(.out.data)
                 .out = prev_builder
             }
             Function | Method => {
-                let acc = StringBuilder::make()
+                let acc = Buffer::make()
                 let params = cur.params
 
                 if params.size == 0 then acc.puts("void")

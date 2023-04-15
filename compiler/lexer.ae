@@ -3,11 +3,6 @@ use "compiler/tokens.ae"
 use "compiler/errors.ae"
 use "compiler/utils.ae"
 
-@compiler c_include "ctype.h"
-def is_alpha(c: char): bool extern("isalpha")
-def is_digit(c: char): bool extern("isdigit")
-def is_alnum(c: char): bool extern("isalnum")
-
 def is_hex_digit(c: char): bool {
     if is_digit(c) return true
     if 'a' <= c <= 'f' return true

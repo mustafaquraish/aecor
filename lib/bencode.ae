@@ -1,0 +1,123 @@
+// byte-encoding of objects used in BitTorrent protocol
+use "lib/value.ae"
+use "lib/buffer.ae"
+
+struct BencodeParser {
+    input: string
+    pos: u64
+}
+
+def BencodeParser::cur(&this): char {
+    return this.input[this.pos]
+}
+
+def BencodeParser::parse(&this): &Value => match .cur() {
+    'i' => this.parse_int()
+    'l' => this.parse_list()
+    'd' => this.parse_dict()
+    else => this.parse_string()
+}
+
+def BencodeParser::parse_int_internal(&this): i64 {
+    let scale = 1i64
+    if .cur() == '-' {
+        scale = -1
+        .pos += 1
+    }
+    let num = 0i64
+    while is_digit(.cur()) {
+        num *= 10
+        num += .cur() as i64 - '0' as i64
+        .pos += 1
+    }
+    return num * scale
+}
+
+def BencodeParser::parse_list(&this): &Value {
+    let val = Value::new(List)
+    val.u.as_list = Vector::new()
+    .pos += 1 // skip 'l'
+    while .cur() != 'e' {
+        val.u.as_list.push(.parse())
+    }
+    .pos += 1 // skip 'e'
+    return val
+}
+
+def BencodeParser::parse_dict(&this): &Value {
+    let val = Value::new(Dictionary)
+    val.u.as_dict = Map::new()
+    .pos += 1 // skip 'l'
+    while .cur() != 'e' {
+        let key = .parse_string_internal()
+        let value = .parse()
+        val.u.as_dict.insert(key, value)
+    }
+    .pos += 1 // skip 'e'
+    return val
+}
+
+def BencodeParser::parse_string_internal(&this): string {
+    let len = .parse_int_internal()
+    .pos += 1 // skip ':'
+    let s = .input.substring(.pos as i32, len as i32)
+    .pos += len as u64
+    return s
+}
+
+def BencodeParser::parse_string(&this): &Value {
+    let val = Value::new(String)
+    val.u.as_str = .parse_string_internal()
+    return val
+}
+
+def BencodeParser::parse_int(&this): &Value {
+    let val = Value::new(Integer)
+    .pos += 1 // skip 'i'
+    let num = .parse_int_internal()
+    .pos += 1 // skip 'e'
+    val.u.as_num = num
+    return val
+}
+
+// Namespace
+struct Bencode {}
+
+def Bencode::parse(s: string): &Value {
+    let parser = BencodeParser(input: s, pos: 0)
+    return parser.parse()
+}
+
+def Bencode::serialize_into(val: &Value, sb: &Buffer) {
+    match val.type {
+        String => sb.putsf(`{val.u.as_str.len()}:{val.u.as_str}`)
+        Integer => sb.putsf(`i{val.u.as_num}e`)
+        List => {
+            sb.puts("l")
+            let lst = val.u.as_list
+            for let i = 0; i < lst.size; i += 1 {
+                let item = lst.at(i) as &Value
+                Bencode::serialize_into(item, sb)
+            }
+            sb.puts("e")
+        }
+        Dictionary => {
+            sb.puts("d")
+            let map = val.u.as_dict
+            for let iter = map.iter(); iter.cur?; iter.next() {
+                let key = iter.cur.key as string
+                let value = iter.cur.value as &Value
+                sb.putsf(`{key.len()}:{key}`)
+                Bencode::serialize_into(value, sb)
+            }
+            sb.puts("e")
+        }
+        else => panic(`Unsupported Value type {val.type} in Bencode::serialize_into()`)
+    }
+}
+
+def Bencode::serialize(val: &Value): Buffer {
+    let sb = Buffer::make()
+    Bencode::serialize_into(val, &sb)
+    return sb
+}

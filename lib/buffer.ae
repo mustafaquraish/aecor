@@ -1,0 +1,65 @@
+
+// Maybe abstract away the resizing with a `Buffer` type, 
+// and share this with `Vector`
+struct Buffer {
+    data: &u8
+    size: i32
+    capacity: i32
+}
+
+def Buffer::make(): Buffer {
+    let initial_capacity = 16;
+    return Buffer(
+        data: calloc(initial_capacity, 1),
+        size: 0,
+        capacity: initial_capacity
+    )
+}
+
+def Buffer::from_string(s: string): Buffer {
+    return Buffer(
+        data: s as &u8,
+        size: s.len(),
+        capacity: s.len(),
+    )
+}
+
+def Buffer::resize_if_necessary(&this, new_size: i32) {
+    if new_size >= .capacity {
+        let new_capacity = max(.capacity * 2, new_size)
+        .data = realloc(.data, new_capacity) as &u8
+    }
+}
+
+def Buffer::putb(&this, buf: &Buffer) {
+    .resize_if_necessary(new_size: .size + buf.size)
+    copy_memory(.data + .size, buf.data, buf.size)
+    .size += buf.size
+}
+
+def Buffer::puts(&this, s: string) {
+    let len = s.len()
+    .resize_if_necessary(new_size: .size + len + 1) // +1 for null terminator
+    copy_memory(.data + .size, s, len + 1) // Copy over null terminator
+    .size += len
+}
+
+def Buffer::putc(&this, c: char) {
+    .resize_if_necessary(new_size: .size + 2) // +1 for null terminator
+    .data[.size] = c as u8
+    .size += 1
+    .data[.size] = '\0' as u8
+}
+
+// Put and free the string
+def Buffer::putsf(&this, s: string) {
+    .puts(s)
+    free(s)
+}
+
+def Buffer::str(&this): string => .data as string
+def Buffer::new_str(&this): string => (.data as string).copy()
+
+def Buffer::free(&this) {
+    free(.data)
+}

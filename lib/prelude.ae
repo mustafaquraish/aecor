@@ -6,6 +6,11 @@
 @compiler c_include "errno.h"
 @compiler c_embed_header "lib/prelude.h"
 
+@compiler c_include "ctype.h"
+def is_alpha(c: char): bool extern("isalpha")
+def is_digit(c: char): bool extern("isdigit")
+def is_alnum(c: char): bool extern("isalnum")
+
 def malloc(size: i32): untyped_ptr extern
 def realloc(old: untyped_ptr, size: i32): untyped_ptr extern
 def calloc(size: i32, num: i32): untyped_ptr extern
