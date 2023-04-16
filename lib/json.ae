@@ -78,7 +78,8 @@ def JSONParser::parse_value(&this): &Value => match .token().type {
     }
     StringLiteral => {
         let json = Value::new(ValueType::String)
-        json.u.as_str = .consume(TokenType::StringLiteral).text
+        // FIXME: get sized string
+        json.u.as_str = Buffer::from_string(.consume(TokenType::StringLiteral).text)
         yield json
     }
     OpenCurly => .parse_object()
@@ -126,7 +127,20 @@ def JSON::serialize_into(val: &Value, sb: &Buffer) {
         Integer => sb.putsf(`{val.u.as_num}`)
         String => {
             sb.puts("\"")
-            sb.puts(val.u.as_str)
+            // Want to escape non-ASCII characters here
+            let buf = val.u.as_str
+            for let i = 0; i < buf.size; i += 1 {
+                let c = buf.data[i] as char
+                if is_printable(c) {
+                    if c == '\\' or c == '"' {
+                        sb.putsf(`\\{c}`)
+                    } else {
+                        sb.putc(c)
+                    }
+                } else {
+                    sb.putsf(`\\u{buf.data[i]:02x}`)
+                }
+            }
             sb.puts("\"")
         }
         List => {

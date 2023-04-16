@@ -1,4 +1,5 @@
 // byte-encoding of objects used in BitTorrent protocol
+
 use "lib/value.ae"
 use "lib/buffer.ae"
 
@@ -51,18 +52,22 @@ def BencodeParser::parse_dict(&this): &Value {
     while .cur() != 'e' {
         let key = .parse_string_internal()
         let value = .parse()
-        val.u.as_dict.insert(key, value)
+        val.u.as_dict.insert(key.str(), value)
     }
     .pos += 1 // skip 'e'
     return val
 }
 
-def BencodeParser::parse_string_internal(&this): string {
+def BencodeParser::parse_string_internal(&this): Buffer {
     let len = .parse_int_internal()
     .pos += 1 // skip ':'
     let s = .input.substring(.pos as i32, len as i32)
     .pos += len as u64
-    return s
+    return Buffer(
+        data: s as &u8,
+        size: len as i32,
+        capacity: len as i32
+    )
 }
 
 def BencodeParser::parse_string(&this): &Value {
@@ -90,7 +95,11 @@ def Bencode::parse(s: string): &Value {
 
 def Bencode::serialize_into(val: &Value, sb: &Buffer) {
     match val.type {
-        String => sb.putsf(`{val.u.as_str.len()}:{val.u.as_str}`)
+        String => {
+            let str = val.u.as_str
+            sb.putsf(`{str.size}:`)
+            sb.putb(&str)
+        }
         Integer => sb.putsf(`i{val.u.as_num}e`)
         List => {
             sb.puts("l")

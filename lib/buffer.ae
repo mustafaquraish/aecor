@@ -32,9 +32,15 @@ def Buffer::resize_if_necessary(&this, new_size: i32) {
 }
 
 def Buffer::putb(&this, buf: &Buffer) {
-    .resize_if_necessary(new_size: .size + buf.size)
+    .resize_if_necessary(new_size: .size + buf.size + 1)
     copy_memory(.data + .size, buf.data, buf.size)
+    .data[.size + buf.size] = '\0' as u8
     .size += buf.size
+}
+
+def Buffer::putbf(&this, buf: &Buffer) {
+    .putb(buf)
+    buf.free()
 }
 
 def Buffer::puts(&this, s: string) {

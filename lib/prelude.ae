@@ -10,6 +10,7 @@
 def is_alpha(c: char): bool extern("isalpha")
 def is_digit(c: char): bool extern("isdigit")
 def is_alnum(c: char): bool extern("isalnum")
+def is_printable(c: char): bool extern("isprint")
 
 def malloc(size: i32): untyped_ptr extern
 def realloc(old: untyped_ptr, size: i32): untyped_ptr extern

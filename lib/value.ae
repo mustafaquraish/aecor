@@ -2,6 +2,8 @@
 use "lib/vector.ae"
 use "lib/map.ae"
 use "lib/json.ae"
+use "lib/buffer.ae"
+use "lib/span.ae"
 
 enum ValueType {
     Null
@@ -24,7 +26,7 @@ def ValueType::str(this): string => match this {
 union ValueUnion {
     as_bool: bool
     as_num: i64
-    as_str: string
+    as_str: Buffer
     as_list: &Vector // &Vector<Value>
     as_dict: &Map    // &Map<string, Value>
 }
@@ -32,6 +34,7 @@ union ValueUnion {
 struct Value {
     type: ValueType
     u: ValueUnion
+    span: Span
 }
 
 def Value::new(type: ValueType): &Value {
@@ -42,10 +45,11 @@ def Value::new(type: ValueType): &Value {
         List => val.u.as_list = Vector::new()
         else => {}
     }
+    val.span = Span::default()
     return val
 }
 
-def Value::new_str(str: string): &Value {
+def Value::new_str(str: Buffer): &Value {
     let val = Value::new(String)
     val.u.as_str = str
     return val
@@ -121,7 +125,7 @@ def Value::as_num(&this): i64 {
     return .u.as_num
 }
 
-def Value::as_str(&this): string {
+def Value::as_str(&this): Buffer {
     .ensure(String)
     return .u.as_str
 }
@@ -143,7 +147,7 @@ def Value::dbg(&this): string {
 
 def Value::free(&this) {
     match .type {
-        String => free(.u.as_str)
+        String => .u.as_str.free()
         List => {
             let vec = .u.as_list
             for let i = 0; i < vec.size; i += 1 {

@@ -26,7 +26,7 @@ def Lexer::make(source: string, filename: string): Lexer {
         source,
         source_len: source.len(),
         i: 0,
-        loc: Location(filename, 1, 1),
+        loc: Location(filename, 1, 1, 0),
         seen_newline: false,
         tokens: Vector::new(),
         errors: Vector::new()
@@ -41,14 +41,30 @@ def Lexer::push(&this, token: &Token) {
 
 def Lexer::push_type(&this, type: TokenType, len: i32) {
     let start_loc = .loc
-    .loc.col += len
-    .i += len
+    for let i = 0; i < len; i += 1 {
+        .inc()
+    }
     .push(Token::from_type(type, Span(start_loc, .loc)))
 }
 
+def Lexer::cur(&this): char => .source[.i]
+
+def Lexer::inc(&this) {
+    match .cur() {
+        '\n' => {
+            .loc.line += 1
+            .loc.col = 1
+            .seen_newline = true
+        }
+        else => .loc.col += 1
+    }
+    .i += 1
+    .loc.index += 1
+}
+
 def Lexer::peek(&this, offset: i32): char {
-    if .source[.i] == '\0' {
-        return .source[.i]
+    if .cur() == '\0' {
+        return .cur()
     }
     return .source[.i + 1]
 }
@@ -56,15 +72,13 @@ def Lexer::peek(&this, offset: i32): char {
 def Lexer::lex_char_literal(&this) {
     let start_loc = .loc
     let start = .i + 1
-    .i += 1
+    .inc()
 
-    if .source[.i] == '\\' {
-        .i += 2
-    } else {
-        .i += 1
+    if .cur() == '\\' {
+        .inc()
     }
-    if .source[.i] != '\'' {
-        .loc.col += .i - start + 1
+    .inc()
+    if .cur() != '\'' {
         .errors.push(Error::new(Span(.loc, .loc), "Expected ' after character literal"))
     }
 
@@ -72,26 +86,26 @@ def Lexer::lex_char_literal(&this) {
     let text = .source.substring(start, len)
 
     .loc.col += len + 2
-    .i += 1
+    .inc()
     .push(Token::new(TokenType::CharLiteral, Span(start_loc, .loc), text))
 }
 
 def Lexer::lex_string_literal(&this) {
     let start_loc = .loc
-    let end_char = .source[.i]
+    let end_char = .cur()
     let start = .i + 1
-    .i += 1
-    while .i < .source_len and .source[.i] != end_char {
-        if .source[.i] == '\\' {
-            .i += 1
+    .inc()
+    while .i < .source_len and .cur() != end_char {
+        if .cur() == '\\' {
+            .inc()
         }
-        .i += 1
+        .inc()
     }
 
     let len = .i - start
     let text = .source.substring(start, len)
     .loc.col += len + 2
-    .i += 1
+    .inc()
 
     if .i >= .source_len {
         .errors.push(Error::new(Span(.loc, .loc), "Unterminated string literal"))
@@ -107,18 +121,18 @@ def Lexer::lex_string_literal(&this) {
 def Lexer::lex_int_literal_different_base(&this): &Token {
     let start_loc = .loc
     let start = .i
-    .i += 1
-    match .source[.i] {
+    .inc()
+    match .cur() {
         'x' => {
-            .i += 1
-            while .i < .source_len and is_hex_digit(.source[.i]) {
-                .i += 1
+            .inc()
+            while .i < .source_len and is_hex_digit(.cur()) {
+                .inc()
             }
         }
         'b' => {
-            .i += 1
-            while .i < .source_len and .source[.i] == '0' or .source[.i] == '1' {
-                .i += 1
+            .inc()
+            while .i < .source_len and .cur() == '0' or .cur() == '1' {
+                .inc()
             }
         }
 
@@ -133,7 +147,7 @@ def Lexer::lex_int_literal_different_base(&this): &Token {
 
 def Lexer::lex_numeric_literal_helper(&this): &Token {
     let start_loc = .loc
-    if .source[.i] == '0' {
+    if .cur() == '0' {
         match .peek(1) {
             'x' | 'b' => {
                 return .lex_int_literal_different_base()
@@ -145,13 +159,13 @@ def Lexer::lex_numeric_literal_helper(&this): &Token {
 
     let start = .i
     let token_type: TokenType
-    while is_digit(.source[.i]) {
-        .i += 1
+    while is_digit(.cur()) {
+        .inc()
     }
-    if .source[.i] == '.' {
-        .i += 1
-        while is_digit(.source[.i]) {
-            .i += 1
+    if .cur() == '.' {
+        .inc()
+        while is_digit(.cur()) {
+            .inc()
         }
         token_type = TokenType::FloatLiteral
     } else {
@@ -168,12 +182,12 @@ def Lexer::lex_numeric_literal(&this) {
     let token = .lex_numeric_literal_helper()
 
     // TODO: check for invalid suffixes
-    if .source[.i] == 'u' or .source[.i] == 'i' or .source[.i] == 'f' {
+    if .cur() == 'u' or .cur() == 'i' or .cur() == 'f' {
         let start_loc = .loc
         let start = .i
-        .i += 1
-        while .i < .source_len and is_digit(.source[.i]) {
-            .i += 1
+        .inc()
+        while .i < .source_len and is_digit(.cur()) {
+            .inc()
         }
         let len = .i - start
         let suffix = .source.substring(start, len)
@@ -186,17 +200,10 @@ def Lexer::lex_numeric_literal(&this) {
 
 def Lexer::lex(&this): &Vector {
     while .i < .source_len {
-        let c = .source[.i]
+        let c = .cur()
         match c {
-            ' ' | '\t' | '\v' | '\r' | '\b' => {
-                .loc.col += 1
-                .i += 1
-            }
-            '\n' => {
-                .loc.line += 1
-                .loc.col = 1
-                .i += 1
-                .seen_newline = true
+            ' ' | '\t' | '\v' | '\r' | '\b'| '\n' => {
+                .inc()
             }
             ';' => .push_type(TokenType::Semicolon, len: 1)
             ',' => .push_type(TokenType::Comma, len: 1)
@@ -251,9 +258,9 @@ def Lexer::lex(&this): &Vector {
             }
             '/' => match .peek(1) {
                 '/' => {
-                    .i += 1
-                    while .i < .source_len and .source[.i] != '\n' {
-                        .i += 1
+                    .inc()
+                    while .i < .source_len and .cur() != '\n' {
+                        .inc()
                     }
                 }
                 '='  => .push_type(TokenType::SlashEquals, len: 2)
@@ -269,18 +276,17 @@ def Lexer::lex(&this): &Vector {
 
                 } else if is_alpha(c) or c == '_' {
                     let start = .i
-                    while is_alnum(.source[.i]) or .source[.i] == '_' {
-                        .i += 1
+                    while is_alnum(.cur()) or .cur() == '_' {
+                        .inc()
                     }
                     let len = .i - start
                     let text = .source.substring(start, len)
 
-                    .loc.col += len
                     .push(Token::from_ident(text, Span(start_loc, .loc)))
 
                 } else {
                     .errors.push(Error::new(Span(.loc, .loc), `Unrecognized char in lexer: '{c}'`))
-                    .i += 1
+                    .inc()
                 }
             }
         }
