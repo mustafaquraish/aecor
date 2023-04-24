@@ -6,7 +6,29 @@
 #include "errno.h"
 #include "math.h"
 #include "ctype.h"
+
+#ifndef _WIN32
 #include "libgen.h"
+#endif // ifndef _WIN32
+
+#ifndef strsep
+char* strsep(char** stringp, const char* delim)
+{
+  char* start = *stringp;
+  char* p;
+  p = (start != NULL) ? strpbrk(start, delim) : NULL;
+  if (p == NULL)
+  {
+    *stringp = NULL;
+  }
+  else
+  {
+    *p = '\0';
+    *stringp = p + 1;
+  }
+  return start;
+}
+#endif // ifndef strsep
 
 /***************** embed './lib/prelude.h' *****************/
 #include "stdarg.h"
@@ -2666,12 +2688,37 @@ ParserContext *ParserContext__new(Vector *tokens, i32 offset) {
   return context;
 }
 
+#ifdef _WIN32 
+char* win_dirname(const char *dirname) {
+  size_t last_separator = strlen(dirname);
+  bool found_separator = false;
+  for (; last_separator >= 0; last_separator--) {
+    char current = dirname[last_separator];
+    if (current == '/' || current == '\\') {
+      found_separator = true;
+      break;
+    }
+  }
+  if (!found_separator) {
+    return (char*)malloc(0);
+  }
+  char *result = (char*)malloc(last_separator + 2);
+  memcpy(result, dirname, last_separator + 1);
+  result[last_separator + 1] = '\0';
+  return result;
+}
+#endif
+
 Parser *Parser__new(char *filename) {
   Parser *parser = ((Parser *)calloc(1, sizeof(Parser)));
   parser->include_dirs = Vector__new();
   Parser__add_include_dir(parser, ".");
   char *tmp_filename = strdup(filename);
+  #ifndef _WIN32
   parser->project_root = strdup(dirname(tmp_filename));
+  #else 
+  parser->project_root = win_dirname(tmp_filename);
+  #endif // ifndef _WIN32
   free(tmp_filename);
   char *aecor_root = getenv("AECOR_ROOT");
   if (((bool)aecor_root)) {
