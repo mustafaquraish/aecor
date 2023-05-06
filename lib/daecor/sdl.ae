@@ -8,7 +8,8 @@
 @compiler c_include "SDL2/SDL_image.h"
 @compiler c_include "SDL2/SDL2_gfxPrimitives.h"
 @compiler c_include "SDL2/SDL_ttf.h"
-@compiler c_flag "-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx"
+@compiler c_include "SDL2/SDL_mixer.h"
+@compiler c_flag "-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_gfx -lSDL2_mixer"
 
 struct SDLWindow extern("SDL_Window")
 struct SDLRenderer extern("SDL_Renderer")
@@ -247,3 +248,23 @@ struct TTF {}
 def TTF::init(): i32 extern("TTF_Init")
 def TTF::quit(): i32 extern("TTF_Quit")
 def TTF::get_error(): string extern("TTF_GetError")
+
+struct SDLMixer {}
+
+const MIX_DEFAULT_FORMAT: u16 extern
+def SDLMixer::open_audio(frequency: i32, format: u16, channels: i32, chunksize: i32): i32 extern("Mix_OpenAudio")
+
+struct Sound extern("Mix_Chunk")
+
+def SDLMixer::load_wav(path: string): &Sound extern("Mix_LoadWAV")
+def SDLMixer::play_channel(channel: i32, chunk: &Sound, loops: i32): i32 extern("Mix_PlayChannel")
+def SDLMixer::allocate_channels(num: i32): i32 extern("Mix_AllocateChannels")
+
+def SDLMixer::pause(channel: i32) extern("Mix_Pause")
+def SDLMixer::resume(channel: i32) extern("Mix_Resume")
+
+def SDLMixer::free_chunk(chunk: &Sound) extern("Mix_FreeChunk")
+def SDLMixer::quit() extern("Mix_Quit")
+
+def SDLMixer::get_error(): string extern("Mix_GetError")
+def SDLMixer::volume(channel: i32, volume: i32) extern("Mix_Volume")
