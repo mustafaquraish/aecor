@@ -65,12 +65,14 @@ def Board::draw(&this) {
 
 
 def main() {
+    init()
+
     let board: Board
     set_memory(&board, 0 as u8, sizeof(Board))
 
     let player = Marker::X
+    let sound = Sound::load("lib/daecor/assets/pew.wav")
 
-    init()
     while true {
         let T = frame_start()
         if keys.pressed(Key::Escape) or keys.pressed(Key::Q) {
@@ -91,6 +93,7 @@ def main() {
                 if board.cells[cell.x][cell.y] == Marker::Empty {
                     board.cells[cell.x][cell.y] = player
                     player = if player == Marker::X then Marker::O else Marker::X
+                    sound.play_once()
                 }
             }
         }

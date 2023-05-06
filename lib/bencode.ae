@@ -2,34 +2,56 @@
 
 use "lib/value.ae"
 use "lib/buffer.ae"
+use "lib/span.ae"
 
 struct BencodeParser {
     input: string
-    pos: u64
+    loc: Location
+}
+
+def BencodeParser::new(input: string): BencodeParser {
+    return BencodeParser(
+        input: input,
+        loc: Location(
+            filename: "<bencoded string>",
+            line: 1,
+            col: 1,
+            index: 0,
+        )
+    )
 }
 
 def BencodeParser::cur(&this): char {
-    return this.input[this.pos]
+    return .input[.loc.index]
 }
 
-def BencodeParser::parse(&this): &Value => match .cur() {
-    'i' => this.parse_int()
-    'l' => this.parse_list()
-    'd' => this.parse_dict()
-    else => this.parse_string()
+def BencodeParser::parse(&this): &Value {
+    let start = .loc
+    let val = match .cur() {
+        'i' => .parse_int()
+        'l' => .parse_list()
+        'd' => .parse_dict()
+        else => .parse_string()
+    }
+    val.span = Span(start, .loc)
+    return val
+}
+
+def BencodeParser::inc(&this) {
+    .loc.index += 1
 }
 
 def BencodeParser::parse_int_internal(&this): i64 {
     let scale = 1i64
     if .cur() == '-' {
         scale = -1
-        .pos += 1
+        .inc()
     }
     let num = 0i64
     while is_digit(.cur()) {
         num *= 10
         num += .cur() as i64 - '0' as i64
-        .pos += 1
+        .inc()
     }
     return num * scale
 }
@@ -37,32 +59,35 @@ def BencodeParser::parse_int_internal(&this): i64 {
 def BencodeParser::parse_list(&this): &Value {
     let val = Value::new(List)
     val.u.as_list = Vector::new()
-    .pos += 1 // skip 'l'
+    .inc() // skip 'l'
     while .cur() != 'e' {
         val.u.as_list.push(.parse())
     }
-    .pos += 1 // skip 'e'
+    .inc() // skip 'e'
     return val
 }
 
 def BencodeParser::parse_dict(&this): &Value {
     let val = Value::new(Dictionary)
     val.u.as_dict = Map::new()
-    .pos += 1 // skip 'l'
+    .inc() // skip 'l'
     while .cur() != 'e' {
         let key = .parse_string_internal()
         let value = .parse()
         val.u.as_dict.insert(key.str(), value)
     }
-    .pos += 1 // skip 'e'
+    .inc() // skip 'e'
     return val
 }
 
 def BencodeParser::parse_string_internal(&this): Buffer {
     let len = .parse_int_internal()
-    .pos += 1 // skip ':'
-    let s = .input.substring(.pos as i32, len as i32)
-    .pos += len as u64
+    .inc() // skip ':'
+    let s = .input.substring(.loc.index as i32, len as i32)
+
+    for let i = 0i64; i < len; i += 1 {
+        .inc()
+    }
     return Buffer(
         data: s as &u8,
         size: len as i32,
@@ -78,9 +103,9 @@ def BencodeParser::parse_string(&this): &Value {
 
 def BencodeParser::parse_int(&this): &Value {
     let val = Value::new(Integer)
-    .pos += 1 // skip 'i'
+    .inc() // skip 'i'
     let num = .parse_int_internal()
-    .pos += 1 // skip 'e'
+    .inc() // skip 'e'
     val.u.as_num = num
     return val
 }
@@ -89,7 +114,7 @@ def BencodeParser::parse_int(&this): &Value {
 struct Bencode {}
 
 def Bencode::parse(s: string): &Value {
-    let parser = BencodeParser(input: s, pos: 0)
+    let parser = BencodeParser::new(input: s)
     return parser.parse()
 }
 

@@ -25,8 +25,8 @@ def Image::get(&this, x: i32, y: i32): Vec => .data[y * .width + x]
 def Image::set(&this, x: i32, y: i32, col: Vec) { .data[y * .width + x] = col }
 
 def Image::save(&this, filename: string) {
-    let f = File::open(filename, "wb")
-    defer f.close()
+    let file = File::open(filename, "wb")
+    defer file.close()
 
     let u8buf = calloc(1, .width * .height * 3 * sizeof(u8)) as &u8
     defer free(u8buf)
@@ -40,6 +40,6 @@ def Image::save(&this, filename: string) {
     }
 
     let header = `P6 {.width} {.height} 255\n`
-    fwrite(header , header.len(), 1, f)
-    fwrite(u8buf , sizeof(u8), 3 * .width * .height, f)
+    file.write(header , header.len())
+    file.write(u8buf , 3 * .width * .height)
 }

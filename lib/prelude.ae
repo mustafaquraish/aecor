@@ -23,18 +23,13 @@ let SEEK_END: i32 extern
 let SEEK_SET: i32 extern
 let SEEK_CUR: i32 extern
 
-// TODO: Add nicer wrappers around these
-def fopen(path: string, mode: string): &File extern
-def fread(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
-def fwrite(ptr: untyped_ptr, size: i32, num: i32, file: &File) extern
-
 struct File extern("FILE")
 def File::close(&this) extern("fclose")
 def File::tell(&this): i32 extern("ftell")
 def File::seek(&this, offset: i32, whence: i32): i32 extern("fseek")
 
 def File::open(path: string, mode: string): &File {
-    let file = fopen(path, mode)
+    let file = _c_fopen(path, mode)
     if not file? {
         println("Error opening file '%s': %s", path, strerror(errno))
         exit(1)
@@ -43,7 +38,7 @@ def File::open(path: string, mode: string): &File {
 }
 
 def File::exists(path: string): bool {
-    let file = fopen(path, "r")
+    let file = _c_fopen(path, "r")
     if not file? {
         return false
     }
@@ -65,13 +60,21 @@ def File::slurp(&this): string {
     let size = .tell()
     .seek(pos, SEEK_SET)
     let buf = calloc((size+1), sizeof(char))
-    fread(buf, 1, size, this)
+    _c_fread(buf, 1, size, this)
     .seek(pos, SEEK_SET)
     return buf as string
 }
 
+def File::read(&this, buf: untyped_ptr, size: i32): i32 {
+    return _c_fread(buf, 1, size, this)
+}
+
+def File::write(&this, buf: untyped_ptr, size: i32): i32 {
+    return _c_fwrite(buf, 1, size, this)
+}
+
 def File::puts(&this, str: string) {
-    fwrite(str , 1, str.len(), this)
+    _c_fwrite(str , 1, str.len(), this)
 }
 
 def exit(code: i32) exits extern
@@ -83,8 +86,6 @@ def panic(msg: string) exits {
 def string::len(this): i32 extern("strlen")
 def string::compare(this, str2: string): i32 extern("strcmp")
 def string::compare_n(this, str2: string, n: i32): i32 extern("strncmp")
-def string::copy_from(this, src: string): string extern("strcpy")
-def string::copy_n_from(this, src: string, n: i32): string extern("strncpy")
 def string::copy(this): string extern("strdup")
 def string::concat(this, src: string): string extern("strcat")
 
@@ -104,7 +105,7 @@ def string::eq(this, str2: string): bool => this.compare(str2) == 0
 
 def string::substring(this, start: i32, len: i32): string {
     let new_str = calloc(len + 1, sizeof(char)) as string
-    new_str.copy_n_from(this + start, len)
+    copy_memory(new_str, this + start, len)
     return new_str
 }
 
@@ -117,7 +118,6 @@ def string::strip_trailing_whitespace(this) {
 
 def string::to_i32(this): i32 extern("atoi")
 
-
 def strerror(errno: i32): string extern
 
 def puts(str: string) extern
@@ -127,3 +127,9 @@ def get_environment_variable(name: string): string extern("getenv")
 
 def min(a: i32, b: i32): i32 => if a < b then a else b
 def max(a: i32, b: i32): i32 => if a > b then a else b
+
+/// Internal stuff
+
+def _c_fopen(path: string, mode: string): &File extern("fopen")
+def _c_fread(ptr: untyped_ptr, size: i32, num: i32, file: &File): i32 extern("fread")
+def _c_fwrite(ptr: untyped_ptr, size: i32, num: i32, file: &File): i32 extern("fwrite")

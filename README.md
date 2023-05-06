@@ -17,9 +17,9 @@ $ ./meta/bootstrap.sh   # Generates ./bootstrap/aecor if successful
 $ ./bootstrap/aecor -h
 ```
 
-### Setting up environment [Optional, recommended]
+### Setting up environment [recommended]
 
-In order to use `aecor` from outside the repository root, it is recommended to add the following to your `.bashrc`
+In order to use `aecor` compiler from a folder that is not repository root, it is recommended to add the following to your `.bashrc`
 (or other way of setting up envionment in your shell)
 
 ```bash
@@ -36,13 +36,13 @@ By default, the compiler will generate C code and also compile it, but this can 
 
 ```bash
 # generates ./build/out and ./build/out.c
-$ ./bootstrap/aecor /path/to/file.ae
+$ aecor /path/to/file.ae
 
 # generates ./build/out and ./build/temp.c
-$ ./bootstrap/aecor /path/to/file.ae -o ./build/out -c /build/temp.c
+$ aecor /path/to/file.ae -o ./build/out -c /build/temp.c
 
 # generates only ./temp.c
-$ ./bootstrap/aecor /path/to/file.ae -n -c ./temp.c
+$ aecor /path/to/file.ae -n -c ./temp.c
 ```
 
 ### Running tests
@@ -70,7 +70,7 @@ If you wish to develop on the compiler, here is my workflow, which may be helpfu
 ```bash
 $ ./meta/bootstrap.sh
 # > Add feature to compiler source code
-$ ./bootstrap/aecor compiler/main.ae -o build/aecor
+$ aecor compiler/main.ae -o build/aecor
 # > Add a test for the new feature
 $ python3 meta/test.py -c ./build/aecor # make sure it all passes!
 ```

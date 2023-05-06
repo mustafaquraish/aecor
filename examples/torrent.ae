@@ -1,0 +1,369 @@
+use "lib/vector.ae"
+use "lib/map.ae"
+use "lib/bencode.ae"
+use "lib/hash/sha1.ae"
+use "lib/bufferio.ae"
+use "lib/socket.ae"
+
+def get_info_hash(data: string, info: &Value): Buffer {
+    let span = info.span
+    let start = data + span.start.index
+    let len = span.end.index - span.start.index
+    let buffer = Buffer::from_sized_string(start, len)
+    return SHA1::hash(&buffer)
+}
+
+def fdopen(fd: i32, mode: string): &File extern
+def getline(lineptr: &string, n: &u64, stream: &File): i32 extern
+
+struct TrackerState {
+    transaction_id: i32
+    connection_id: i64
+
+    chosen_peer: string
+    chosen_port: i32
+}
+
+def read_peer_message(peer: &Socket) {
+    let response = Buffer::make()
+    defer response.free()
+
+    let n = peer.read_exactly(&response, 4)
+    let io = BufferIO::make(&response)
+    let len = io.read_i32_be()
+
+    if len == 0 {
+        println(`[+] Got a keep-alive message`)
+        send_peer_message("keep-alive", peer, null)
+        return
+    }
+
+    n = peer.read_exactly(&response, len)
+    match response.data[0] {
+        0 => print("[+] Got a choke message")
+        1 => print("[+] Got an unchoke message")
+        2 => print("[+] Got an interested message")
+        3 => print("[+] Got a not interested message")
+        4 => print("[+] Got a have message")
+        5 => print("[+] Got a bitfield message")
+        6 => print("[+] Got a request message")
+        7 => print("[+] Got a piece message")
+        8 => print("[+] Got a cancel message")
+        9 => print("[+] Got a port message")
+        else => print("[+] Got an unknown message")
+    }
+    print(": "); response.hex_dump()
+}
+
+def send_peer_message(dbg: string, peer: &Socket, payload: &Buffer) {
+    let msg = Buffer::make()
+    defer msg.free()
+
+    let len = if payload? then payload.size + 1 else 1
+    let msg_id = 0u8
+
+    match dbg {
+        "keep-alive" => len = 0
+        "choke" => msg_id = 0
+        "unchoke" => msg_id = 1
+        "interested" => msg_id = 2
+        "not interested" => msg_id = 3
+        "have" => msg_id = 4
+        "bitfield" => msg_id = 5
+        "request" => msg_id = 6
+        "piece" => msg_id = 7
+        "cancel" => msg_id = 8
+        "port" => msg_id = 9
+        else => panic(`[+] Invalid message type: {dbg}`)
+    }
+
+    let io = BufferIO::make(&msg)
+    io.write_i32_be(len)
+    if len > 0 {
+        io.write_u8(msg_id)
+    }
+    if payload? {
+        io.write_bytes(payload.data, payload.size)
+    }
+
+    print(`Sending {dbg} message: `); msg.hex_dump()
+    peer.write(&msg)
+}
+
+def main(argc: i32, argv: &string) {
+    if argc < 2 {
+        println(`Usage: {argv[0]} <file>`)
+        exit(1)
+    }
+
+    let file = File::open(argv[1], "r")
+    let data = file.slurp()
+
+    let metadata = Bencode::parse(data)
+    let metadata_info = metadata.get("info")
+    let info_hash = get_info_hash(data, metadata_info)
+
+    println(`meta: {metadata.dbg()}`)
+
+    let announce = metadata.get("announce").as_str()
+    let announce_str = announce.new_str()
+    let port = -1
+
+    for let i = announce.size - 1; i >= 0; i -= 1 {
+        if announce_str[i] == ':' {
+            port = (announce_str + i + 1).to_i32()
+            announce_str[i] = '\0'
+            break
+        }
+    }
+
+    let host = null as string
+    // Ignore the udp:// at the front if it exists
+    for let i = 0; i < announce.size - 1; i += 1 {
+        if announce_str[i] == '/' and announce_str[i + 1] == '/' {
+            host = announce_str + i + 2
+            break
+        }
+    }
+
+    if port < 0 or not host? {
+        println(`Invalid announce URL: {announce.str()}`)
+        exit(1)
+    }
+
+    println(`host: {host}, port: {port}`)
+
+    let state: TrackerState
+    state.transaction_id = 69
+
+    let response = Buffer::make()
+    let socket = Socket::connect(host, port, SocketMode::UDP)
+
+    { // Connect
+        let msg = Buffer::make()
+        defer msg.free()
+
+        let io = BufferIO::make(&msg)
+        io.write_i64_be(0x41727101980)
+        io.write_i32_be(0)
+        io.write_i32_be(state.transaction_id)
+
+        print("Sent message: "); msg.hex_dump();
+
+        socket.write(&msg)
+    }
+
+    { // Connection response
+        socket.read_exactly(&response, 16)
+
+        let io = BufferIO::make(&response)
+        let action = io.read_i32_be()
+        let transaction_id = io.read_i32_be()
+        let connection_id = io.read_i64_be()
+
+        println("-----------------------------------------------------------")
+        println(`action: {action}, trans_id: {transaction_id}, conn_id: {connection_id:llx}`)
+        println("-----------------------------------------------------------")
+
+        if action != 0 and transaction_id != state.transaction_id {
+            println(`[+] Invalid response from tracker`)
+            exit(1)
+        }
+
+        state.connection_id = connection_id
+    }
+
+    { // Announcing
+        let msg = Buffer::make()
+        defer msg.free()
+
+        // get left from metadata info
+        let left = metadata_info.get("length").as_num()
+
+        let io = BufferIO::make(&msg)
+        io.write_i64_be(state.connection_id)
+        io.write_i32_be(1)
+        io.write_i32_be(state.transaction_id)
+        io.write_bytes(info_hash.data, info_hash.size)
+        io.write_bytes("01234567890123456789", 20)
+        io.write_i64_be(0)     // Downloaded
+        io.write_i64_be(left)  // Left
+        io.write_i64_be(0)     // Uploaded
+        io.write_i32_be(0)     // Event
+        io.write_u32_be(0)     // IP address (0 = default)
+        io.write_u32_be(69)    // Key
+        io.write_u32_be(-1)    // Number of peers wanted (-1 = default)
+        io.write_u16_be(6881)  // Port
+        io.write_u16_be(0)     // Extensions
+
+        print("Sent message: "); msg.hex_dump();
+        socket.write(&msg)
+    }
+
+    println(">>>")
+
+    { // Response to announcing
+        let header_size = 20
+        let n = socket.read(&response, 1024)
+        println(">>>")
+        let num_peers = (n - header_size) / 6
+
+
+        println(`Read {n} bytes`)
+        let io = BufferIO::make(&response)
+        let action = io.read_i32_be()
+        let transaction_id = io.read_i32_be()
+        let interval = io.read_i32_be()
+        let leechers = io.read_i32_be()
+        let seeders = io.read_i32_be()
+
+        println("-----------------------------------------------------------")
+        println(`action = {action}, trans_id={transaction_id}, interval={interval}`)
+        println(`leechers={leechers}, seeders={seeders}`)
+        println("-----------------------------------------------------------")
+
+        println(`Peers: {num_peers}`)
+        for let i = 0; i < num_peers; i += 1 {
+            let ip: [u8; 4]
+            io.read_bytes(&ip, 4)
+            let port = io.read_u16_be()
+
+            if (i == 5) {
+                state.chosen_peer = `{ip[0]}.{ip[1]}.{ip[2]}.{ip[3]}`
+                state.chosen_port = port as u32 as i32
+            }
+
+            println(` - {ip[0]}.{ip[1]}.{ip[2]}.{ip[3]}:{port}`)
+        }
+    }
+
+    { // Scraping
+        let msg = Buffer::make()
+        defer msg.free()
+
+        let io = BufferIO::make(&msg)
+        io.write_i64_be(state.connection_id)
+        io.write_i32_be(2)
+        io.write_i32_be(state.transaction_id)
+        io.write_bytes(info_hash.data, info_hash.size)
+
+        print("Sent message: "); msg.hex_dump();
+        socket.write(&msg)
+    }
+
+    { // Response to scraping
+        let n = socket.read(&response, 1024)
+        println(`Read {n} bytes: {strerror(errno)}`)
+        let header_size = 8
+        let num_entries = (n - header_size) / 12
+
+        let io = BufferIO::make(&response)
+        let action = io.read_i32_be()
+        let transaction_id = io.read_i32_be()
+
+        println("-----------------------------------------------------------")
+        println(`action: {action}, trans_id: {transaction_id}`)
+        println("-----------------------------------------------------------")
+
+        println(`Scraping: {num_entries}`)
+        for let i = 0; i < num_entries; i += 1 {
+            let complete = io.read_i32_be()
+            let downloaded = io.read_i32_be()
+            let incomplete = io.read_i32_be()
+            println(` - complete: {complete}, downloaded: {downloaded}, incomplete: {incomplete}`)
+        }
+    }
+
+    if not state.chosen_peer? {
+        println(`[+] No peers found`)
+        exit(1)
+    }
+
+    println("-----------------------------------------------------------")
+    println(`Connecting to {state.chosen_peer}:{state.chosen_port}`)
+
+    let peer = Socket::connect(state.chosen_peer, state.chosen_port, SocketMode::TCP)
+
+    { // Handshake
+        let msg = Buffer::make()
+        defer msg.free()
+
+        let io = BufferIO::make(&msg)
+        io.write_u8(19)
+        io.write_bytes("BitTorrent protocol", 19)
+
+        // 8 bytes reserved
+        io.write_u32_be(0) // reserved
+        io.write_u32_be(0) // reserved
+
+        io.write_bytes(info_hash.data, info_hash.size)
+        io.write_bytes("01234567890123456789", 20)
+
+        print("Sent message: "); msg.hex_dump()
+        peer.write(&msg)
+    }
+
+    { // Reading handshake response
+        peer.read_exactly(&response, 1)
+        let len = response.data[0] as u32 as i32
+        println(`pstrlen = {len}`)
+
+        // Read name
+        peer.read_exactly(&response, len)
+
+        // Read reserved
+        peer.read_exactly(&response, 8)
+
+        // Read info_hash
+        peer.read_exactly(&response, 20)
+        print("Got info_hash: "); response.hex_dump()
+        print("known info_hash: "); info_hash.hex_dump()
+
+        // Peer id
+        peer.read_exactly(&response, 20)
+        print("Got Handshake response: "); response.hex_dump()
+    }
+
+    println("-----------------------------------------------------------")
+
+    send_peer_message("unchoke", &peer, null)
+    send_peer_message("interested", &peer, null)
+    read_peer_message(&peer)
+
+    send_peer_message("unchoke", &peer, null)
+    send_peer_message("interested", &peer, null)
+
+    { // Request a piece
+        let msg = Buffer::make()
+        defer msg.free()
+
+        let io = BufferIO::make(&msg)
+        io.write_i32_be(0) // index
+        io.write_i32_be(0) // begin
+        io.write_i32_be(123) // length
+
+        for let i = 0; i < 10; i += 1 {
+            send_peer_message("request", &peer, &msg)
+        }
+    }
+
+    while true {
+        read_peer_message(&peer)
+    }
+
+
+    // // get some messages
+    // while true {
+
+    // }
+
+
+    // for let i = 0; i < 20; i = i + 1 {
+    //     print(`{info_hash.data[i]:02x}`)
+    // }
+
+    // let hostname = valeu
+    // let port = 42069
+
+    // let socket = Socket::connect(hostname, port)
+}

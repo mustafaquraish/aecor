@@ -5,14 +5,14 @@ def main() {
         let file = File::open("test.txt", "w")
         defer file.close()
 
-        fwrite("Hello, world!" , 1, 13, file)
+        file.write("Hello, world!" , 13)
     }
     {
         let file = File::open("test.txt", "r")
         defer file.close()
 
         let mem = malloc(20)
-        fread(mem, 1, 13, file)
+        file.read(mem, 13)
         println("%s", mem as string)
     }
 }

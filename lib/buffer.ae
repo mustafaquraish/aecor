@@ -24,11 +24,32 @@ def Buffer::from_string(s: string): Buffer {
     )
 }
 
+def Buffer::from_sized_string(s: string, size: i32): Buffer {
+    return Buffer(
+        data: s as &u8,
+        size: size as i32,
+        capacity: s.len(),
+    )
+}
+
 def Buffer::resize_if_necessary(&this, new_size: i32) {
     if new_size >= .capacity {
         let new_capacity = max(.capacity * 2, new_size)
         .data = realloc(.data, new_capacity) as &u8
+        if .data == null {
+            println("Out of memory!")
+            exit(1)
+        }
     }
+}
+
+def Buffer::hex_dump(&this) {
+    print("(%d bytes): ", .size)
+    for let i = 0; i < .size; i += 1 {
+        if (i % 4 == 0 and i > 0) print("_")
+        print("%02x", .data[i])
+    }
+    println("")
 }
 
 def Buffer::putb(&this, buf: &Buffer) {

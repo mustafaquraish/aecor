@@ -78,7 +78,6 @@ def JSONParser::parse_value(&this): &Value => match .token().type {
     }
     StringLiteral => {
         let json = Value::new(ValueType::String)
-        // FIXME: get sized string
         json.u.as_str = Buffer::from_string(.consume(TokenType::StringLiteral).text)
         yield json
     }
@@ -138,7 +137,7 @@ def JSON::serialize_into(val: &Value, sb: &Buffer) {
                         sb.putc(c)
                     }
                 } else {
-                    sb.putsf(`\\u{buf.data[i]:02x}`)
+                    sb.putsf(`\\x{buf.data[i]:02x}`)
                 }
             }
             sb.puts("\"")

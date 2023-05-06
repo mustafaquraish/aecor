@@ -216,10 +216,8 @@ def draw(screen: &u8, pitch: i32) {
     }
 }
 
-def memset(ptr: untyped_ptr, val: u8, size: i32) extern
-
 def Image::clear(&this) {
-    memset(.data, 0 as u8, .width * .height * sizeof(Vec))
+    set_memory(.data, 0, .width * .height * sizeof(Vec))
 }
 
 def Vec::rotateX(&this, angle: f32): Vec {
@@ -266,7 +264,7 @@ def main() {
     SDL::init(SDL_INIT_EVERYTHING)
     SDL::create_window_renderer(WIDTH, HEIGHT, 0, &window, &renderer)
     TTF::init()
-    let font = TTFFont::load("font.ttf", 24)
+    let font = TTFFont::load("lib/daecor/assets/font.ttf", 24)
 
     renderer.set_draw_color(0, 0, 0, 255)
     renderer.clear()

@@ -767,6 +767,8 @@ FILE *File__open(char *path, char *mode);
 bool File__exists(char *path);
 i32 File__size(FILE *this);
 char *File__slurp(FILE *this);
+i32 File__read(FILE *this, void *buf, i32 size);
+i32 File__write(FILE *this, void *buf, i32 size);
 void File__puts(FILE *this, char *str);
 __attribute__((noreturn)) void panic(char *msg);
 bool string__starts_with(char *this, char *prefix);
@@ -957,7 +959,9 @@ void TypeChecker__check_all_structs(TypeChecker *this, Program *program);
 void TypeChecker__check_program(TypeChecker *this, Program *program);
 Buffer Buffer__make(void);
 Buffer Buffer__from_string(char *s);
+Buffer Buffer__from_sized_string(char *s, i32 size);
 void Buffer__resize_if_necessary(Buffer *this, i32 new_size);
+void Buffer__hex_dump(Buffer *this);
 void Buffer__putb(Buffer *this, Buffer *buf);
 void Buffer__putbf(Buffer *this, Buffer *buf);
 void Buffer__puts(Buffer *this, char *s);
@@ -1046,6 +1050,14 @@ char *File__slurp(FILE *this) {
   return ((char *)buf);
 }
 
+i32 File__read(FILE *this, void *buf, i32 size) {
+  return fread(buf, 1, size, this);
+}
+
+i32 File__write(FILE *this, void *buf, i32 size) {
+  return fwrite(buf, 1, size, this);
+}
+
 void File__puts(FILE *this, char *str) {
   fwrite(str, 1, strlen(str), this);
 }
@@ -1069,7 +1081,7 @@ bool string__eq(char *this, char *str2) {
 
 char *string__substring(char *this, i32 start, i32 len) {
   char *new_str = ((char *)calloc((len + 1), sizeof(char)));
-  strncpy(new_str, (this + start), len);
+  memcpy(new_str, (this + start), len);
   return new_str;
 }
 
@@ -1779,7 +1791,6 @@ void Lexer__lex_char_literal(Lexer *this) {
   } 
   i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
-  this->loc.col += (len + 2);
   Lexer__inc(this);
   Lexer__push(this, Token__new(TokenType__CharLiteral, (Span){start_loc, this->loc}, text));
 }
@@ -1797,7 +1808,6 @@ void Lexer__lex_string_literal(Lexer *this) {
   } 
   i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
-  this->loc.col += (len + 2);
   Lexer__inc(this);
   if ((this->i >= this->source_len)) {
     Vector__push(this->errors, Error__new((Span){this->loc, this->loc}, "Unterminated string literal"));
@@ -1831,7 +1841,6 @@ Token *Lexer__lex_int_literal_different_base(Lexer *this) {
   }
   i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
-  this->loc.col += len;
   return Token__new(TokenType__IntLiteral, (Span){start_loc, this->loc}, text);
 }
 
@@ -1863,7 +1872,6 @@ Token *Lexer__lex_numeric_literal_helper(Lexer *this) {
   } 
   i32 len = (this->i - start);
   char *text = string__substring(this->source, start, len);
-  this->loc.col += len;
   return Token__new(token_type, (Span){start_loc, this->loc}, text);
 }
 
@@ -1878,7 +1886,6 @@ void Lexer__lex_numeric_literal(Lexer *this) {
     } 
     i32 len = (this->i - start);
     char *suffix = string__substring(this->source, start, len);
-    this->loc.col += len;
     token->suffix = Token__from_ident(suffix, (Span){start_loc, this->loc});
   } 
   Lexer__push(this, token);
@@ -4740,6 +4747,9 @@ void TypeChecker__check_match(TypeChecker *this, AST *node, bool is_expr, Type *
   for (i32 i = 0; (i < cases->size); i += 1) {
     MatchCase *_case = ((MatchCase *)Vector__at(cases, i));
     Type *cond_type = TypeChecker__check_expression(this, _case->cond, expr_type);
+    if ((!((bool)cond_type))) 
+    continue;
+    
     if ((!Type__eq(cond_type, expr_type))) {
       TypeChecker__error(this, Error__new_hint(cond_type->span, "Condition does not match expression type", node->u.match_stmt.expr->span, format_string("Match expression is of type '%s'", Type__str(cond_type))));
     } 
@@ -4915,7 +4925,9 @@ void TypeChecker__check_statement(TypeChecker *this, AST *node) {
       }  else {
         Type *ret_type = TypeChecker__check_expression(this, node->u.unary, this->cur_func->return_type);
         if ((((bool)ret_type) && this->cur_func->return_type->base == BaseType__Void)) {
-          TypeChecker__error(this, Error__new_hint(node->u.unary->span, format_string("Cannot return '%s' in void function", Type__str(ret_type)), this->cur_func->span, "This function does not return a value"));
+          if ((ret_type->base != BaseType__Void)) {
+            TypeChecker__error(this, Error__new_hint(node->u.unary->span, format_string("Cannot return '%s' in void function", Type__str(ret_type)), this->cur_func->span, "This function does not return a value"));
+          } 
         } 
         if ((((bool)ret_type) && (!Type__eq(ret_type, this->cur_func->return_type)))) {
           TypeChecker__error(this, Error__new_hint(node->u.unary->span, format_string("Return type '%s' is incorrect", Type__str(ret_type)), this->cur_func->return_type->span, format_string("This function returns '%s'", Type__str(this->cur_func->return_type))));
@@ -5160,11 +5172,30 @@ Buffer Buffer__from_string(char *s) {
   return (Buffer){.data = ((u8 *)s), .size = strlen(s), .capacity = strlen(s)};
 }
 
+Buffer Buffer__from_sized_string(char *s, i32 size) {
+  return (Buffer){.data = ((u8 *)s), .size = ((i32)size), .capacity = strlen(s)};
+}
+
 void Buffer__resize_if_necessary(Buffer *this, i32 new_size) {
   if ((new_size >= this->capacity)) {
     i32 new_capacity = max((this->capacity * 2), new_size);
     this->data = ((u8 *)realloc(this->data, new_capacity));
+    if (this->data == NULL) {
+      printf("Out of memory!""\n");
+      exit(1);
+    } 
   } 
+}
+
+void Buffer__hex_dump(Buffer *this) {
+  printf("(%d bytes): ", this->size);
+  for (i32 i = 0; (i < this->size); i += 1) {
+    if (((i % 4) == 0 && (i > 0))) 
+    printf("_");
+    
+    printf("%02x", this->data[i]);
+  } 
+  printf("""\n");
 }
 
 void Buffer__putb(Buffer *this, Buffer *buf) {
