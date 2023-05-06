@@ -965,6 +965,7 @@ def TypeChecker::check_match(&this, node: &AST, is_expr: bool, hint: &Type) {
     for let i = 0; i < cases.size; i += 1 {
         let _case = cases.at(i) as &MatchCase
         let cond_type = .check_expression(_case.cond, hint: expr_type)
+        if not cond_type? then continue
         if not cond_type.eq(expr_type) {
             .error(Error::new_hint(
                 cond_type.span, "Condition does not match expression type",
@@ -1138,10 +1139,13 @@ def TypeChecker::check_statement(&this, node: &AST) {
             } else {
                 let ret_type = .check_expression(node.u.unary, hint: .cur_func.return_type)
                 if ret_type? and .cur_func.return_type.base == BaseType::Void {
-                    .error(Error::new_hint(
-                        node.u.unary.span, `Cannot return '{ret_type.str()}' in void function`,
-                        .cur_func.span, "This function does not return a value"
-                    ))
+                    // Allow using arrow syntax for one-line void functions
+                    if ret_type.base != BaseType::Void {
+                        .error(Error::new_hint(
+                            node.u.unary.span, `Cannot return '{ret_type.str()}' in void function`,
+                            .cur_func.span, "This function does not return a value"
+                        ))
+                    }
                 }
                 if ret_type? and not ret_type.eq(.cur_func.return_type) {
                     .error(Error::new_hint(
