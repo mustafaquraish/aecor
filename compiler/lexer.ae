@@ -85,7 +85,6 @@ def Lexer::lex_char_literal(&this) {
     let len = .i - start
     let text = .source.substring(start, len)
 
-    .loc.col += len + 2
     .inc()
     .push(Token::new(TokenType::CharLiteral, Span(start_loc, .loc), text))
 }
@@ -104,7 +103,6 @@ def Lexer::lex_string_literal(&this) {
 
     let len = .i - start
     let text = .source.substring(start, len)
-    .loc.col += len + 2
     .inc()
 
     if .i >= .source_len {
@@ -141,7 +139,6 @@ def Lexer::lex_int_literal_different_base(&this): &Token {
     }
     let len = .i - start
     let text = .source.substring(start, len)
-    .loc.col += len
     return Token::new(TokenType::IntLiteral, Span(start_loc, .loc), text)
 }
 
@@ -174,7 +171,6 @@ def Lexer::lex_numeric_literal_helper(&this): &Token {
     let len = .i - start
     let text = .source.substring(start, len)
 
-    .loc.col += len
     return Token::new(token_type, Span(start_loc, .loc), text)
 }
 
@@ -191,7 +187,6 @@ def Lexer::lex_numeric_literal(&this) {
         }
         let len = .i - start
         let suffix = .source.substring(start, len)
-        .loc.col += len
         token.suffix = Token::from_ident(suffix, Span(start_loc, .loc))
     }
 
