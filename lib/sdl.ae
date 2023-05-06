@@ -1,7 +1,8 @@
 @compiler c_include "SDL2/SDL.h"
 @compiler c_include "SDL2/SDL_image.h"
+@compiler c_include "SDL2/SDL_mixer.h"
 @compiler c_include "SDL2/SDL_ttf.h"
-@compiler c_flag "-lSDL2 -lSDL2_image -l SDL2_ttf"
+@compiler c_flag "-lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer"
 
 struct SDLWindow extern("SDL_Window")
 struct SDLRenderer extern("SDL_Renderer")
@@ -87,6 +88,7 @@ struct SDLEvent extern("SDL_Event") {
 const SDL_INIT_EVERYTHING: i32 extern
 const SDL_PIXELFORMAT_ABGR8888: i32 extern
 const SDL_TEXTUREACCESS_STREAMING: i32 extern
+const SDL_MIX_MAXVOLUME: i32 extern
 
 // Just a namespace
 struct SDL {}
@@ -133,3 +135,29 @@ struct TTF {}
 
 def TTF::init(): i32 extern("TTF_Init")
 def TTF::get_error(): string extern("TTF_GetError")
+
+// Sound BS
+
+struct MIX {}
+
+def MIX::open_audio(frequency: i32, format: u16, channels: i32, chunksize: i32): i32 extern("Mix_OpenAudio")
+const MIX_DEFAULT_FORMAT: u16 extern
+
+struct MixChunk extern("Mix_Chunk")
+struct MixMusic extern("Mix_Music")
+
+def MIX::load_music(path: string): &MixMusic extern("Mix_LoadMUS")
+def MIX::load_wav(path: string): &MixChunk extern("Mix_LoadWAV")
+def MIX::play_music(music: &MixMusic, loops: i32): i32 extern("Mix_PlayMusic")
+def MIX::play_channel(channel: i32, chunk: &MixChunk, loops: i32): i32 extern("Mix_PlayChannel")
+def MIX::allocate_channels(num: i32): i32 extern("Mix_AllocateChannels")
+
+def MIX::pause(channel: i32) extern("Mix_Pause")
+def MIX::resume(channel: i32) extern("Mix_Resume")
+
+def MIX::free_chunk(chunk: &MixChunk) extern("Mix_FreeChunk")
+def MIX::free_music(music: &MixMusic) extern("Mix_FreeMusic")
+def MIX::quit() extern("Mix_Quit")
+
+def MIX::get_error(): string extern("Mix_GetError")
+def MIX::volume(channel: i32, volume: i32) extern("Mix_Volume")
