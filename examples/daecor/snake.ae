@@ -4,11 +4,9 @@ use "lib/daecor/all.ae"
 
 enum Square { SU, SR, SD, SL, SF, A, E }
 
-def Square::is_snake(this): bool {
-    return match this {
-        SU | SR | SD | SL | SF => true
-        else => false
-    }
+def Square::is_snake(this): bool => match this {
+    SU | SR | SD | SL | SF => true
+    else => false
 }
 
 struct Board {
@@ -28,15 +26,15 @@ def Board::draw(&this) {
             match .grid[x][y] {
                 SU | SR | SD | SL | SF => {
                     set_color(Color::Green())
-                    fill_square(Vec2i(x, y).multi(.scale), .scale)
+                    fill_square(Vec2i(x, y).multi(.scale).addi(.scale / 2), .scale)
                 }
                 A => {
                     set_color(Color::Red())
-                    fill_square(Vec2i(x, y).multi(.scale), .scale)
+                    fill_square(Vec2i(x, y).multi(.scale).addi(.scale / 2), .scale)
                 }
                 else => {
                     set_color(Color::Grey())
-                    draw_square(Vec2i(x, y).multi(.scale), .scale)
+                    draw_square(Vec2i(x, y).multi(.scale).addi(.scale / 2), .scale)
                 }
 			}
 		}
@@ -74,9 +72,11 @@ def Board::lose(&this) exits {
 def Board::move_snake(&this, snake: Snake): Vec2i {
     let ret = snake.head.shift(snake.dir, 1)
 
-    if (not in_bounds(ret.x, 0, .size.x) or
-	        not in_bounds(ret.y, 0, .size.y) or
-	        .grid[ret.x][ret.y].is_snake()) {
+    let x = (ret.x + .size.x) % .size.x
+    let y = (ret.y + .size.y) % .size.y
+    ret.x = x
+    ret.y = y
+    if (.grid[ret.x][ret.y].is_snake()) {
         .lose()
     }
 	let is_apple = .grid[ret.x][ret.y] == Square::A
@@ -86,6 +86,10 @@ def Board::move_snake(&this, snake: Snake): Vec2i {
 		while true {
 			pos = next
 			next = .next_snake(pos)
+            let x = (next.x + .size.x) % .size.x
+            let y = (next.y + .size.y) % .size.y
+            next.x = x
+            next.y = y
             if .grid[next.x][next.y] == Square::SF {
                 break
             }
@@ -124,7 +128,7 @@ def get_dir(cur: Direction, dir_keys: &bool): Direction {
 def main() {
 	init()
     let board: Board
-    board.scale = 10
+    board.scale = 30
     board.size = get_window_size().divi(board.scale)
     board.grid = calloc(sizeof(&Square), board.size.x)
 
@@ -153,7 +157,7 @@ def main() {
 
 		read_dir_keys(dir_keys)
         frameCount += 1
-		if frameCount > gfx.FPS / 8 {
+		if frameCount > gfx.FPS / 20 {
 			frameCount = 0
 			snake.dir = get_dir(snake.dir, dir_keys)
 			snake.head = board.move_snake(snake)
