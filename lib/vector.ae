@@ -51,6 +51,16 @@ def Vector::pop(&this): untyped_ptr {
     return .data[.size]
 }
 
+def Vector::pop_at(&this, i: i32): untyped_ptr {
+    if (i < 0 or i >= .size) then panic("pop_at out of bounds in vector")
+    let val = .data[i]
+    for let j = i; j < .size - 1; j += 1 {
+        .data[j] = .data[j + 1]
+    }
+    .size -= 1
+    return val
+}
+
 def Vector::back(&this): untyped_ptr {
     if .size == 0 then panic("back on empty vector")
     return .data[.size - 1]
@@ -63,7 +73,7 @@ def Vector::at(&this, i: i32): untyped_ptr {
     return .data[i]
 }
 
-def Vector::empty(&this): bool => .size == 0
+def Vector::is_empty(&this): bool => .size == 0
 
 def Vector::free(&this) {
     free(.data)

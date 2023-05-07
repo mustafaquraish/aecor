@@ -157,7 +157,7 @@ def main() {
 
 		read_dir_keys(dir_keys)
         frameCount += 1
-		if frameCount > gfx.FPS / 20 {
+		if frameCount > gfx.FPS / 8 {
 			frameCount = 0
 			snake.dir = get_dir(snake.dir, dir_keys)
 			snake.head = board.move_snake(snake)

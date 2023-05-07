@@ -1,6 +1,5 @@
 // Do not include this file directly, use lib/daecor/all.ae
-
-let font_file_path = ""
+let font_file_path = null
 
 def draw_text(text: string, pos: Vec2i): Rect {
     let rect = Rect(pos.x, pos.y, 0, 0)
@@ -60,27 +59,27 @@ def text_init() {
     if TTF::init() < 0 {
         panic(`Could not initialize TTF: {TTF::get_error()}`)
     }
-
-    font_file_path = get_environment_variable("DAECOR_FONT")
-    if not font_file_path? or not File::exists(font_file_path) {
-        font_file_path = "lib/daecor/assets/font.ttf"
-        if not File::exists(font_file_path) {
-            let aecor_root = get_environment_variable("AECOR_ROOT")
-            let found = if not aecor_root? {
-                yield false
-            } else {
-                font_file_path = `{aecor_root}/lib/daecor/assets/font.ttf`
-                yield File::exists(font_file_path)
-            }
-            if not found {
-                println("[-] Error: Could not find font file for Daecor")
-                println("   [-] Hint: Set the AECOR_ROOT environment variable, or")
-                println("   [-] Hint: Set the DAECOR_FONT environment variable to the path of your font file")
-                panic("Exiting...")
+    if not font_file_path? {
+        font_file_path = get_environment_variable("DAECOR_FONT")
+        if not font_file_path? or not File::exists(font_file_path) {
+            font_file_path = "lib/daecor/assets/font.ttf"
+            if not File::exists(font_file_path) {
+                let aecor_root = get_environment_variable("AECOR_ROOT")
+                let found = if not aecor_root? {
+                    yield false
+                } else {
+                    font_file_path = `{aecor_root}/lib/daecor/assets/font.ttf`
+                    yield File::exists(font_file_path)
+                }
+                if not found {
+                    println("[-] Error: Could not find font file for Daecor")
+                    println("   [-] Hint: Set the AECOR_ROOT environment variable, or")
+                    println("   [-] Hint: Set the DAECOR_FONT environment variable to the path of your font file")
+                    panic("Exiting...")
+                }
             }
         }
     }
-
     gfx.font_color = Color::White()
     set_font_size(32)
     register_exit_callback(text_quit)

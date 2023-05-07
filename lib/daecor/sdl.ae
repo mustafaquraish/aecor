@@ -140,6 +140,8 @@ enum BlendMode extern("SDL_BlendMode") {
 }
 
 const SDL_INIT_EVERYTHING: i32 extern
+const SDL_INIT_TIMER: i32 extern
+const SDL_INIT_HAPTIC: i32 extern
 const SDL_PIXELFORMAT_ABGR8888: i32 extern
 const SDL_TEXTUREACCESS_STREAMING: i32 extern
 const SDL_WINDOW_RESIZABLE: i32 extern
