@@ -869,7 +869,7 @@ def CodeGenerator::gen_constants(&this, program: &Program) {
 }
 
 def CodeGenerator::gen_embed_headers(&this, program: &Program) {
-    if not program.c_embed_headers.empty() {
+    if not program.c_embed_headers.is_empty() {
         for let i = 0; i < program.c_embed_headers.size; i += 1 {
             let filename = program.c_embed_headers.at(i) as string
             .out.putsf(`/***************** embed '{filename}' *****************/\n`)
