@@ -772,6 +772,8 @@ i32 File__write(FILE *this, void *buf, i32 size);
 void File__puts(FILE *this, char *str);
 __attribute__((noreturn)) void panic(char *msg);
 bool string__starts_with(char *this, char *prefix);
+bool string__ends_with(char *this, char *suffix);
+void string__remove_last_n(char *this, i32 n);
 bool string__eq(char *this, char *str2);
 char *string__substring(char *this, i32 start, i32 len);
 void string__strip_trailing_whitespace(char *this);
@@ -1073,6 +1075,18 @@ bool string__starts_with(char *this, char *prefix) {
     return false;
   } 
   return strncmp(this, prefix, prefix_len) == 0;
+}
+
+bool string__ends_with(char *this, char *suffix) {
+  i32 suffix_len = strlen(suffix);
+  if ((strlen(this) < suffix_len)) {
+    return false;
+  } 
+  return strncmp(this, suffix, suffix_len) == 0;
+}
+
+void string__remove_last_n(char *this, i32 n) {
+  this[(strlen(this) - n)] = '\0';
 }
 
 bool string__eq(char *this, char *str2) {
@@ -1699,9 +1713,11 @@ Error *Error__new_hint(Span span, char *msg, Span span2, char *hint) {
 }
 
 void display_error_messages(Vector *errors, i32 detail_level) {
-  i32 max_num_errors = 10;
+  char *num_errors_env = getenv("AECOR_NUM_ERRORS");
+  i32 max_num_errors = (((bool)num_errors_env) ? atoi(num_errors_env) : 10);
   i32 num_errors = min(errors->size, max_num_errors);
-  for (i32 i = 0; (i < num_errors); i += 1) {
+  bool first = true;
+  for (i32 i = (num_errors - 1); (i >= 0); i -= 1) {
     Error *err = ((Error *)Vector__at(errors, i));
     switch (detail_level) {
       case 0: {
@@ -1711,9 +1727,10 @@ void display_error_messages(Vector *errors, i32 detail_level) {
         display_message_span(MessageType__Error, err->span1, err->msg1);
       } break;
       case 2: {
-        if ((i > 0)) 
+        if (first) 
         printf("""\n");
         
+        first = false;
         Error__display(err);
       } break;
       default: panic("invalid detail level"); break;

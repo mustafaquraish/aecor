@@ -101,6 +101,18 @@ def string::starts_with(this, prefix: string): bool {
     return .compare_n(prefix, prefix_len) == 0
 }
 
+def string::ends_with(this, suffix: string): bool {
+    let suffix_len = suffix.len()
+    if .len() < suffix_len {
+        return false
+    }
+    return .compare_n(suffix, suffix_len) == 0
+}
+
+def string::remove_last_n(this, n: i32) {
+    this[.len() - n] = '\0'
+}
+
 def string::eq(this, str2: string): bool => this.compare(str2) == 0
 
 def string::substring(this, start: i32, len: i32): string {
