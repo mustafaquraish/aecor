@@ -305,6 +305,9 @@ def present() {
 
 def get_ticks(): i32 extern("SDL_GetTicks")
 def sec_to_ticks(sec: i32): i32 => gfx.TPS * sec
+def sec_to_ticks_f(sec: f32): i32 => (gfx.TPS as f32 * sec) as i32
+def sec_to_frames(sec: i32): i32 => gfx.FPS * sec
+def sec_to_frames_f(sec: f32): i32 => (gfx.FPS as f32 * sec) as i32
 def get_time_in(sec: i32): i32 => gfx.TPS * sec + get_ticks()
 
 def frame_start(): i32 {
@@ -344,10 +347,11 @@ def gfx_quit() {
         if cursor? cursor.destroy()
     }
     SDL::quit()
+    exit(0)
 }
 
 def gfx_init() {
-    if SDL::init(SDL_INIT_EVERYTHING) < 0 {
+    if SDL::init(SDL_INIT_EVERYTHING & ~(SDL_INIT_TIMER | SDL_INIT_HAPTIC)) < 0 {
         println("SDL could not initialize: %s", SDL::get_error())
         exit(0)
     }

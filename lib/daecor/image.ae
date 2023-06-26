@@ -13,6 +13,10 @@ def Image::destroy(&this) {
 
 def Image::load(path: string): &Image {
     let tex = gfx.renderer.load_image(path)
+    if tex==null {
+        println(`Failed to load image: {path}`)
+        exit(1)
+    }
     let w = 0
     let h = 0
     tex.query(null, null, &w, &h)

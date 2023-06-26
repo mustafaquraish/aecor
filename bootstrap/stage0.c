@@ -785,9 +785,10 @@ void Vector__resize(Vector *this, i32 new_capacity);
 void Vector__push(Vector *this, void *val);
 void Vector__push_front(Vector *this, void *val);
 void *Vector__pop(Vector *this);
+void *Vector__pop_at(Vector *this, i32 i);
 void *Vector__back(Vector *this);
 void *Vector__at(Vector *this, i32 i);
-bool Vector__empty(Vector *this);
+bool Vector__is_empty(Vector *this);
 void Vector__free(Vector *this);
 char *Location__str(Location this);
 bool Location__is_before(Location *this, Location other);
@@ -1160,6 +1161,18 @@ void *Vector__pop(Vector *this) {
   return this->data[this->size];
 }
 
+void *Vector__pop_at(Vector *this, i32 i) {
+  if (((i < 0) || (i >= this->size))) 
+  panic("pop_at out of bounds in vector");
+  
+  void *val = this->data[i];
+  for (i32 j = i; (j < (this->size - 1)); j += 1) {
+    this->data[j] = this->data[(j + 1)];
+  } 
+  this->size -= 1;
+  return val;
+}
+
 void *Vector__back(Vector *this) {
   if (this->size == 0) 
   panic("back on empty vector");
@@ -1174,7 +1187,7 @@ void *Vector__at(Vector *this, i32 i) {
   return this->data[i];
 }
 
-bool Vector__empty(Vector *this) {
+bool Vector__is_empty(Vector *this) {
   return this->size == 0;
 }
 
@@ -3584,7 +3597,7 @@ Function *Parser__parse_function(Parser *this) {
     bool found_amp = Parser__consume_if(this, TokenType__Ampersand);
     Token *var_name = Parser__consume(this, TokenType__Identifier);
     Type *type = ((Type *)NULL);
-    if ((Vector__empty(func->params) && is_method)) {
+    if ((Vector__is_empty(func->params) && is_method)) {
       if (string__eq(var_name->text, "this")) {
         type = struct_type;
         if (found_amp) {
@@ -6192,7 +6205,7 @@ void CodeGenerator__gen_constants(CodeGenerator *this, Program *program) {
 }
 
 void CodeGenerator__gen_embed_headers(CodeGenerator *this, Program *program) {
-  if ((!Vector__empty(program->c_embed_headers))) {
+  if ((!Vector__is_empty(program->c_embed_headers))) {
     for (i32 i = 0; (i < program->c_embed_headers->size); i += 1) {
       char *filename = ((char *)Vector__at(program->c_embed_headers, i));
       Buffer__putsf((&this->out), format_string("/***************** embed '%s' *****************/\n", filename));
